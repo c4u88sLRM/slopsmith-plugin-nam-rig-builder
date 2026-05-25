@@ -10,16 +10,30 @@
     window[HOOK_KEY] = true;
 
     const origShowScreen = window.showScreen;
-    window.showScreen = function (id) {
-        origShowScreen(id);
-        if (id === 'plugin-rig_builder') {
-            rbInit();
-        } else if (rbState.listeningTone !== null || rbState._auditionId) {
-            // Leaving NAM Rig Builder: stop any live preview/audition so it
-            // doesn't keep monitoring the input behind another screen.
-            rbStopPreview();
-        }
-    };
+    if (typeof origShowScreen === 'function') {
+        window.showScreen = function (id) {
+            origShowScreen(id);
+            if (id === 'plugin-rig_builder') {
+                rbInit();
+            } else {
+                // Leaving NAM Rig Builder: close any open native VST editor
+                // window (so the next screen's loadPreset can't crash the host
+                // by clearing its slot) and stop any live preview/audition.
+                rbOnLeaveRigBuilder();
+            }
+        };
+    }
+    // The host always emits 'screen:changed' on navigation — even when it calls
+    // its own lexically-scoped showScreen, which would bypass the wrapper above.
+    // Use it as the authoritative "we left Rig Builder" signal so the master
+    // VST editor's native window is reliably closed before the song player
+    // loads a preset (the intermittent "edit master VST → play song → crash").
+    if (window.slopsmith && typeof window.slopsmith.on === 'function') {
+        window.slopsmith.on('screen:changed', (e) => {
+            const id = e && e.detail && e.detail.id;
+            if (id && id !== 'plugin-rig_builder') rbOnLeaveRigBuilder();
+        });
+    }
 })();
 
 // ── Full-chain playback (no bundle edit, survives app updates) ─────────
@@ -170,6 +184,9 @@ function rbRenderStatus() {
 // ── Tabs ────────────────────────────────────────────────────────────
 
 function rbShowTab(name) {
+    // Leaving any view tears down an open inline VST editor first so its
+    // orphaned native window can't crash the host on the next chain load.
+    rbCloseActiveVstEditor();
     rbState.currentTab = name;
     document.querySelectorAll('.rb-tab-panel').forEach(el => el.classList.add('hidden'));
     const panel = document.getElementById(`rb-tab-${name}`);
@@ -490,6 +507,9 @@ function rbSeedBypass(data) {
 }
 
 async function rbLoadSongTones(filename) {
+    // Close any inline VST editor (and its native window) before loading a new
+    // song — otherwise the editor's slot gets cleared underneath it and crashes.
+    await rbCloseActiveVstEditor();
     const el = document.getElementById('rb-song-tones');
     rbState.currentSongFile = filename;
     el.innerHTML = '<p class="text-gray-500">Loading…</p>';
@@ -854,6 +874,97 @@ async function rbTeardownVstEditor(api) {
     try { if (api.clearChain) await api.clearChain(); } catch (_) {}
 }
 
+// Close any inline VST editor's NATIVE window + clear the tracked slot, but
+// WITHOUT clearing the chain (the caller's own clearChain/loadPreset handles
+// that). MUST run before navigating away (tab switch, song load) and before
+// any preview clearChain/loadPreset: leaving the native editor window open
+// while its slot is cleared/replaced crashes the host. This is the
+// "edit a master-chain VST → switch menu / load a song → crash" report.
+async function rbCloseActiveVstEditor() {
+    const slot = rbState._vstEditorSlot;
+    if (slot == null) return;
+    rbState._vstEditorSlot = null;
+    const api = window.slopsmithDesktop && window.slopsmithDesktop.audio;
+    if (api && api.closePluginEditor) {
+        try { await api.closePluginEditor(slot); } catch (_) {}
+    }
+    // Collapse any still-open inline editor panels so a later re-open is clean.
+    document.querySelectorAll(
+        '[id^="rb-master-pre-editor-"],[id^="rb-master-post-editor-"],[id^="rb-tone-vst-editor-"]'
+    ).forEach(el => {
+        if (!el.classList.contains('hidden')) { el.classList.add('hidden'); el.innerHTML = ''; }
+    });
+}
+
+// Called when the user LEAVES the Rig Builder screen (tab/plugin navigation).
+// Closes the open VST editor's native window + clears its engine slot BEFORE
+// the next screen (e.g. the song player) loads a preset — otherwise the player's
+// clearChain/loadPreset tears down the slot under the still-open editor window
+// and crashes the host. This is the "edit master VST → enter a song → crash"
+// report. Idempotent + safe to call when nothing is open.
+let _rbLeaving = false;
+async function rbOnLeaveRigBuilder() {
+    if (_rbLeaving) return;
+    _rbLeaving = true;
+    try {
+        const hadEditor = rbState._vstEditorSlot != null;
+        await rbCloseActiveVstEditor();           // close native window first
+        if (rbState.listeningTone !== null || rbState._auditionId) {
+            await rbStopPreview();                // also clears chain + stops audio
+        } else if (hadEditor) {
+            // The inline editor left its VST loaded in the engine; clear it so
+            // it doesn't linger or get torn down under a half-closed window.
+            const api = window.slopsmithDesktop && window.slopsmithDesktop.audio;
+            if (api && api.clearChain) await api.clearChain().catch(() => {});
+        }
+    } finally {
+        _rbLeaving = false;
+    }
+}
+
+// Capture the engine's OWN opaque VST state blob — the same thing savePreset
+// produces and loadPreset restores. This is the ONLY VST state the engine
+// re-applies during REAL song playback; our {params} JSON dict is editor-only
+// (reapplied via setParameter in the preview, but there is no hook to do that
+// after nam_tone's loadPreset for an actual song). The inline editor loads
+// just this one VST (the chain is cleared first), so the single type-0 stage
+// in savePreset()'s chain is it. Returns a base64 string, or null.
+async function rbCaptureVstOpaqueState(api, expectVstPath) {
+    if (!api || typeof api.savePreset !== 'function') return null;
+    try {
+        const blob = await api.savePreset();
+        if (!blob) return null;
+        const parsed = typeof blob === 'string' ? JSON.parse(blob) : blob;
+        const chain = (parsed && parsed.chain) || [];
+        let stage = chain.find(s => Number(s.type) === 0
+            && (!expectVstPath || !s.path || s.path === expectVstPath));
+        if (!stage) stage = chain.find(s => Number(s.type) === 0);
+        return (stage && typeof stage.state === 'string' && stage.state) || null;
+    } catch (_) { return null; }
+}
+
+// Stamp a piece's _vst_state with BOTH the editor params and the engine's
+// opaque blob, in one envelope: {params:{…}, opaque:"<b64>"}. The backend
+// emits `opaque` as the stage state (so it applies in real playback); `params`
+// stays for the editor sliders + the preview's setParameter fallback. Keeps
+// the last-known opaque if this call didn't capture a fresh one.
+function rbStampVstState(piece, opaque) {
+    if (opaque) piece._vst_opaque = opaque;
+    const env = { params: piece._vst_params || {} };
+    if (piece._vst_opaque) env.opaque = piece._vst_opaque;
+    piece._vst_state = JSON.stringify(env);
+}
+
+// Pull the opaque blob out of a saved {params, opaque} envelope (or null).
+function rbParseVstStateOpaque(state) {
+    if (!state) return null;
+    try {
+        const obj = typeof state === 'string' ? JSON.parse(state) : state;
+        if (obj && typeof obj.opaque === 'string' && obj.opaque) return obj.opaque;
+    } catch (_) { /* legacy / opaque-only — nothing to pull */ }
+    return null;
+}
+
 async function rbToneEditVst(toneIdx, pIdx) {
     const piece = rbState.songTones && rbState.songTones.tones[toneIdx] && rbState.songTones.tones[toneIdx].chain[pIdx];
     if (!piece) return;
@@ -887,6 +998,11 @@ async function rbToneEditVst(toneIdx, pIdx) {
         }
         rbState._vstEditorSlot = slotId;
         piece._vst_slot_id = slotId;
+        // Keep any previously-saved opaque blob so re-saving without a fresh
+        // capture (e.g. just closing) doesn't drop it.
+        piece._vst_opaque = piece._vst_opaque
+            || rbParseVstStateOpaque(piece._vst_state)
+            || rbParseVstStateOpaque(piece.assigned && piece.assigned.vst_state);
         // Re-apply previously captured params if any.
         const saved = piece._vst_params
             || (piece.assigned && piece.assigned.vst_state
@@ -1002,7 +1118,7 @@ async function rbToneSetVstParam(toneIdx, pIdx, paramId, value, valueDisplayEl) 
     // the latest values — not just an explicit Capture state click.
     piece._vst_params = piece._vst_params || {};
     piece._vst_params[paramId] = v;
-    piece._vst_state = JSON.stringify({ params: piece._vst_params });
+    rbStampVstState(piece);   // refresh params (opaque is captured at save time)
     // Debounced auto-save so the user doesn't lose drags after navigating
     // away from the song. 500 ms after the last drag we hit /save_preset.
     rbDebouncedToneSave(toneIdx, pIdx);
@@ -1016,8 +1132,18 @@ function rbDebouncedToneSave(toneIdx, pIdx) {
     const key = `${toneIdx}:${pIdx}`;
     const existing = _rbToneSaveTimers.get(key);
     if (existing) clearTimeout(existing);
-    const timer = setTimeout(() => {
+    const timer = setTimeout(async () => {
         _rbToneSaveTimers.delete(key);
+        // Capture the engine's opaque state right before persisting so the
+        // saved chain restores this VST correctly during real song playback.
+        const piece = rbState.songTones && rbState.songTones.tones[toneIdx]
+            && rbState.songTones.tones[toneIdx].chain[pIdx];
+        if (piece && piece._vst_slot_id != null) {
+            const api = window.slopsmithDesktop && window.slopsmithDesktop.audio;
+            const opaque = await rbCaptureVstOpaqueState(api,
+                piece._vst_path || (piece.assigned && piece.assigned.vst_path));
+            rbStampVstState(piece, opaque);
+        }
         if (rbState.currentSongFile) {
             rbPersistTone(toneIdx, rbState.currentSongFile).catch(() => null);
         }
@@ -1043,8 +1169,12 @@ async function rbToneCaptureVstState(toneIdx, pIdx) {
                 }
             }
         }
-        piece._vst_state = JSON.stringify({ params });
         piece._vst_params = params;
+        // Also grab the engine's opaque state blob — the only thing that
+        // restores this VST's settings during real song playback.
+        const opaque = await rbCaptureVstOpaqueState(api,
+            piece._vst_path || (piece.assigned && piece.assigned.vst_path));
+        rbStampVstState(piece, opaque);
         // Persist through the existing tone-save path.
         if (rbState.currentSongFile) {
             await rbPersistTone(toneIdx, rbState.currentSongFile).catch(() => null);
@@ -1052,7 +1182,9 @@ async function rbToneCaptureVstState(toneIdx, pIdx) {
         if (editor) {
             const status = document.createElement('div');
             status.className = 'text-[10px] text-emerald-300';
-            status.textContent = `✓ Captured ${Object.keys(params).length} param values`;
+            status.textContent = opaque
+                ? `✓ Captured ${Object.keys(params).length} params + full state`
+                : `✓ Captured ${Object.keys(params).length} param values`;
             editor.appendChild(status);
             setTimeout(() => status.remove(), 2500);
         }
@@ -1484,6 +1616,11 @@ async function rbMasterEditVst(role, idx) {
         }
         rbState._vstEditorSlot = slotId;
         piece._vst_slot_id = slotId;
+        // Keep any previously-saved opaque blob so re-saving without a fresh
+        // capture doesn't drop it.
+        piece._vst_opaque = piece._vst_opaque
+            || rbParseVstStateOpaque(piece._vst_state)
+            || rbParseVstStateOpaque(piece.assigned && piece.assigned.vst_state);
         // Re-apply any previously-captured param state.
         const saved = piece._vst_params
             || (piece.assigned && piece.assigned.vst_state
@@ -1602,7 +1739,7 @@ async function rbMasterSetVstParam(role, idx, paramId, value, valueDisplayEl) {
     // carries the latest values without needing an explicit Capture.
     piece._vst_params = piece._vst_params || {};
     piece._vst_params[paramId] = v;
-    piece._vst_state = JSON.stringify({ params: piece._vst_params });
+    rbStampVstState(piece);   // refresh params (opaque is captured at save time)
     // Debounced auto-save (500 ms after last drag) so the user doesn't
     // lose drags after navigating away from the Master tab.
     rbDebouncedMasterSave(role);
@@ -1612,8 +1749,19 @@ const _rbMasterSaveTimers = new Map();
 function rbDebouncedMasterSave(role) {
     const existing = _rbMasterSaveTimers.get(role);
     if (existing) clearTimeout(existing);
-    const timer = setTimeout(() => {
+    const timer = setTimeout(async () => {
         _rbMasterSaveTimers.delete(role);
+        // Capture the opaque state of the master piece being edited (matched
+        // by the live editor slot) before persisting, so it applies in songs.
+        const arr = rbState.master[role] || [];
+        const piece = arr.find(p => p && p._vst_slot_id != null
+            && p._vst_slot_id === rbState._vstEditorSlot);
+        if (piece) {
+            const api = window.slopsmithDesktop && window.slopsmithDesktop.audio;
+            const opaque = await rbCaptureVstOpaqueState(api,
+                piece._vst_path || (piece.assigned && piece.assigned.vst_path));
+            rbStampVstState(piece, opaque);
+        }
         rbPersistMasterChain(role).catch(() => null);
     }, 500);
     _rbMasterSaveTimers.set(role, timer);
@@ -1640,14 +1788,20 @@ async function rbMasterCaptureVstState(role, idx) {
                 }
             }
         }
-        piece._vst_state = JSON.stringify({ params });
         piece._vst_params = params;
+        // Also grab the engine's opaque state blob — the only thing that
+        // restores this VST's settings during real song playback.
+        const opaque = await rbCaptureVstOpaqueState(api,
+            piece._vst_path || (piece.assigned && piece.assigned.vst_path));
+        rbStampVstState(piece, opaque);
         // Persist via the existing save flow so the state survives reload.
         await rbPersistMasterChain(role).catch(() => null);
         if (editor) {
             const status = document.createElement('div');
             status.className = 'text-[10px] text-emerald-300';
-            status.textContent = `✓ Captured ${Object.keys(params).length} param values`;
+            status.textContent = opaque
+                ? `✓ Captured ${Object.keys(params).length} params + full state`
+                : `✓ Captured ${Object.keys(params).length} param values`;
             editor.appendChild(status);
             setTimeout(() => status.remove(), 2500);
         }
@@ -3011,22 +3165,17 @@ async function rbCaptureVstState(toneIdx, pIdx) {
                 }
             }
         }
-        const stateObj = { params };
-        // Best-effort: also stash the opaque savePreset blob as fallback,
-        // for plugins where getParameters didn't return anything useful.
-        if (typeof api?.savePreset === 'function' && Object.keys(params).length === 0) {
-            try {
-                const blob = await api.savePreset();
-                if (blob) stateObj.opaque = typeof blob === 'string' ? blob : JSON.stringify(blob);
-            } catch (_) { /* best-effort */ }
-        }
-        piece._vst_state = JSON.stringify(stateObj);
         piece._vst_params = params;
+        // Capture the engine's per-stage opaque state blob (what loadPreset
+        // restores in real playback) and stamp it alongside the params.
+        const opaque = await rbCaptureVstOpaqueState(api,
+            piece._vst_path || (piece.assigned && piece.assigned.vst_path));
+        rbStampVstState(piece, opaque);
         if (statusEl) {
             const n = Object.keys(params).length;
-            statusEl.textContent = n > 0
-                ? `captured ${n} param values. Click "Use this VST" to persist.`
-                : `captured opaque state (${piece._vst_state.length}b). Click "Use this VST".`;
+            statusEl.textContent = opaque
+                ? `captured ${n} params + full state. Click "Use this VST".`
+                : `captured ${n} param values. Click "Use this VST".`;
         }
     } catch (e) {
         if (statusEl) statusEl.textContent = `capture failed: ${e.message || e}`;
@@ -3180,6 +3329,9 @@ function rbNativeAudio() {
 
 // Stop whatever preview is active (native full-chain or nam_tone fallback).
 async function rbStopPreview() {
+    // Tear down any open VST editor window BEFORE clearChain below — clearing
+    // a slot an editor window still points at crashes the host.
+    await rbCloseActiveVstEditor();
     const mode = rbState._previewMode;
     const wasListening = rbState.listeningTone;
     const wasAudition = rbState._auditionId;
@@ -3916,6 +4068,10 @@ async function rbListenTone(toneIdx, filename) {
         await rbStopPreview();
         if (prev) prev.textContent = '▶ Listen';
     }
+
+    // First-listen path skips rbStopPreview, so close any open VST editor here
+    // too before the clearChain below (avoids the orphaned-window crash).
+    await rbCloseActiveVstEditor();
 
     if (btn) { btn.disabled = true; btn.textContent = '⏳ Loading…'; }
     const presetId = await rbPersistTone(toneIdx, filename);

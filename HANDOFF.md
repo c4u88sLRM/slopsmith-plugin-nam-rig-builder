@@ -762,6 +762,66 @@ without re-seeding the UI flag, so bypass looked off after reload on songs
 with unmapped pieces. `rbSeedBypass(data)` is now called after every `/song`
 fetch (initial load + the auto-download re-fetch).
 
+## Fix: VST editor crash + master/chain VST state in real playback (2026-05-25)
+
+Two Discord/tester bugs in the chain editor's VST flow:
+
+**1. Crash after editing a VST then navigating / loading a song.** Opening the
+inline VST editor calls `api.openPluginEditor(slotId)`, which spawns a NATIVE
+plugin window pointing at an engine slot. Nothing closed that window when the
+user left the Master tab (or loaded a song), so the next `clearChain` /
+`loadPreset` (preview, audition, real playback) cleared the slot out from under
+the still-open window → host crash. Fix: `rbCloseActiveVstEditor()` (screen.js)
+closes the native window + drops the tracked slot, and is called at the top of
+`rbShowTab`, `rbLoadSongTones`, `rbStopPreview`, and `rbListenTone` (before any
+`clearChain`). `rbTeardownVstEditor` already closed-then-cleared on re-edit;
+this extends that discipline to *navigation*.
+
+> **Follow-up (same day):** the crash still fired intermittently when editing a
+> master VST and then leaving the plugin to PLAY a song. The in-plugin
+> teardowns don't cover leaving the rig_builder screen entirely — and the
+> existing `showScreen` wrapper only stopped a running *preview* on leave, not
+> an open VST editor with no preview. Fix: `rbOnLeaveRigBuilder()` closes the
+> editor's native window + clears its slot whenever we leave `plugin-rig_builder`,
+> wired into BOTH the `showScreen` wrapper's leave branch AND the host's
+> authoritative `window.slopsmith.on('screen:changed', …)` event (the latter
+> fires even when the host calls its own lexical `showScreen`, bypassing the
+> wrapper). The song player's `loadPreset` then runs after the editor window is
+> already gone.
+
+**2. Master/chain VST played at plugin defaults in a real song.** The engine's
+`loadPreset` restores a VST's settings ONLY from its **opaque state blob** —
+the exact value `savePreset()` produces and `loadPreset()` round-trips (also
+what `setSlotState` consumes; verified in the bundle's `audio_engine` save/load
+path + the `slopsmith_audio.node` strings: `setSlotState`, `VST3PluginState`,
+Steinberg `PresetFile`, NO `pluginState` key). rig_builder instead stored
+captured params as `{"params":{…}}` JSON and emitted them as the stage `state`
+via `_state_b64({pluginPath,…,pluginState})` — which the VST processor can't
+parse as a state chunk, so it came up at defaults (e.g. a master_post comp with
+no makeup gain → song "too quiet / comp not applied"). The preview "▶ Listen"
+hid this because it re-applies params via `setParameter` after `loadPreset`
+(`rbReapplyVstParamsToChain`) — but there is NO such hook after nam_tone's
+`loadPreset` for an actual song.
+
+Fix: capture the engine's opaque blob (`api.savePreset()` → the lone type-0
+stage's `.state`, since the inline editor loads just that one VST) and store it
+in the vst_state envelope `{"params":{…},"opaque":"<b64>"}` (`rbStampVstState`
++ `rbCaptureVstOpaqueState` in screen.js; wired into both Capture-state buttons,
+both debounced auto-saves, and the picker capture). Backend `_vst_stage_state()`
+(routes.py) emits `opaque` **verbatim** as the stage `state` in both
+`native_preset_full` and `_build_master_stages`; legacy params-only pieces fall
+back to the old wrapper (they still only apply in preview).
+
+> **Migration:** pieces saved before this fix have no `opaque` blob, so they
+> still play at defaults in real songs. The user must re-open each VST editor
+> once and re-save (Capture state or just drag → auto-save) to grab the opaque
+> blob. Verified `_vst_stage_state` (verbatim opaque vs legacy fallback) and
+> `_build_master_stages` against a copy of the live DB.
+>
+> Note: the cab IR plays at `output_gain` (default **0.5 = −6 dB**) on every
+> preset — a separate, deliberate global attenuation. Left as-is; if songs are
+> still quiet after the comp's makeup gain applies, raise it in the IR stage.
+
 ## What is **not** done (v3+)
 
 1. **Multi-stage chain playback — RESOLVED in v3.8** (full-chain fetch

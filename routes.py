@@ -653,9 +653,6 @@ def _build_master_stages(role: str, models_dir, irs_dir,
             })
         elif kind == "vst" and vst_path:
             vp = Path(vst_path)
-            state_obj = {"pluginPath": str(vp), "format": vst_format or "VST3"}
-            if vst_state:
-                state_obj["pluginState"] = vst_state
             stages.append({
                 "type": 0,
                 "name": vp.stem,
@@ -664,7 +661,10 @@ def _build_master_stages(role: str, models_dir, irs_dir,
                 "bypassed": bypassed,
                 "slot": slot_tag,
                 "rs_gear": gear,
-                "state": _state_b64(state_obj),
+                # Opaque state blob (verbatim) so the master VST — e.g. a comp
+                # in master_post — comes up with its captured settings, not
+                # plugin defaults, during real song playback.
+                "state": _vst_stage_state(str(vp), vst_format, vst_state),
             })
         # else: kind == 'none' or no file → skip (user placeholder)
     return stages
@@ -1270,6 +1270,41 @@ def _state_b64(data: dict) -> str:
     which the native engine expects for each chain stage's `state`."""
     payload = json.dumps(data, separators=(",", ":")).encode("utf-8")
     return base64.b64encode(payload).decode("ascii")
+
+
+def _vst_stage_state(vst_path: str, vst_format: str | None, vst_state) -> str:
+    """Return the base64 `state` for a VST (type-0) chain stage.
+
+    The native engine restores a VST's settings during real song playback
+    ONLY from its opaque state blob — the exact value `savePreset()` produces
+    and `loadPreset()` round-trips (the UI also feeds it to `setSlotState`).
+    The client captures that blob and stores it under "opaque" in the
+    vst_state envelope `{"params": {...}, "opaque": "<base64>"}`; we emit it
+    verbatim so the plugin comes up with its captured parameters (e.g. a
+    compressor's makeup gain), not its defaults.
+
+    Legacy pieces saved before opaque-capture (vst_state is a bare
+    `{"params": {...}}` or empty) fall back to the old pluginPath/pluginState
+    wrapper. Those only re-apply via the preview's setParameter pass — they
+    play at plugin defaults in a real song until re-captured. See the
+    chain-editor VST notes in HANDOFF.md.
+    """
+    opaque = None
+    if vst_state:
+        try:
+            env = json.loads(vst_state)
+            if isinstance(env, dict):
+                blob = env.get("opaque")
+                if isinstance(blob, str) and blob:
+                    opaque = blob
+        except (ValueError, TypeError):
+            opaque = None
+    if opaque:
+        return opaque
+    state_obj = {"pluginPath": str(vst_path), "format": vst_format or "VST3"}
+    if vst_state:
+        state_obj["pluginState"] = vst_state
+    return _state_b64(state_obj)
 
 
 def _safe_child(root: Path | None, name: str | None) -> Path | None:
@@ -2699,15 +2734,6 @@ def setup(app, context):
                 # also runs the load — easier to surface a real engine error
                 # than a stale stat() in case of bundles vs symlinks.
                 vst_path_p = Path(payload)
-                # vst_state is an opaque b64 blob captured via savePreset()
-                # (or None for "load with defaults"). The engine ignores
-                # unknown state fields, so we always emit it.
-                state_obj = {
-                    "pluginPath": str(vst_path_p),
-                    "format": vst_format,
-                }
-                if vst_state:
-                    state_obj["pluginState"] = vst_state
                 chain.append({
                     "type": 0,
                     "name": vst_path_p.stem,
@@ -2716,7 +2742,9 @@ def setup(app, context):
                     "bypassed": bypassed,
                     "slot": slot,
                     "rs_gear": gear,
-                    "state": _state_b64(state_obj),
+                    # Opaque state blob (verbatim) so the plugin restores its
+                    # captured params during real playback — not defaults.
+                    "state": _vst_stage_state(str(vst_path_p), vst_format, vst_state),
                 })
 
         # One cab IR at the tail (prefer the cabinet slot). Indexed in the
