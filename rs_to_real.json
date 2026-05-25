@@ -89,7 +89,11 @@
     "query_source": "override",
     "sound_bank": "amp_ca38",
     "tone3000_gears": "amp",
-    "tone3000_query": "Mesa Boogie Mark III"
+    "tone3000_query": "Mesa Boogie Mark III",
+    "name_from_sheet": "1985 'Boogie' MkIII [crunch channel]",
+    "dsp_load": "▢▢▢",
+    "zoom_rating": "**",
+    "zoom_notes": "BG CRUNCH ★ — Crunch sound of a Mesa Boogie MkIII combo (the Zoom MultiStomp equivalent)"
   },
   "Amp_CA85": {
     "art_asset": "ca85",
@@ -414,7 +418,11 @@
     "query_source": "brand_name",
     "sound_bank": "amp_marshallplexi",
     "tone3000_gears": "amp",
-    "tone3000_query": "Marshall Plexi"
+    "tone3000_query": "Marshall Plexi",
+    "name_from_sheet": "Marshall 1959 Plexi",
+    "dsp_load": "▢▢▢▢▢",
+    "zoom_rating": "**",
+    "zoom_notes": "MS 1959 — This models the sound of a Marshall 1959 Plexi made in 1969 (Zoom MultiStomp equivalent)"
   },
   "Amp_OrangeAD50": {
     "art_asset": "orange-custom-ad50",
@@ -7394,6 +7402,7 @@
     "tone3000_query": "Tape Echo"
   },
   "_meta": {
-    "enriched_from_sheet": "1lRoIwHeoNjIUWMY7Tuwto8gQDuwIqi_4OJiL7cuoydo"
+    "enriched_from_sheet": "1lRoIwHeoNjIUWMY7Tuwto8gQDuwIqi_4OJiL7cuoydo",
+    "enriched_manual_patches": 2
   }
 }
