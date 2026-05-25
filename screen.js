@@ -713,25 +713,6 @@ function rbRenderPiece(p, toneIdx, pIdx) {
             </div>`;
     }
 
-    // VST panel — collapsed by default. Toggled by the "⚙ VST…" button.
-    // Shows the dropdown of installed plugins + Load+Edit/Capture/Use actions.
-    // If the user has never scanned, show a Scan button instead of an empty dropdown.
-    const vstPanelId = `rb-vst-panel-${toneIdx}-${pIdx}`;
-    const knownCount = rbState.knownVsts ? rbState.knownVsts.length : 0;
-    const vstControl = `
-        <div class="flex items-center gap-2 mt-2">
-            <button onclick="rbToggleVstPanel(${toneIdx}, ${pIdx})"
-                    class="bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border border-purple-800/40 px-2 py-1 rounded text-xs transition">
-                ⚙ VST…
-            </button>
-            <span class="text-[10px] text-gray-500">
-                ${knownCount > 0 ? `${knownCount} plugins installed` : 'no plugins scanned yet'}
-            </span>
-        </div>
-        <div id="${vstPanelId}" class="hidden mt-2 bg-purple-900/10 border border-purple-800/30 rounded px-2 py-2 space-y-2">
-            ${rbRenderVstPanelBody(toneIdx, pIdx, effKind === 'vst' ? effVstPath : '', effVstFormat)}
-        </div>`;
-
     return `
         <div class="bg-dark-800 border border-gray-800/50 rounded-lg p-3" data-tone="${toneIdx}" data-piece="${pIdx}">
             <div class="flex items-center justify-between mb-2">
@@ -768,7 +749,6 @@ function rbRenderPiece(p, toneIdx, pIdx) {
             <div id="rb-lib-${toneIdx}-${pIdx}" class="hidden mt-2 bg-indigo-900/10 border border-indigo-800/30 rounded p-2"></div>
             ${rsKnobsBlock}
             ${rsIrControl}
-            ${vstControl}
         </div>`;
 }
 
@@ -781,24 +761,61 @@ async function rbToggleLibraryPicker(toneIdx, pIdx) {
     if (!el) return;
     el.classList.toggle('hidden');
     if (el.classList.contains('hidden')) return;
-    if (el.dataset.loaded === '1') return;
-    el.innerHTML = `<div class="text-xs text-gray-500">loading library…</div>`;
+    if (el.dataset.built === '1') return;
+    el.dataset.built = '1';
+    const fileLabel = rbState.songTones.tones[toneIdx].chain[pIdx].rs_category === 'cab' ? 'IRs' : 'NAMs';
+    el.innerHTML = `
+        <div class="flex items-center gap-1 mb-2 border-b border-gray-800">
+            <button id="rb-lib-tab-files-${toneIdx}-${pIdx}" onclick="rbLibTab(${toneIdx}, ${pIdx}, 'files')"
+                    class="px-3 py-1 text-xs border-b-2">📚 ${fileLabel}</button>
+            <button id="rb-lib-tab-plugins-${toneIdx}-${pIdx}" onclick="rbLibTab(${toneIdx}, ${pIdx}, 'plugins')"
+                    class="px-3 py-1 text-xs border-b-2">🎛 Plugins</button>
+        </div>
+        <div id="rb-lib-content-${toneIdx}-${pIdx}"></div>`;
+    rbLibTab(toneIdx, pIdx, 'files');
+}
+
+// Switch the per-piece library picker between local NAM/IR files and the
+// scanned VST/AU plugins. The Plugins tab reuses the full VST panel (search,
+// category groups, hide-instruments, assign, param editor). Files are loaded
+// once and cached on the outer element so the filter can re-render quickly.
+async function rbLibTab(toneIdx, pIdx, tab) {
+    const el = document.getElementById(`rb-lib-${toneIdx}-${pIdx}`);
+    const content = document.getElementById(`rb-lib-content-${toneIdx}-${pIdx}`);
+    if (!el || !content) return;
     const piece = rbState.songTones.tones[toneIdx].chain[pIdx];
-    const kind = piece.rs_category === 'cab' ? 'ir' : 'nam';
-    try {
-        const r = await fetch(`${RB_API}/local_files?kind=${kind}`);
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        const data = await r.json();
-        const files = data.files || [];
-        el.dataset.loaded = '1';
-        el.dataset.kind = kind;
-        // Store the full list on the element so the search filter can
-        // re-render without re-fetching.
-        el._rbAllFiles = files;
-        rbRenderLibraryList(el, files, toneIdx, pIdx, kind, '');
-    } catch (e) {
-        el.innerHTML = `<div class="text-xs text-red-400">Failed to load library: ${rbEsc(e.message || e)}</div>`;
+    for (const t of ['files', 'plugins']) {
+        const b = document.getElementById(`rb-lib-tab-${t}-${toneIdx}-${pIdx}`);
+        if (b) {
+            const on = t === tab;
+            b.classList.toggle('border-indigo-400', on);
+            b.classList.toggle('text-indigo-300', on);
+            b.classList.toggle('border-transparent', !on);
+            b.classList.toggle('text-gray-400', !on);
+        }
     }
+    if (tab === 'plugins') {
+        const cur = piece._vst_staged_path || (piece.assigned && piece.assigned.vst_path) || '';
+        const fmt = piece._vst_format || (piece.assigned && piece.assigned.vst_format) || 'VST3';
+        content.innerHTML = rbRenderVstPanelBody(toneIdx, pIdx, cur, fmt);
+        return;
+    }
+    const kind = piece.rs_category === 'cab' ? 'ir' : 'nam';
+    if (el.dataset.filesLoaded !== '1') {
+        content.innerHTML = `<div class="text-xs text-gray-500">loading library…</div>`;
+        try {
+            const r = await fetch(`${RB_API}/local_files?kind=${kind}`);
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            const data = await r.json();
+            el._rbAllFiles = data.files || [];
+            el.dataset.kind = kind;
+            el.dataset.filesLoaded = '1';
+        } catch (e) {
+            content.innerHTML = `<div class="text-xs text-red-400">Failed to load library: ${rbEsc(e.message || e)}</div>`;
+            return;
+        }
+    }
+    rbRenderLibraryList(content, el._rbAllFiles, toneIdx, pIdx, kind, '');
 }
 
 // Initial render of the library picker: lays out the (stable) header
@@ -2018,45 +2035,79 @@ function rbRenderCatalogCard(g) {
                     ${t3kLink}${listenBtn}
                     <button onclick="rbOpenSuggest('${rbEsc(g.rs_gear)}')"
                             class="bg-dark-600 hover:bg-dark-500 text-gray-200 px-2.5 py-1 rounded text-xs">Search</button>
-                    <button onclick="rbToggleCatalogLibrary('${rbEsc(g.rs_gear)}','${rbEsc(g.category || '')}')"
-                            title="Pick from your downloaded library and bulk-assign to every preset using this gear"
+                    <button onclick="rbToggleCatalogLibrary('${rbEsc(g.rs_gear)}','${rbEsc(g.category || '')}','${rbEsc(g.vst_path || '')}','${rbEsc(g.vst_format || 'VST3')}')"
+                            title="Pick a downloaded NAM/IR or an installed VST/AU and bulk-assign to every preset using this gear"
                             class="bg-indigo-900/30 hover:bg-indigo-900/50 text-indigo-300 border border-indigo-800/40 px-2.5 py-1 rounded text-xs">📚 Library</button>
-                    <button onclick="rbToggleCatalogVstPanel('${rbEsc(vstPanelId)}','${rbEsc(g.rs_gear)}','${rbEsc(g.vst_path || '')}','${rbEsc(g.vst_format || 'VST3')}')"
-                            class="bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border border-purple-800/40 px-2.5 py-1 rounded text-xs">⚙ VST…</button>
                 </div>
             </div>
             <div id="rb-cat-lib-${rbEsc(g.rs_gear).replace(/[^a-zA-Z0-9_-]/g,'_')}" class="hidden bg-indigo-900/10 border border-indigo-800/30 rounded p-2"></div>
-            <div id="${vstPanelId}" class="hidden bg-purple-900/10 border border-purple-800/30 rounded px-2 py-2 space-y-2">
-                <div class="text-[10px] text-purple-200/70">
-                    ${knownCount > 0 ? `${knownCount} plugins installed` : 'no plugins scanned yet'} · bulk-assign to every preset using <code>${rbEsc(g.rs_gear)}</code>
-                </div>
-            </div>
         </div>`;
 }
 
 // Open the catalog-card library picker (bulk-assigns to every preset using
 // this rs_gear_type). `category` tells us whether to list NAMs or IRs.
-async function rbToggleCatalogLibrary(rsGear, category) {
+async function rbToggleCatalogLibrary(rsGear, category, vstPath, vstFormat) {
     const safeId = rsGear.replace(/[^a-zA-Z0-9_-]/g, '_');
     const el = document.getElementById(`rb-cat-lib-${safeId}`);
     if (!el) return;
     el.classList.toggle('hidden');
     if (el.classList.contains('hidden')) return;
-    if (el.dataset.loaded === '1') return;
-    el.innerHTML = `<div class="text-xs text-gray-500">loading library…</div>`;
-    const kind = category === 'cab' ? 'ir' : 'nam';
-    try {
-        const r = await fetch(`${RB_API}/local_files?kind=${kind}`);
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        const data = await r.json();
-        const files = data.files || [];
-        el.dataset.loaded = '1';
-        el.dataset.kind = kind;
-        el._rbAllFiles = files;
-        rbRenderCatalogLibraryList(el, files, rsGear, kind, '');
-    } catch (e) {
-        el.innerHTML = `<div class="text-xs text-red-400">Failed to load library: ${rbEsc(e.message || e)}</div>`;
+    if (el.dataset.built === '1') return;
+    el.dataset.built = '1';
+    el._rbVstPath = vstPath || '';
+    el._rbVstFormat = vstFormat || 'VST3';
+    el._rbCategory = category || '';
+    const fileLabel = category === 'cab' ? 'IRs' : 'NAMs';
+    el.innerHTML = `
+        <div class="flex items-center gap-1 mb-2 border-b border-gray-800">
+            <button id="rb-cat-lib-tab-files-${safeId}" onclick="rbCatLibTab('${rbEsc(rsGear)}', 'files')"
+                    class="px-3 py-1 text-xs border-b-2">📚 ${fileLabel}</button>
+            <button id="rb-cat-lib-tab-plugins-${safeId}" onclick="rbCatLibTab('${rbEsc(rsGear)}', 'plugins')"
+                    class="px-3 py-1 text-xs border-b-2">🎛 Plugins</button>
+        </div>
+        <div id="rb-cat-lib-content-${safeId}"></div>`;
+    rbCatLibTab(rsGear, 'files');
+}
+
+// Switch the gear-catalog library picker between local NAM/IR files (bulk-
+// assign to every preset using this gear) and the scanned VST/AU plugins
+// (reusing the catalog VST panel). VST path/format are stashed on the element.
+async function rbCatLibTab(rsGear, tab) {
+    const safeId = rsGear.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const el = document.getElementById(`rb-cat-lib-${safeId}`);
+    const content = document.getElementById(`rb-cat-lib-content-${safeId}`);
+    if (!el || !content) return;
+    for (const t of ['files', 'plugins']) {
+        const b = document.getElementById(`rb-cat-lib-tab-${t}-${safeId}`);
+        if (b) {
+            const on = t === tab;
+            b.classList.toggle('border-indigo-400', on);
+            b.classList.toggle('text-indigo-300', on);
+            b.classList.toggle('border-transparent', !on);
+            b.classList.toggle('text-gray-400', !on);
+        }
     }
+    if (tab === 'plugins') {
+        content.innerHTML = rbRenderCatalogVstPanelBody(
+            `rb-cat-vst-${safeId}`, rsGear, el._rbVstPath || '', el._rbVstFormat || 'VST3');
+        return;
+    }
+    const kind = (el._rbCategory === 'cab') ? 'ir' : 'nam';
+    if (el.dataset.filesLoaded !== '1') {
+        content.innerHTML = `<div class="text-xs text-gray-500">loading library…</div>`;
+        try {
+            const r = await fetch(`${RB_API}/local_files?kind=${kind}`);
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            const data = await r.json();
+            el._rbAllFiles = data.files || [];
+            el.dataset.kind = kind;
+            el.dataset.filesLoaded = '1';
+        } catch (e) {
+            content.innerHTML = `<div class="text-xs text-red-400">Failed to load library: ${rbEsc(e.message || e)}</div>`;
+            return;
+        }
+    }
+    rbRenderCatalogLibraryList(content, el._rbAllFiles, rsGear, kind, '');
 }
 
 function rbRenderCatalogLibraryList(container, files, rsGear, kind, filter) {
