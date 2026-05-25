@@ -663,7 +663,12 @@ function rbRenderPiece(p, toneIdx, pIdx) {
         stageLabel = `✓ VST: ${vstName}`;
         stageClass = 'text-purple-300';
     } else if (hasFile) {
-        stageLabel = `✓ ${effFile}`;
+        // Prefer the human tone3000 title over the technical
+        // tone3000_<id>_m<model>_<rs_gear> filename, but only when we're
+        // showing the assigned capture (a manual upload keeps its filename).
+        const a = p.assigned;
+        const title = (!p._uploaded_file && a && a.file === effFile && a.tone3000_title) ? a.tone3000_title : '';
+        stageLabel = `✓ ${title || effFile}`;
         stageClass = 'text-green-400';
     } else {
         stageLabel = '(unassigned)';
@@ -825,7 +830,7 @@ function rbRenderLibraryRows(container, files, toneIdx, pIdx, kind, filter) {
     if (!rowsEl) return;
     const f = (filter || '').toLowerCase().trim();
     const filtered = f
-        ? files.filter(x => x.name.toLowerCase().includes(f))
+        ? files.filter(x => (x.name + ' ' + (x.title || '')).toLowerCase().includes(f))
         : files;
     const rows = filtered.slice(0, 50).map(file => {
         const usedFor = (file.used_for_gears || []).slice(0, 2).join(', ');
@@ -836,7 +841,7 @@ function rbRenderLibraryRows(container, files, toneIdx, pIdx, kind, filter) {
         return `
             <div class="flex items-center gap-2 px-2 py-1 hover:bg-indigo-900/20 rounded cursor-pointer"
                  onclick="rbPickFromLibrary(${toneIdx}, ${pIdx}, '${rbEsc(safeName)}', '${rbEsc(kind)}')">
-                <span class="flex-1 text-[11px] text-gray-200 truncate" title="${rbEsc(file.name)}">${rbEsc(file.name)}</span>
+                <span class="flex-1 text-[11px] text-gray-200 truncate" title="${rbEsc(file.name)}">${rbEsc(file.title || file.name)}</span>
                 ${usedBadge}
                 <button onclick="event.stopPropagation(); rbAuditionFile('${rbEsc(safeName)}', '${rbEsc(kind === 'ir' ? 'ir' : 'nam')}', null)"
                         title="Audition in isolation"
@@ -2040,7 +2045,7 @@ function rbRenderCatalogLibraryRows(container, files, rsGear, kind, filter) {
     if (!rowsEl) return;
     const f = (filter || '').toLowerCase().trim();
     const filtered = f
-        ? files.filter(x => x.name.toLowerCase().includes(f))
+        ? files.filter(x => (x.name + ' ' + (x.title || '')).toLowerCase().includes(f))
         : files;
     const rows = filtered.slice(0, 50).map(file => {
         const usedBadge = file.use_count > 0
@@ -2049,7 +2054,7 @@ function rbRenderCatalogLibraryRows(container, files, rsGear, kind, filter) {
         const safeName = file.name.replace(/'/g, "\\'");
         return `
             <div class="flex items-center gap-2 px-2 py-1 hover:bg-indigo-900/20 rounded">
-                <span class="flex-1 text-[11px] text-gray-200 truncate" title="${rbEsc(file.name)}">${rbEsc(file.name)}</span>
+                <span class="flex-1 text-[11px] text-gray-200 truncate" title="${rbEsc(file.name)}">${rbEsc(file.title || file.name)}</span>
                 ${usedBadge}
                 <button onclick="rbAuditionFile('${rbEsc(safeName)}', '${rbEsc(kind === 'ir' ? 'ir' : 'nam')}', null)"
                         title="Audition in isolation"

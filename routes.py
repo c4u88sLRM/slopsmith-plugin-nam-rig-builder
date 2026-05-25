@@ -482,9 +482,13 @@ def _parse_tone(tone_data: dict) -> dict:
     return {"name": name, "key": key, "chain": chain}
 
 
-def _enrich_chain_piece(piece: dict) -> dict:
+def _enrich_chain_piece(piece: dict, img_idx: dict | None = None) -> dict:
     """Add make/model + tone3000 hints + existing-assignment info to a
-    parsed chain piece. Returns a new dict, doesn't mutate input."""
+    parsed chain piece. Returns a new dict, doesn't mutate input.
+
+    `img_idx` is an optional pre-built `_tone_image_index()` (tone_id ->
+    {title,...}); pass it when enriching a whole chain so we read the
+    search cache once instead of per piece."""
     rs_type = piece["type"]
     rs_map = _load_rs_to_real()
     info = rs_map.get(rs_type) or {}
@@ -533,6 +537,16 @@ def _enrich_chain_piece(piece: dict) -> dict:
             "vst_format": row[7],
             "vst_state": row[8],
         }
+        # Human tone3000 title (from the local search cache) so the UI can
+        # show e.g. "Two Rock Studio 22" instead of the technical
+        # tone3000_<id>_m<model>_<rs_gear> filename. None when the tone
+        # isn't cached (e.g. assigned via default_captures by id).
+        tid = row[4]
+        if tid is not None:
+            idx = img_idx if img_idx is not None else _tone_image_index()
+            assigned["tone3000_title"] = (idx.get(int(tid)) or {}).get("title")
+        else:
+            assigned["tone3000_title"] = None
 
     # Rocksmith-extracted IRs: only meaningful for cab slots. The map
     # is keyed by the same entity name we have in rs_to_real, so it's
@@ -1936,10 +1950,11 @@ def setup(app, context):
         ).fetchall()
         existing_by_key = {r[0]: r[1] for r in existing_rows}
 
+        _img_idx = _tone_image_index()
         tones: list[dict] = []
         for raw in raw_tones:
             parsed = _parse_tone(raw)
-            enriched_chain = [_enrich_chain_piece(p) for p in parsed["chain"]]
+            enriched_chain = [_enrich_chain_piece(p, _img_idx) for p in parsed["chain"]]
             preset_id = existing_by_key.get(parsed["key"])
             # Persisted per-piece bypass, scoped to THIS tone's preset so a
             # bypass saved in another song doesn't bleed in (the gear-global
@@ -2613,6 +2628,16 @@ def setup(app, context):
                     "count": int(n),
                     "gears": [g for g in (gears or "").split(",") if g],
                 }
+        # Map each tone3000 download back to its human title so the picker
+        # shows "Marshall JTM45" instead of tone3000_<id>_m<model>_<gear>.
+        # Best-effort: None when the tone isn't in the local search cache or
+        # the file isn't a tone3000 download (manual upload / RS-extracted IR).
+        img_idx = _tone_image_index()
+
+        def _title_for(relname: str):
+            m = re.match(r"tone3000_(\d+)_m\d+_", Path(relname).name)
+            return (img_idx.get(int(m.group(1))) or {}).get("title") if m else None
+
         out = []
         for p, n in zip(paths, rel_names):
             try:
@@ -2625,6 +2650,7 @@ def setup(app, context):
             u = usage[n]
             out.append({
                 "name": n,
+                "title": _title_for(n),
                 "size_bytes": size_bytes,
                 "mtime_iso": mtime_iso,
                 "use_count": u["count"],
