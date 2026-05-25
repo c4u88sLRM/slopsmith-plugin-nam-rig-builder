@@ -827,11 +827,22 @@ function rbRenderLibraryList(container, files, toneIdx, pIdx, kind, filter) {
 // Disambiguate library rows that share a tone3000 title (several captures
 // can all be called "EQ"): show the title, and append the technical filename
 // in muted text only when the title alone is ambiguous in the shown list.
+// Short, readable form of a downloaded filename: drop the
+// tone3000_<id>_m<model>_ prefix and the extension, leaving the descriptive
+// tail (the Rocksmith gear), e.g. "tone3000_31843_m146073_Rack_StudioEQ.nam"
+// -> "Rack_StudioEQ". Non-tone3000 files just lose their extension.
+function rbLibShortName(name) {
+    const base = String(name || '').replace(/\.[^./]+$/, '');
+    const m = base.match(/^tone3000_\d+_m\d+_(.+)$/);
+    return m ? m[1] : base;
+}
+
 function rbLibLabel(file, titleCounts) {
     const t = file.title;
-    if (!t) return rbEsc(file.name);
+    const short = rbLibShortName(file.name);
+    if (!t) return rbEsc(short);
     if ((titleCounts[t] || 0) > 1) {
-        return `${rbEsc(t)} <span class="text-gray-500">· ${rbEsc(file.name)}</span>`;
+        return `${rbEsc(t)} <span class="text-gray-500">· ${rbEsc(short)}</span>`;
     }
     return rbEsc(t);
 }
