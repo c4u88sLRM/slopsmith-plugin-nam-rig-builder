@@ -4352,6 +4352,8 @@ async function rbLoadSettings() {
     document.getElementById('rb-min-downloads').value = s.min_downloads;
     const sizeSel = document.getElementById('rb-preferred-size');
     if (sizeSel) sizeSel.value = s.preferred_size || 'standard';
+    const megaCb = document.getElementById('rb-mega-chain-mode');
+    if (megaCb) megaCb.checked = !!s.mega_chain_mode;
     const status = document.getElementById('rb-api-key-status');
     if (s.has_tone3000_key) {
         status.innerHTML = `<span class="text-green-400">Key configured (${rbEsc(s.tone3000_api_key_preview)})</span>`;
@@ -4378,11 +4380,15 @@ async function rbSaveSettings() {
     const min_downloads = parseInt(document.getElementById('rb-min-downloads').value, 10) || 0;
     const sizeSel = document.getElementById('rb-preferred-size');
     const preferred_size = sizeSel ? sizeSel.value : 'standard';
+    const megaCb = document.getElementById('rb-mega-chain-mode');
+    const mega_chain_mode = megaCb ? !!megaCb.checked : false;
     await fetch(`${RB_API}/settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ aggressive, min_downloads, preferred_size }),
+        body: JSON.stringify({ aggressive, min_downloads, preferred_size, mega_chain_mode }),
     });
+    // Mirror to the runtime so RbMegaChain picks it up without a restart.
+    window.__rbMegaChainSetting = mega_chain_mode;
 }
 
 // Triggered from the Suggest modal: download a specific tone3000

@@ -96,6 +96,15 @@ _DEFAULT_SETTINGS = {
     "auto_download": True,              # batch downloads files instead of just recording IDs
     "disk_budget_mb": 2000,             # stop batch downloads once we cross this many MB
     "auto_watch": True,                 # background watcher auto-downloads songs as they materialize
+    # Experimental — see screen.js RbMegaChain. When true, rig_builder takes
+    # over the entire tone-switching flow: at song load it pre-builds a
+    # mega-chain holding every tone's stages, then switches via setBypass
+    # instead of clearChain+loadPreset. Eliminates the tone-change transient
+    # at the cost of higher steady-state memory and CPU (every NAM stays
+    # loaded). Requires the bundle's AMP to be off (we drive the engine
+    # ourselves). Roll out only after the cooperative mute-parche flow is
+    # confirmed stable on the user's hardware.
+    "mega_chain_mode": False,
 }
 
 # Tone3000 platform value to request per Rocksmith category. Amps and
@@ -2208,6 +2217,7 @@ def setup(app, context):
             "min_downloads": s.get("min_downloads", 50),
             "aggressive": s.get("aggressive", False),
             "preferred_size": s.get("preferred_size", "standard"),
+            "mega_chain_mode": s.get("mega_chain_mode", False),
             "has_tone3000_key": bool(key),
             "tone3000_api_key_preview": (key[:6] + "…") if key else "",
         }
@@ -2222,6 +2232,8 @@ def setup(app, context):
             size = str(data["preferred_size"]).strip().lower()
             if size in ("standard", "lite", "feather", "nano"):
                 allowed["preferred_size"] = size
+        if "mega_chain_mode" in data:
+            allowed["mega_chain_mode"] = bool(data["mega_chain_mode"])
         _save_settings(allowed)
         return {"ok": True}
 
