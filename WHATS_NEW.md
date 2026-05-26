@@ -1,3 +1,104 @@
+# Rig Builder 1.1.0 — sign in, don't paste keys (2026-05-26)
+
+This release removes the need to handle a sensitive tone3000 API key and makes
+the library-wide mapping behave the way you'd expect.
+
+## Headline changes
+
+- **🔐 Connect with tone3000 (OAuth login).** Instead of pasting an API key,
+  Settings now has a **Connect with tone3000** button: it opens tone3000 in
+  your browser, you approve once, and the plugin gets a temporary, revocable
+  token. **No secret key to copy or store.** This is tone3000's recommended
+  flow for plugins.
+  - Uses OAuth 2.0 with **PKCE** over a loopback redirect — the authorization
+    code can never leave your machine (the `redirect_uri` is hard-restricted
+    to `127.0.0.1`/`localhost`), `state` is validated against CSRF, and tokens
+    are stored owner-only (`0600`) and refreshed automatically.
+  - The old "paste a secret key" box was **removed** from the UI (the backend
+    still understands one for advanced/server use, but it's no longer shown).
+- **🧠 Smart library mapping — "manual is sacred, auto inherits".** The
+  Dashboard batch buttons now do what you'd expect:
+  - A piece you assign **by hand in one song is never overwritten** by the
+    batch — not even by *Remap all*. Per-song tweaks are safe.
+  - Songs you've **never touched inherit** the capture you assigned to that
+    same gear elsewhere — so configuring an amp once spreads it across the
+    library without redoing it per song or exporting defaults first.
+  - *Map new songs only* fills just the unmapped tones, inheriting your
+    existing per-gear choices; *Remap all* refreshes auto pieces while keeping
+    every manual pick.
+- **📂 Browse… buttons.** The *Regenerate gear map* and *Extract Rocksmith IRs*
+  settings now have a native **Browse…** file picker — no more typing the
+  `gears.psarc` path by hand.
+
+## Upgrade notes
+
+- After updating, **quit and reopen Slopsmith** (no hot reload).
+- Settings → **Connect with tone3000** to sign in. If you previously pasted an
+  API key it keeps working in the background, but signing in is preferred.
+
+---
+
+# Rig Builder 1.0.0 — first stable release (2026-05-25)
+
+The first stable release of **Rig Builder** (formerly `nam_rig_builder`). It
+maps Rocksmith 2014 tones (amp + cab + pedals + racks) to NAM captures + IRs
+from tone3000.com — and now also to your own **VST3 / AU plugins** — so playing
+a CDLC in Slopsmith uses the full, realistic chain instead of generic sounds.
+
+## Headline features
+
+- **🎛 VST3 / Audio Unit support.** Assign any installed VST3/AU as a chain
+  stage on any pedal / amp / rack — alongside NAM captures and IRs. Inline
+  parameter editor (crisp HTML sliders driving the plugin in real time), plus
+  the plugin's own native editor window. Plugin settings are captured as the
+  engine's opaque state blob so they apply in **real song playback**, not just
+  the preview (e.g. a compressor's makeup gain). N:1 bulk-assign from the Gear
+  tab applies a plugin to every song that uses that gear.
+- **🔗 Master Chain.** Global pre/post FX wrapped around *every* song: a
+  `master_pre` chain sees the raw DI, a `master_post` chain sees the wet output
+  (e.g. a global compressor / EQ on the master bus). Per-stage bypass + its own
+  inline VST editor.
+- **🖥 New DAW-style UI.** Reworked chain editor with a Library picker
+  (Files | Plugins tabs), per-slot library browser, a searchable
+  category-grouped plugin picker, a song list with real title/artist metadata,
+  and a fully English interface.
+- **🔊 Full-chain real playback.** The whole chain (pedal → amp → … → cab,
+  multiple NAM stages + VSTs + IR) plays in actual songs via a scoped
+  `fetch` redirect — no edits to the signed Slopsmith bundle, survives updates.
+- **⬇ Auto-download + batch.** With a tone3000 API key, opening a song
+  auto-downloads every missing piece; Dashboard batch processes the whole
+  library. Curated `default_captures.json` picks good captures by default.
+  Deep-link mode works with no key.
+
+## Stability fixes in this release
+
+- VST editor no longer crashes the app when navigating to another tab,
+  loading a song, or leaving the plugin to play a song (the open native editor
+  window is now closed before any chain reload).
+- Master / chain VST settings now actually apply during real song playback
+  (opaque-state capture) — previously the plugin came up at its defaults.
+- Per-song bypass + gear edits auto-save and survive re-download; saved gear
+  presets are no longer lost on song re-download.
+
+> **Upgrading from a VST preview build:** VST pieces saved before this release
+> stored only a `{params}` dict and play at plugin defaults in real songs.
+> Re-open each VST editor once and save (Capture state or any slider drag) to
+> grab the new opaque state blob. DB migrations run automatically on first boot.
+
+## AMP toggle now auto-applies the chain mid-song
+
+Previously, if you loaded a song with **AMP off** and turned it on later,
+the master chain (and per-song chain) wouldn't engage — the bundle gates
+its chain push on AMP being on at song-load time. Rig Builder now watches
+the AMP button and, on every OFF → ON flip, replicates the chain push
+itself ~1 second after the toggle so master is included. No more
+"leave the song and come back" workaround.
+
+Kill-switch if it ever misfires: `window.__rbAmpAutoApply = false` in the
+DevTools console.
+
+---
+
 # What's new — rig_builder VST preview (2026-05-25)
 
 This is a working preview of the **VST3 / Audio Unit support** branch

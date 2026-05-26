@@ -75,12 +75,207 @@
                     + ` (${data.nam_stage_count} NAM + ${chain.length - data.nam_stage_count - mPre - mPost} song IR/VST`
                     + ` + ${mPre} master_pre + ${mPost} master_post)`
                     + (data.missing && data.missing.length ? ` · missing files: ${data.missing.join(', ')}` : ''));
+                // PROACTIVE TRANSIENT KILL: the bundle calls loadPreset ~1ms
+                // after we return this response. We can't monkey-patch
+                // `slopsmithDesktop.audio.loadPreset` directly because the
+                // object is frozen by Electron's contextBridge (we verified
+                // this: assignments silently no-op). But the exposed methods
+                // *are* callable from here, so we mute right now — before
+                // returning — so by the time loadPreset starts processing
+                // its first audio buffer the chain output is already at 0.
+                // Restore happens on a timer (~300ms covers a 4-NAM standard
+                // chain at buffer 256). Kill-switch:
+                // `window.__rbMutePreLoad = false`.
+                rbPreLoadMute(chain.length).catch(() => {});
+                // Schedule a VST-param re-apply after the bundle's
+                // loadPreset finishes. Without this, VSTs in the chain
+                // play at plug-in defaults until the user opens each
+                // VST editor (which itself triggers a setParameter
+                // walk). Delay = hold time + 50 ms cushion.
+                const reapplyDelay = (30 + 15 * Math.max(1, chain.length | 0)) + 50;
+                rbReapplyVstParamsAfterLoad(chain, reapplyDelay);
             } catch (_) {
                 return origFetch(input, init);
             }
             return new Response(txt, { status: 200, headers: { 'Content-Type': 'application/json' } });
         }).catch(() => origFetch(input, init));               // any error → original
     };
+})();
+
+// Mute everything the engine can mute just long enough that the bundle's
+// clearChain + loadPreset runs at silence, then restore with a short
+// fade-in so the un-mute doesn't pop. Called from the fetch interceptor
+// right before the bundle pulls the preset JSON, and from rbListenTone
+// / rbReloadPreview right before clearChain.
+//
+// Hold-time tuning (assumes `feather`-size NAMs, the recommended setting):
+//   feather load ≈ 5-15 ms per stage. We give 15 ms/stage + 30 ms baseline
+//   so a 4-NAM chain = 90 ms, a 6-NAM chain = 120 ms. Smaller than the
+//   first version (which was sized for `standard` NAMs at 80+50/stage =
+//   380 ms for 6 stages, which felt like a noticeable audio drop-out).
+//   Users on `standard` size can override via `window.__rbMutePreLoadHold`.
+//
+// Fade-in instead of instant restore so the chain-gain transition from 0
+// to 1.0 doesn't click. 4 steps over 24 ms (≈ 5 audio buffers at 256
+// samples / 48 kHz) sounds like a gentle swell, not a switch.
+let _rbMuteInFlight = false;
+async function rbPreLoadMute(chainLen) {
+    if (window.__rbMutePreLoad === false) return;
+    if (_rbMuteInFlight) return;            // coalesce rapid tone changes
+    _rbMuteInFlight = true;
+    const audio = window.slopsmithDesktop && window.slopsmithDesktop.audio;
+    if (!audio) { _rbMuteInFlight = false; return; }
+    const hold = (typeof window.__rbMutePreLoadHold === 'number')
+        ? Math.max(20, window.__rbMutePreLoadHold | 0)
+        : 30 + 15 * Math.max(1, chainLen | 0);
+    let wasMuted = false;
+    try { if (typeof audio.isMonitorMuted === 'function') wasMuted = !!(await audio.isMonitorMuted()); } catch (_) {}
+    try {
+        // `chain` = post-NAM, pre-output. Setting to 0 silences the guitar
+        // signal path without touching the song's backing track.
+        if (typeof audio.setGain === 'function') await audio.setGain('chain', 0);
+        if (typeof audio.setMonitorMute === 'function') await audio.setMonitorMute(true);
+    } catch (_) {}
+    setTimeout(async () => {
+        try {
+            // Un-mute the monitor immediately (it's a hard mute, no transient).
+            if (!wasMuted && typeof audio.setMonitorMute === 'function') await audio.setMonitorMute(false);
+            // Fade chain gain 0 → 1.0 over ~24 ms in 4 steps so the
+            // restore doesn't click. The audio thread sees each step
+            // as a discrete value, but ear-perceived it's a smooth swell.
+            if (typeof audio.setGain === 'function') {
+                const steps = [0.25, 0.5, 0.8, 1.0];
+                for (const v of steps) {
+                    await audio.setGain('chain', v);
+                    await new Promise(r => setTimeout(r, 6));
+                }
+            }
+        } catch (_) {}
+        _rbMuteInFlight = false;
+    }, hold);
+}
+
+// NOTE: an earlier version of this file tried to monkey-patch
+// `window.slopsmithDesktop.audio.loadPreset` to mute monitor + zero the
+// chain gain during load. That approach is dead: Electron's
+// contextBridge exposes `slopsmithDesktop.audio` as a frozen object —
+// you can call its methods, but `api.loadPreset = function` silently
+// no-ops, so the wrap was never actually installed. We confirmed this
+// in DevTools (api.__rbWrapped stayed undefined). The transient-kill
+// logic now lives in the fetch interceptor above (`rbPreLoadMute`),
+// which calls setGain/setMonitorMute from outside the frozen object.
+
+// ── AMP-toggle auto-apply ──────────────────────────────────────────────
+// `nam_tone` only applies the chain (with our master pre/post) when AMP
+// is on AT SONG LOAD TIME (line 1061 of nam_tone/screen.js gates the
+// `_namApplyCurrentSongTone` call on `_namEnabled`). If the user loads a
+// song with AMP off and turns it on mid-song, no chain is ever pushed —
+// the workaround is "leave + re-enter the song". We can't patch the
+// signed bundle, so we replicate the flow ourselves: watch the AMP
+// button (`#btn-nam`), and on each OFF→ON edge, look up the song's
+// active-tone mapping and call `loadPreset` ourselves with the master-
+// wrapped chain. Kill-switch: `window.__rbAmpAutoApply = false`.
+//
+// The bundle's own `_namBuildGraph` will also run on the toggle — we
+// wait ~1200 ms so its build settles first, and then our loadPreset is
+// the *last* one to run, winning the chain state.
+(function () {
+    if (window.__rbAmpHookInstalled) return;
+    window.__rbAmpHookInstalled = true;
+
+    let lastEnabled = false;
+    let inFlight = false;
+
+    function isAmpEnabled() {
+        const btn = document.getElementById('btn-nam');
+        if (!btn) return false;
+        // Bundle's `_namUpdateAmpButton` sets bg-green-700 when enabled.
+        return /(?:^|\s)bg-green-/.test(btn.className);
+    }
+
+    function resolveActiveTone() {
+        try {
+            const hw = window.highway;
+            if (!hw || typeof hw.getTime !== 'function') return null;
+            const t = hw.getTime();
+            const changes = hw.getToneChanges ? hw.getToneChanges() : [];
+            const base = hw.getToneBase ? hw.getToneBase() : '';
+            let active = base;
+            if (Array.isArray(changes)) {
+                for (const tc of changes) {
+                    if (tc && tc.t <= t) active = tc.name;
+                    else break;
+                }
+            }
+            return (active && String(active).trim()) || null;
+        } catch (_) { return null; }
+    }
+
+    function findMappingForTone(mappings, toneName) {
+        if (!Array.isArray(mappings) || !mappings.length) return null;
+        if (!toneName) return mappings[0];   // fallback
+        const exact = mappings.find(m => m && m.tone_key === toneName);
+        if (exact) return exact;
+        const wanted = String(toneName).trim().toLowerCase();
+        return mappings.find(m =>
+            m && String(m.tone_key || '').trim().toLowerCase() === wanted
+        ) || mappings[0];
+    }
+
+    async function autoApplyChain() {
+        if (window.__rbAmpAutoApply === false) return;
+        if (inFlight) return;
+        inFlight = true;
+        try {
+            const filename = window.slopsmith
+                && window.slopsmith.currentSong
+                && window.slopsmith.currentSong.filename;
+            if (!filename) return;
+            const api = window.slopsmithDesktop && window.slopsmithDesktop.audio;
+            if (!api || typeof api.loadPreset !== 'function') return;
+
+            const r = await fetch(`/api/plugins/nam_tone/mappings/${encodeURIComponent(filename)}`);
+            if (!r.ok) return;
+            const mappings = await r.json();
+            const tone = resolveActiveTone();
+            const mapping = findMappingForTone(mappings, tone);
+            if (!mapping) return;
+            const presetId = mapping.preset_id ?? mapping.id;
+            if (presetId == null) return;
+
+            // Goes through our redirected fetch → master pre+post included.
+            const fr = await fetch(`/api/plugins/rig_builder/native_preset_full/${presetId}`);
+            if (!fr.ok) return;
+            const full = await fr.json();
+            const chain = full && full.native_preset && full.native_preset.chain;
+            if (!Array.isArray(chain) || chain.length === 0) return;
+
+            // Goes through our patched loadPreset (mute + chain-gain 0)
+            // so the AMP-on transient is suppressed just like a tone change.
+            await api.loadPreset(JSON.stringify(full.native_preset));
+            console.log(`[rig_builder] AMP auto-apply: ${chain.length} stages for tone "${tone || '(base)'}"`
+                + ` (master ${full.master_pre_count || 0}+${full.master_post_count || 0})`);
+        } catch (e) {
+            console.warn('[rig_builder] AMP auto-apply failed:', e);
+        } finally {
+            inFlight = false;
+        }
+    }
+
+    function checkAmp() {
+        const enabled = isAmpEnabled();
+        if (enabled && !lastEnabled) {
+            // OFF → ON edge. Wait for the bundle's own _namBuildGraph to
+            // finish its load (it's ~600-900 ms with a multi-NAM chain on
+            // an M1); ours runs after, so we land last and master wins.
+            setTimeout(autoApplyChain, 1200);
+        }
+        lastEnabled = enabled;
+    }
+
+    // Poll every 500 ms — the AMP button is injected by the bundle when
+    // a song loads, so it may not exist at page-init time.
+    setInterval(checkAmp, 500);
 })();
 
 // ── Shared state ────────────────────────────────────────────────────
@@ -157,11 +352,16 @@ function rbRenderStatus() {
         return;
     }
     const cats = s.rs_to_real_by_category || {};
-    const apiLine = s.has_tone3000_key
-        ? (s.tone3000_api_works
+    let apiLine;
+    if (s.tone3000_connected) {
+        apiLine = `<span class="text-green-400">tone3000 connected${s.tone3000_username ? ' as ' + rbEsc(s.tone3000_username) : ''}</span>`;
+    } else if (s.has_tone3000_key) {
+        apiLine = s.tone3000_api_works
             ? '<span class="text-green-400">tone3000 API connected</span>'
-            : '<span class="text-red-400">tone3000 API key invalid</span>')
-        : '<span class="text-gray-500">no tone3000 API key (deep-link mode)</span>';
+            : '<span class="text-red-400">tone3000 key invalid</span>';
+    } else {
+        apiLine = '<span class="text-gray-500">not connected (deep-link mode)</span>';
+    }
     // Three states for the Rocksmith-IR line:
     //   1. JSON loaded + .wav files on disk → green, count of disk-resident IRs
     //   2. JSON loaded but no .wav (fresh install / no Rocksmith)  → yellow nudge
@@ -3038,6 +3238,29 @@ async function rbReapplyVstParamsToChain(api, chainSpec) {
     }
 }
 
+// Schedule a VST param re-apply after a loadPreset call. Used by the
+// fetch interceptor (song playback via bundle, where we don't control
+// the loadPreset call directly). Waits `delayMs` before reapplying so
+// the engine has time to finish instantiating each VST — calling
+// setParameter before the plug-in is fully loaded crashes some hosts.
+//
+// Why this matters: the engine's loadPreset restores VSTs from an
+// opaque state blob, but in practice the parameter restore is flaky —
+// users report that VSTs in a chain stay at plug-in defaults until
+// they open the editor (which forces a setParameter walk). Calling
+// this helper after every loadPreset shortcuts that.
+function rbReapplyVstParamsAfterLoad(chainSpec, delayMs) {
+    if (!chainSpec || !Array.isArray(chainSpec)) return;
+    const hasVst = chainSpec.some(s => s && s.type === 0);
+    if (!hasVst) return;        // no point scheduling work
+    setTimeout(() => {
+        const api = window.slopsmithDesktop && window.slopsmithDesktop.audio;
+        if (!api) return;
+        rbReapplyVstParamsToChain(api, chainSpec).catch((e) =>
+            console.warn('[rig_builder] re-apply VST params (deferred):', e));
+    }, typeof delayMs === 'number' ? delayMs : 200);
+}
+
 // Try to parse the vst_state column into a {paramId: value} dict. The column
 // may hold either our JSON-shape ({"params":{...}}) or the legacy opaque
 // savePreset() blob. Returns null if it isn't our shape.
@@ -3442,12 +3665,27 @@ async function rbReloadPreview(refetchPresetId) {
     const payload = rbState._previewPayload;
     if (!payload) return;
     rbApplyBypassToChain(payload, rbState.listeningTone);
+    const chainLen = (payload.native_preset.chain && payload.native_preset.chain.length) || 1;
     try {
+        // Same pre-load mute used by the fetch interceptor for the bundle's
+        // tone-change path: zero chain gain + mute monitor BEFORE clearChain,
+        // so the first audio buffer after loadPreset (which carries the NAM
+        // attack transient) runs silently. The chain gain restores itself
+        // to 1.0 inside rbPreLoadMute on a timer scaled to chain length.
+        rbPreLoadMute(chainLen).catch(() => {});
         if (api.clearChain) await api.clearChain().catch(() => {});
         await api.loadPreset(JSON.stringify(payload.native_preset));
         // Engine sometimes leaves a slot bypassed across reloads — force each
         // slot's bypass to match the spec so toggling un-bypass actually un-bypasses.
         await rbReapplyBypassToChain(api, payload.native_preset.chain || []);
+        // VST params: the opaque state in the chain JSON doesn't reliably
+        // restore plug-in params; walk the chain and call setParameter
+        // explicitly so VSTs come up at their saved values, not defaults.
+        await rbReapplyVstParamsToChain(api, payload.native_preset.chain || []).catch((e) =>
+            console.warn('[rig_builder] reload re-apply VST params:', e));
+        // Note: rbPreLoadMute restores setMonitorMute(false) on its own
+        // timer, but we also explicitly unmute here in case the timer
+        // hasn't fired yet — the chain is now safely loaded.
         if (api.setMonitorMute) await api.setMonitorMute(false).catch(() => {});
     } catch (e) { console.warn('[rig_builder] reload preview failed', e); }
 }
@@ -4089,6 +4327,12 @@ async function rbListenTone(toneIdx, filename) {
             }
             rbState._previewPayload = payload;
             rbApplyBypassToChain(payload, toneIdx);   // honour any pre-set bypasses
+            // Pre-load mute (same as the fetch interceptor uses for the
+            // bundle's tone-change path): zero chain gain + mute monitor
+            // BEFORE clearChain so the loadPreset attack transient runs
+            // silently. rbPreLoadMute restores on its own timer scaled
+            // to chain length.
+            rbPreLoadMute(chain.length).catch(() => {});
             if (api.clearChain) await api.clearChain().catch(() => {});
             const res = await api.loadPreset(JSON.stringify(payload.native_preset));
             const got = res && res.slotsLoaded;
@@ -4146,35 +4390,100 @@ async function rbLoadSettings() {
     }
     document.getElementById('rb-aggressive').checked = !!s.aggressive;
     document.getElementById('rb-min-downloads').value = s.min_downloads;
-    const status = document.getElementById('rb-api-key-status');
-    if (s.has_tone3000_key) {
-        status.innerHTML = `<span class="text-green-400">Key configured (${rbEsc(s.tone3000_api_key_preview)})</span>`;
+    const sizeSel = document.getElementById('rb-preferred-size');
+    if (sizeSel) sizeSel.value = s.preferred_size || 'standard';
+    // OAuth (Connect with tone3000) state.
+    const oauthStatus = document.getElementById('rb-oauth-status');
+    const oauthBtn = document.getElementById('rb-oauth-btn');
+    const oauthDisc = document.getElementById('rb-oauth-disconnect');
+    if (s.tone3000_connected) {
+        if (oauthStatus) oauthStatus.innerHTML = `<span class="text-green-400">Connected${s.tone3000_username ? ' as ' + rbEsc(s.tone3000_username) : ''}</span>`;
+        if (oauthBtn) oauthBtn.textContent = 'Reconnect';
+        if (oauthDisc) oauthDisc.classList.remove('hidden');
     } else {
-        status.textContent = 'No key. Deep-link mode active.';
+        if (oauthStatus) oauthStatus.textContent = 'Not connected.';
+        if (oauthBtn) oauthBtn.textContent = 'Connect with tone3000';
+        if (oauthDisc) oauthDisc.classList.add('hidden');
     }
 }
 
-async function rbSaveApiKey() {
-    const key = document.getElementById('rb-api-key').value.trim();
-    if (!key) return;
-    await fetch(`${RB_API}/settings`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tone3000_api_key: key }),
-    });
-    document.getElementById('rb-api-key').value = '';
+// ── OAuth: Connect with tone3000 ────────────────────────────────────
+// Opens the authorize URL in the system browser (the host's nav guard
+// re-routes external URLs there), then polls until the backend has
+// exchanged the code for tokens.
+
+async function rbOauthConnect() {
+    const statusEl = document.getElementById('rb-oauth-status');
+    try {
+        const origin = window.location.origin;
+        const r = await fetch(`${RB_API}/oauth/start?origin=${encodeURIComponent(origin)}`);
+        const d = await r.json();
+        if (!d.authorize_url) throw new Error('no authorize URL');
+        window.open(d.authorize_url, '_blank');  // → system browser
+        if (statusEl) statusEl.textContent = 'Waiting for tone3000 sign-in in your browser…';
+        rbOauthPoll(0);
+    } catch (e) {
+        if (statusEl) statusEl.textContent = 'Could not start sign-in: ' + (e.message || e);
+    }
+}
+
+async function rbOauthPoll(n) {
+    if (n > 90) {  // ~3 min, then give up quietly
+        const statusEl = document.getElementById('rb-oauth-status');
+        if (statusEl && statusEl.textContent.startsWith('Waiting')) {
+            statusEl.textContent = 'Still not connected. Finish sign-in in your browser, or click Connect again.';
+        }
+        return;
+    }
+    try {
+        const r = await fetch(`${RB_API}/oauth/status`);
+        const d = await r.json();
+        if (d.connected) {
+            rbLoadSettings();
+            rbInit();  // refresh status banner
+            return;
+        }
+    } catch (e) { /* keep polling */ }
+    setTimeout(() => rbOauthPoll(n + 1), 2000);
+}
+
+async function rbOauthDisconnect() {
+    await fetch(`${RB_API}/oauth/disconnect`, { method: 'POST' });
     rbLoadSettings();
-    rbInit();  // refresh status banner
+    rbInit();
 }
 
 async function rbSaveSettings() {
     const aggressive = document.getElementById('rb-aggressive').checked;
     const min_downloads = parseInt(document.getElementById('rb-min-downloads').value, 10) || 0;
+    const sizeSel = document.getElementById('rb-preferred-size');
+    const preferred_size = sizeSel ? sizeSel.value : 'standard';
     await fetch(`${RB_API}/settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ aggressive, min_downloads }),
+        body: JSON.stringify({ aggressive, min_downloads, preferred_size }),
     });
+}
+
+// Open a native file picker (Electron desktop bridge) and drop the chosen
+// path into the given text input. Falls back to manual entry when there's
+// no desktop bridge (e.g. running in a plain browser).
+async function rbBrowseForPsarc(inputId) {
+    const el = document.getElementById(inputId);
+    const picker = window.slopsmithDesktop && window.slopsmithDesktop.pickFile;
+    if (!picker) {
+        if (el) el.focus();
+        return;
+    }
+    try {
+        const path = await window.slopsmithDesktop.pickFile([
+            { name: 'Rocksmith gear archive', extensions: ['psarc'] },
+            { name: 'All Files', extensions: ['*'] },
+        ]);
+        if (path && el) el.value = path;  // null = user cancelled
+    } catch (e) {
+        console.error('[rig_builder] file picker failed:', e);
+    }
 }
 
 // Triggered from the Suggest modal: download a specific tone3000
