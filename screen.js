@@ -4201,6 +4201,8 @@ async function rbLoadSettings() {
     }
     document.getElementById('rb-aggressive').checked = !!s.aggressive;
     document.getElementById('rb-min-downloads').value = s.min_downloads;
+    const sizeSel = document.getElementById('rb-preferred-size');
+    if (sizeSel) sizeSel.value = s.preferred_size || 'standard';
     const status = document.getElementById('rb-api-key-status');
     if (s.has_tone3000_key) {
         status.innerHTML = `<span class="text-green-400">Key configured (${rbEsc(s.tone3000_api_key_preview)})</span>`;
@@ -4225,10 +4227,12 @@ async function rbSaveApiKey() {
 async function rbSaveSettings() {
     const aggressive = document.getElementById('rb-aggressive').checked;
     const min_downloads = parseInt(document.getElementById('rb-min-downloads').value, 10) || 0;
+    const sizeSel = document.getElementById('rb-preferred-size');
+    const preferred_size = sizeSel ? sizeSel.value : 'standard';
     await fetch(`${RB_API}/settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ aggressive, min_downloads }),
+        body: JSON.stringify({ aggressive, min_downloads, preferred_size }),
     });
 }
 

@@ -209,6 +209,34 @@
         </div>
 
         <div class="bg-dark-700/50 border border-gray-800/50 rounded-xl p-5 mb-6">
+            <h3 class="text-white font-semibold mb-3">NAM model size (CPU vs realism)</h3>
+            <p class="text-gray-500 text-sm mb-3">
+                Picks which variant tone3000 downloads serve when multiple sizes
+                exist for the same capture. Smaller sizes load and render
+                <strong class="text-gray-300">much faster</strong> — relevant
+                because every mid-song tone change reloads the whole chain. If
+                you see audio spikes or lag on tone changes, switch to
+                <code class="bg-dark-800 px-1 rounded">feather</code> and
+                re-run <em>Batch all (mode: all)</em> on the Dashboard so the
+                existing songs grab the lighter models.
+            </p>
+            <label class="flex items-center gap-2 text-sm text-gray-300">
+                Preferred size:
+                <select id="rb-preferred-size" onchange="rbSaveSettings()"
+                        class="bg-dark-800 border border-gray-800 rounded px-2 py-1 text-sm">
+                    <option value="standard">standard (~12 MB · most realistic)</option>
+                    <option value="lite">lite (~3 MB · balanced)</option>
+                    <option value="feather">feather (~800 KB · fast tone switches)</option>
+                    <option value="nano">nano (~50 KB · lowest CPU, may sound thin)</option>
+                </select>
+            </label>
+            <p class="text-[11px] text-gray-500 mt-2 leading-snug">
+                Existing downloaded models are not changed. Only newly downloaded
+                captures (auto-download or batch) honour the new setting.
+            </p>
+        </div>
+
+        <div class="bg-dark-700/50 border border-gray-800/50 rounded-xl p-5 mb-6">
             <h3 class="text-white font-semibold mb-3">Regenerate gear map</h3>
             <p class="text-gray-500 text-sm mb-3">
                 If Rocksmith ships new gear or you want to re-extract after

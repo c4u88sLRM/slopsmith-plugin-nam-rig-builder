@@ -2207,6 +2207,7 @@ def setup(app, context):
         return {
             "min_downloads": s.get("min_downloads", 50),
             "aggressive": s.get("aggressive", False),
+            "preferred_size": s.get("preferred_size", "standard"),
             "has_tone3000_key": bool(key),
             "tone3000_api_key_preview": (key[:6] + "…") if key else "",
         }
@@ -2214,7 +2215,13 @@ def setup(app, context):
     @app.post("/api/plugins/rig_builder/settings")
     def update_settings(data: dict = Body(...)):
         # Only persist known keys to avoid junk accumulating in the file.
+        # `preferred_size` is restricted to the 4 valid sizes — anything else
+        # falls back to "standard" so a typo can't break model picking.
         allowed = {k: data[k] for k in ("tone3000_api_key", "min_downloads", "aggressive") if k in data}
+        if "preferred_size" in data:
+            size = str(data["preferred_size"]).strip().lower()
+            if size in ("standard", "lite", "feather", "nano"):
+                allowed["preferred_size"] = size
         _save_settings(allowed)
         return {"ok": True}
 
