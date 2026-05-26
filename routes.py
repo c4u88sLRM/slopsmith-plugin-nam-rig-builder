@@ -2951,38 +2951,117 @@ def setup(app, context):
                     missing.append(ir_file)
             return tone_stages
 
-        # ── Build the mega-chain ──
-        # 1. Master pre first (always active)
-        # 2. Each tone's stages, tagged with tone_key. The first tone's
-        #    persistent bypass flags are respected; every subsequent tone
-        #    is force-bypassed so only the first tone is "active" on load.
-        #    The front-end flips this with setBypass per tone-change.
-        # 3. Master post last (always active)
+        # ── Build the deduped mega-chain ──
+        # NAMs and IRs are deduplicated by file path: the same .nam or .wav
+        # used by multiple tones lives in ONE slot, shared across all tones
+        # that need it. This saves real memory and CPU on songs where 4
+        # tones share the same amp/cab (very common in Rocksmith). VSTs are
+        # NOT deduplicated because each instance can carry distinct
+        # parameter state — two tones using the same compressor with
+        # different makeup-gain settings need separate instances.
+        #
+        # Slot-type ordering is preserved (_CHAIN_NAM_ORDER: pre_pedal →
+        # amp → post_pedal → rack → cabinet) so signal flow stays correct
+        # even when several tones share intermediate stages. Each tone's
+        # active_slots[] lists the chain indices it needs un-bypassed; the
+        # front-end's setBypass-flip toggles all slots NOT in that list
+        # off and everything IN the list on.
         master_pre_stages  = _build_master_stages("pre",  models_dir, irs_dir, 1.0, missing)
         master_post_stages = _build_master_stages("post", models_dir, irs_dir, 1.0, missing)
 
-        chain: list[dict] = list(master_pre_stages)
-        tone_index: list[dict] = []   # ordered list: {tone_key, preset_id, slot_range: [start, end]}
+        # Pass 1: enumerate each tone's stages and bucket them by slot type
+        # so we can flatten in signal-flow order. Track per-tone usage so we
+        # can compute active_slots[] in pass 2.
+        # Dedupe key:
+        #   - NAM (type 1): ("nam", file_path)
+        #   - IR  (type 2): ("ir",  file_path)
+        #   - VST (type 0): ("vst", tone_key, name) — unique per tone
+        per_tone_stages = []      # parallel to mappings: list of stage lists
+        slots_by_type: dict[str, dict] = {}   # slot_type → { dedupe_key: stage_dict }
+        slot_order_by_type: dict[str, list] = {}   # slot_type → ordered list of dedupe_keys
 
         for tone_key, preset_id, _name, _in_gain, out_gain, _gate in mappings:
-            start = len(chain)
             tone_stages = _build_tone_stages(int(preset_id), tone_key, float(out_gain or 1.0))
-            # First tone keeps its persisted bypasses (so a user-disabled
-            # pedal stays disabled). Other tones get force-bypassed so
-            # they pass signal through.
-            if tone_index:    # not the first tone
-                for st in tone_stages:
-                    st["bypassed"] = True
-            chain.extend(tone_stages)
-            end = len(chain)
+            per_tone_stages.append(tone_stages)
+            for stage in tone_stages:
+                slot_type = stage.get("slot") or "unspecified"
+                stype = stage.get("type")
+                if stype == 1:        # NAM
+                    dkey = ("nam", stage.get("path"))
+                elif stype == 2:      # IR
+                    dkey = ("ir", stage.get("path"))
+                else:                  # VST — always unique per tone
+                    dkey = ("vst", tone_key, stage.get("name") or stage.get("path"))
+                bucket = slots_by_type.setdefault(slot_type, {})
+                order  = slot_order_by_type.setdefault(slot_type, [])
+                if dkey not in bucket:
+                    # First time we see this resource: copy the stage and
+                    # FORCE bypass=True; the front-end un-bypasses whichever
+                    # slots the active tone needs. Strip tone_key (slot may
+                    # belong to many tones) and persisted bypass (we manage
+                    # bypass per tone-change, not per stage).
+                    s = dict(stage)
+                    s["bypassed"] = True
+                    s.pop("tone_key", None)
+                    bucket[dkey] = s
+                    order.append(dkey)
+
+        # Flatten in signal-flow order: master_pre + slots_by_type in
+        # _CHAIN_NAM_ORDER + cabinet + master_post.
+        chain: list[dict] = list(master_pre_stages)
+        index_of_dkey: dict = {}      # (slot_type, dkey) → chain index
+
+        slot_type_order = list(_CHAIN_NAM_ORDER) + ["cabinet"]
+        # Append any unrecognised slot types at the end (defensive).
+        for st in slots_by_type.keys():
+            if st not in slot_type_order:
+                slot_type_order.append(st)
+
+        for slot_type in slot_type_order:
+            order = slot_order_by_type.get(slot_type, [])
+            bucket = slots_by_type.get(slot_type, {})
+            for dkey in order:
+                stage = bucket[dkey]
+                index_of_dkey[(slot_type, dkey)] = len(chain)
+                chain.append(stage)
+
+        master_pre_end = len(master_pre_stages)
+        master_post_start = len(chain)
+        chain.extend(master_post_stages)
+        master_post_end = len(chain)
+
+        # Pass 2: per tone, compute active_slots[] — the chain indices the
+        # tone needs un-bypassed. Master slots are always active so the
+        # front-end's bypass-flip leaves them alone.
+        tone_index: list[dict] = []
+        for i, (tone_key, preset_id, _name, _in_gain, _out_gain, _gate) in enumerate(mappings):
+            active_slots: list[int] = []
+            tone_stages = per_tone_stages[i]
+            seen = set()    # avoid duplicate indices when a tone references the same dkey twice
+            for stage in tone_stages:
+                slot_type = stage.get("slot") or "unspecified"
+                stype = stage.get("type")
+                if stype == 1:
+                    dkey = ("nam", stage.get("path"))
+                elif stype == 2:
+                    dkey = ("ir", stage.get("path"))
+                else:
+                    dkey = ("vst", tone_key, stage.get("name") or stage.get("path"))
+                idx = index_of_dkey.get((slot_type, dkey))
+                if idx is not None and idx not in seen:
+                    seen.add(idx)
+                    active_slots.append(idx)
+            active_slots.sort()
             tone_index.append({
                 "tone_key": tone_key,
                 "preset_id": int(preset_id),
-                "slot_range": [start, end],
-                "stage_count": end - start,
+                "active_slots": active_slots,
+                "stage_count": len(active_slots),
             })
 
-        chain.extend(master_post_stages)
+        # Master slot ranges (always active — never bypassed by the front-end).
+        master_pre_indices  = list(range(0, master_pre_end))
+        master_post_indices = list(range(master_post_start, master_post_end))
 
         return {
             "filename": decoded,
@@ -2990,8 +3069,8 @@ def setup(app, context):
             "tones": tone_index,
             "master_pre_count":  len(master_pre_stages),
             "master_post_count": len(master_post_stages),
-            "master_pre_range":  [0, len(master_pre_stages)],
-            "master_post_range": [len(chain) - len(master_post_stages), len(chain)],
+            "master_pre_indices":  master_pre_indices,
+            "master_post_indices": master_post_indices,
             "active_tone_key":   tone_index[0]["tone_key"] if tone_index else None,
             "missing": missing,
             "total_stages": len(chain),

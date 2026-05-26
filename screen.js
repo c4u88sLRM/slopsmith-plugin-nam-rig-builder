@@ -397,18 +397,31 @@ const RbMegaChain = (function () {
     }
 
     // Apply bypass state across the chain so only `activeToneKey` runs.
+    // With dedupe, every slot can belong to MANY tones, so we compute the
+    // union of (master_pre ∪ active tone's active_slots ∪ master_post)
+    // and bypass everything NOT in that set.
+    //
     // Uses setMultiBypass when available (one IPC call) — otherwise falls
     // back to per-slot setBypass.
     async function _applyActiveTone(activeToneKey) {
         const api = _api();
         if (!api || !_mega) return;
+        const tone = _findToneByKey(activeToneKey);
+        const totalStages = (_mega.native_preset && _mega.native_preset.chain && _mega.native_preset.chain.length) || 0;
+        if (!totalStages) return;
+
+        // Master indices are always active. Build the active set:
+        //   master_pre + tone.active_slots + master_post
+        const active = new Set();
+        for (const i of (_mega.master_pre_indices  || [])) active.add(i);
+        for (const i of (_mega.master_post_indices || [])) active.add(i);
+        if (tone && Array.isArray(tone.active_slots)) {
+            for (const i of tone.active_slots) active.add(i);
+        }
+
         const changes = [];
-        for (const tone of _mega.tones) {
-            const shouldBypass = tone.tone_key !== activeToneKey;
-            const [start, end] = tone.slot_range;
-            for (let slot = start; slot < end; slot++) {
-                changes.push({ slotId: slot, bypassed: shouldBypass });
-            }
+        for (let slotId = 0; slotId < totalStages; slotId++) {
+            changes.push({ slotId, bypassed: !active.has(slotId) });
         }
         try {
             if (typeof api.setMultiBypass === 'function') {
@@ -465,8 +478,21 @@ const RbMegaChain = (function () {
             if (!res || res.success === false) {
                 throw new Error((res && res.error) || 'loadPreset failed');
             }
-            console.log(`[rig_builder mega-chain] loaded ${mega.total_stages} stages`
-                + ` for "${filename}" — ${mega.tones.length} tones, master ${mega.master_pre_count}+${mega.master_post_count}`,
+            // Compute dedupe savings: total active_slot entries across
+            // all tones vs unique stages in the chain. A 4-tone song that
+            // shares one amp + one cab across all four tones reports
+            // something like "20 → 8 stages (60% saved)".
+            const sumActiveSlots = (mega.tones || []).reduce((acc, t) =>
+                acc + (t.active_slots ? t.active_slots.length : 0), 0)
+                + (mega.master_pre_count || 0) * (mega.tones || []).length   // master appears in every tone conceptually
+                + (mega.master_post_count || 0) * (mega.tones || []).length;
+            const totalStages = mega.native_preset.chain.length;
+            const savings = sumActiveSlots > 0
+                ? Math.round((1 - totalStages / sumActiveSlots) * 100)
+                : 0;
+            console.log(`[rig_builder mega-chain] loaded ${totalStages} unique stages`
+                + ` for "${filename}" — ${mega.tones.length} tones`
+                + ` (master ${mega.master_pre_count}+${mega.master_post_count}, ${savings}% deduped)`,
                 res);
         } catch (e) {
             console.warn('[rig_builder mega-chain] loadPreset failed, falling back:', e);
