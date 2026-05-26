@@ -87,6 +87,13 @@
                 // chain at buffer 256). Kill-switch:
                 // `window.__rbMutePreLoad = false`.
                 rbPreLoadMute(chain.length).catch(() => {});
+                // Schedule a VST-param re-apply after the bundle's
+                // loadPreset finishes. Without this, VSTs in the chain
+                // play at plug-in defaults until the user opens each
+                // VST editor (which itself triggers a setParameter
+                // walk). Delay = hold time + 50 ms cushion.
+                const reapplyDelay = (30 + 15 * Math.max(1, chain.length | 0)) + 50;
+                rbReapplyVstParamsAfterLoad(chain, reapplyDelay);
             } catch (_) {
                 return origFetch(input, init);
             }
@@ -494,6 +501,12 @@ const RbMegaChain = (function () {
                 + ` for "${filename}" — ${mega.tones.length} tones`
                 + ` (master ${mega.master_pre_count}+${mega.master_post_count}, ${savings}% deduped)`,
                 res);
+            // VST params: walk the freshly-loaded mega-chain and dispatch
+            // setParameter so VSTs come up at their saved values, not the
+            // plug-in defaults. Without this users had to open each VST
+            // editor manually for the saved params to take effect.
+            await rbReapplyVstParamsToChain(api, mega.native_preset.chain).catch((e) =>
+                console.warn('[rig_builder mega-chain] re-apply VST params:', e));
         } catch (e) {
             console.warn('[rig_builder mega-chain] loadPreset failed, falling back:', e);
             _mega = null;
@@ -3529,6 +3542,31 @@ async function rbReapplyVstParamsToChain(api, chainSpec) {
     }
 }
 
+// Schedule a VST param re-apply after a loadPreset call. Used by the
+// fetch interceptor (song playback via bundle, where we don't control
+// the loadPreset call directly) and by other paths that have a chain
+// spec on hand. Waits `delayMs` before reapplying so the engine has
+// time to finish instantiating each VST — calling setParameter before
+// the plug-in is fully loaded crashes some hosts.
+//
+// Why this matters: the engine's loadPreset restores VSTs from an
+// opaque state blob, but in practice the parameter restore is flaky —
+// users report that VSTs in a chain stay at plug-in defaults until
+// they open the editor (which forces a setParameter walk). Calling
+// this helper after every loadPreset shortcuts that — the user no
+// longer has to open each VST editor for the saved params to apply.
+function rbReapplyVstParamsAfterLoad(chainSpec, delayMs) {
+    if (!chainSpec || !Array.isArray(chainSpec)) return;
+    const hasVst = chainSpec.some(s => s && s.type === 0);
+    if (!hasVst) return;        // no point scheduling work
+    setTimeout(() => {
+        const api = window.slopsmithDesktop && window.slopsmithDesktop.audio;
+        if (!api) return;
+        rbReapplyVstParamsToChain(api, chainSpec).catch((e) =>
+            console.warn('[rig_builder] re-apply VST params (deferred):', e));
+    }, typeof delayMs === 'number' ? delayMs : 200);
+}
+
 // Try to parse the vst_state column into a {paramId: value} dict. The column
 // may hold either our JSON-shape ({"params":{...}}) or the legacy opaque
 // savePreset() blob. Returns null if it isn't our shape.
@@ -3933,7 +3971,8 @@ async function rbReloadPreview(refetchPresetId) {
     const payload = rbState._previewPayload;
     if (!payload) return;
     rbApplyBypassToChain(payload, rbState.listeningTone);
-    const chainLen = (payload.native_preset.chain && payload.native_preset.chain.length) || 1;
+    const chainArr = payload.native_preset.chain || [];
+    const chainLen = chainArr.length || 1;
     try {
         // Same pre-load mute used by the fetch interceptor for the bundle's
         // tone-change path: zero chain gain + mute monitor BEFORE clearChain,
@@ -3945,7 +3984,12 @@ async function rbReloadPreview(refetchPresetId) {
         await api.loadPreset(JSON.stringify(payload.native_preset));
         // Engine sometimes leaves a slot bypassed across reloads — force each
         // slot's bypass to match the spec so toggling un-bypass actually un-bypasses.
-        await rbReapplyBypassToChain(api, payload.native_preset.chain || []);
+        await rbReapplyBypassToChain(api, chainArr);
+        // VST params: the opaque state in the chain JSON doesn't reliably
+        // restore plug-in params; walk the chain and call setParameter
+        // explicitly so VSTs come up at their saved values, not defaults.
+        await rbReapplyVstParamsToChain(api, chainArr).catch((e) =>
+            console.warn('[rig_builder] reload re-apply VST params:', e));
         // Note: rbPreLoadMute restores setMonitorMute(false) on its own
         // timer, but we also explicitly unmute here in case the timer
         // hasn't fired yet — the chain is now safely loaded.
