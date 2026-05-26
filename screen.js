@@ -443,9 +443,19 @@ const RbMegaChain = (function () {
     }
 
     async function buildForSong(filename) {
-        if (!_settingOn()) return false;
+        if (!_settingOn()) {
+            console.log('[rig_builder mega-chain] buildForSong skipped — setting off');
+            return false;
+        }
         const api = _api();
-        if (!api || !filename) return false;
+        if (!api) {
+            console.warn('[rig_builder mega-chain] buildForSong aborted — no native audio API');
+            return false;
+        }
+        if (!filename) {
+            console.warn('[rig_builder mega-chain] buildForSong aborted — no filename');
+            return false;
+        }
         // Tear down any previous session before starting a fresh one.
         await teardown(true);   // silent — no stem restore on chained calls
 
@@ -459,12 +469,14 @@ const RbMegaChain = (function () {
         if (!resp.ok) {
             // No mappings for this song, or backend error → silently fall
             // back to the cooperative path. The bundle will still work.
+            console.warn(`[rig_builder mega-chain] /mega_chain/${filename} → HTTP ${resp.status} (no tone mappings for this song? Run Batch all or open it in per-song tab first to seed mappings)`);
             return false;
         }
         const mega = await resp.json();
         if (!mega || !mega.native_preset
             || !Array.isArray(mega.native_preset.chain)
             || mega.native_preset.chain.length === 0) {
+            console.warn('[rig_builder mega-chain] empty chain returned by backend:', mega);
             return false;
         }
         _mega = mega;
@@ -581,29 +593,71 @@ const RbMegaChain = (function () {
 // `song:unloaded` doesn't appear to fire reliably across all builds, so
 // we also tear down whenever buildForSong is called again (the body of
 // buildForSong does teardown(true) before starting a new session).
+//
+// Also fall back to polling `window.slopsmith.currentSong` for cases
+// where the song was loaded BEFORE this hook installed itself (the
+// EventEmitter doesn't replay missed events, so a song:loaded fired
+// during plugin boot would otherwise be lost).
 (function () {
     if (window.__rbMegaChainHookInstalled) return;
     window.__rbMegaChainHookInstalled = true;
+
+    function triggerBuild(filename, source) {
+        if (!RbMegaChain.settingOn()) {
+            console.log('[rig_builder mega-chain] skip — setting off');
+            return;
+        }
+        if (!filename) {
+            console.log('[rig_builder mega-chain] skip — no filename from', source);
+            return;
+        }
+        console.log(`[rig_builder mega-chain] song detected via ${source}: ${filename} — scheduling buildForSong in 600 ms`);
+        // Give the bundle ~600 ms to inject its #btn-nam etc. so our
+        // AMP-off click hits a real button. Also lets the highway
+        // stabilise so resolveActiveToneKey reads a sensible value.
+        setTimeout(() => {
+            RbMegaChain.buildForSong(filename).then(ok => {
+                if (!ok) console.warn(`[rig_builder mega-chain] buildForSong returned false for "${filename}" (no mappings? bundle interfered?)`);
+            }).catch(e =>
+                console.warn('[rig_builder mega-chain] buildForSong threw:', e));
+        }, 600);
+    }
+
+    let _lastSeenFile = null;
+
     function hook() {
         if (!window.slopsmith || typeof window.slopsmith.on !== 'function') {
             setTimeout(hook, 500);
             return;
         }
-        window.slopsmith.on('song:loaded', async (info) => {
-            if (!RbMegaChain.settingOn()) return;
+        window.slopsmith.on('song:loaded', (info) => {
             const filename = info && info.filename;
-            if (!filename) return;
-            // Give the bundle ~600 ms to inject its #btn-nam etc. so our
-            // AMP-off click hits a real button. Also lets the highway
-            // stabilise so resolveActiveToneKey reads a sensible value.
-            setTimeout(() => {
-                RbMegaChain.buildForSong(filename).catch(e =>
-                    console.warn('[rig_builder mega-chain] buildForSong threw:', e));
-            }, 600);
+            _lastSeenFile = filename;
+            triggerBuild(filename, 'song:loaded event');
         });
         window.slopsmith.on('song:unloaded', () => {
+            _lastSeenFile = null;
             if (RbMegaChain.isActive()) RbMegaChain.teardown(false).catch(() => {});
         });
+        // Catch up on a song that was already loaded when we hooked in:
+        // the event has already fired and EventEmitter won't replay it.
+        const cur = window.slopsmith.currentSong;
+        if (cur && cur.filename && cur.filename !== _lastSeenFile) {
+            _lastSeenFile = cur.filename;
+            triggerBuild(cur.filename, 'currentSong catch-up');
+        }
+        // Belt-and-suspenders: poll every 2 s for currentSong changes the
+        // event might miss (or fire while the setting was off and was then
+        // flipped on mid-song).
+        setInterval(() => {
+            if (!RbMegaChain.settingOn()) return;
+            if (RbMegaChain.isActive()) return;
+            const c = window.slopsmith && window.slopsmith.currentSong;
+            const f = c && c.filename;
+            if (!f || f === _lastSeenFile) return;
+            _lastSeenFile = f;
+            triggerBuild(f, 'currentSong poll');
+        }, 2000);
     }
     hook();
 })();
