@@ -418,17 +418,20 @@ const RbMegaChain = (function () {
     }
 
     // Apply bypass state across the chain so only `activeToneKey` runs.
-    // With dedupe, every slot can belong to MANY tones, so we compute the
-    // union of (master_pre ∪ active tone's active_slots ∪ master_post)
-    // and bypass everything NOT in that set.
+    // Each slot has an "intended" bypass set by the user (Master Chain
+    // tab toggle, per-song bypass button). We respect that bypass for
+    // slots belonging to the active tone + master. Slots that DON'T
+    // belong to the active tone get force-bypassed (signal passes
+    // through them transparently).
     //
-    // The backend gives us chain INDICES (0..N-1 in chain-array order),
-    // but setBypass/setMultiBypass want the engine's actual slot IDs,
-    // which loadPreset assigns dynamically. We translate via the
-    // _indexToSlotId map captured right after loadPreset returned. If
-    // the map is missing (e.g. engine returned no chain state) we fall
-    // back to assuming index == slotId, but the user will probably hear
-    // the wrong stages active in that case.
+    // Data model (set by the backend):
+    //   - tones[i].slots = [{idx, bypassed}, ...]       per-tone slots with persisted bypass
+    //   - master_pre_slots / master_post_slots          same shape, always considered "active"
+    //
+    // The backend gives us chain INDICES (0..N-1), but setBypass/
+    // setMultiBypass want the engine's actual slot IDs, which loadPreset
+    // assigns dynamically. We translate via _indexToSlotId captured
+    // right after loadPreset returned.
     async function _applyActiveTone(activeToneKey) {
         const api = _api();
         if (!api || !_mega) return;
@@ -436,20 +439,24 @@ const RbMegaChain = (function () {
         const totalStages = (_mega.native_preset && _mega.native_preset.chain && _mega.native_preset.chain.length) || 0;
         if (!totalStages) return;
 
-        // Master indices are always active. Build the active set:
-        //   master_pre + tone.active_slots + master_post
-        const active = new Set();
-        for (const i of (_mega.master_pre_indices  || [])) active.add(i);
-        for (const i of (_mega.master_post_indices || [])) active.add(i);
-        if (tone && Array.isArray(tone.active_slots)) {
-            for (const i of tone.active_slots) active.add(i);
-        }
+        // Build a map: idx → desired bypass. Default for every slot is
+        // bypassed=true (passthrough). For master + active-tone slots,
+        // use the persisted bypass from the backend.
+        const bypassByIdx = new Array(totalStages).fill(true);
+        const applyEntry = (entry) => {
+            if (!entry || typeof entry.idx !== 'number') return;
+            if (entry.idx < 0 || entry.idx >= totalStages) return;
+            bypassByIdx[entry.idx] = !!entry.bypassed;
+        };
+        (_mega.master_pre_slots  || []).forEach(applyEntry);
+        (_mega.master_post_slots || []).forEach(applyEntry);
+        if (tone && Array.isArray(tone.slots)) tone.slots.forEach(applyEntry);
 
         const changes = [];
         const mapLen = _indexToSlotId.length;
         for (let idx = 0; idx < totalStages; idx++) {
             const slotId = (idx < mapLen && _indexToSlotId[idx] != null) ? _indexToSlotId[idx] : idx;
-            changes.push({ slotId, bypassed: !active.has(idx) });
+            changes.push({ slotId, bypassed: bypassByIdx[idx] });
         }
         try {
             if (typeof api.setMultiBypass === 'function') {
@@ -523,7 +530,7 @@ const RbMegaChain = (function () {
             // shares one amp + one cab across all four tones reports
             // something like "20 → 8 stages (60% saved)".
             const sumActiveSlots = (mega.tones || []).reduce((acc, t) =>
-                acc + (t.active_slots ? t.active_slots.length : 0), 0)
+                acc + (t.slots ? t.slots.length : 0), 0)
                 + (mega.master_pre_count || 0) * (mega.tones || []).length   // master appears in every tone conceptually
                 + (mega.master_post_count || 0) * (mega.tones || []).length;
             const totalStages = mega.native_preset.chain.length;
@@ -666,7 +673,7 @@ const RbMegaChain = (function () {
             if (!tone) return;
             lastKey = key;
             await _applyActiveTone(tone.tone_key);
-            const slots = Array.isArray(tone.active_slots) ? tone.active_slots : [];
+            const slots = Array.isArray(tone.slots) ? tone.slots : [];
             console.log(`[rig_builder mega-chain] switch → "${tone.tone_key}" (${slots.length} slots)`);
         }, 200);
     }

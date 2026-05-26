@@ -2995,13 +2995,18 @@ def setup(app, context):
                 bucket = slots_by_type.setdefault(slot_type, {})
                 order  = slot_order_by_type.setdefault(slot_type, [])
                 if dkey not in bucket:
-                    # First time we see this resource: copy the stage and
-                    # FORCE bypass=True; the front-end un-bypasses whichever
-                    # slots the active tone needs. Strip tone_key (slot may
-                    # belong to many tones) and persisted bypass (we manage
-                    # bypass per tone-change, not per stage).
+                    # First time we see this resource: copy the stage,
+                    # keep its persisted `bypassed` (the front-end uses
+                    # it as the "intended" bypass for this slot when the
+                    # active tone references it). Strip tone_key — a
+                    # deduped slot may belong to many tones.
+                    #
+                    # Note: with dedupe, a slot's bypass state is shared
+                    # across tones. If tone1 has the amp un-bypassed but
+                    # tone2 has it bypassed-only-for-this-tone (rare),
+                    # the FIRST occurrence wins. This is a minor lossy
+                    # behaviour we accept to cut memory ~3-4×.
                     s = dict(stage)
-                    s["bypassed"] = True
                     s.pop("tone_key", None)
                     bucket[dkey] = s
                     order.append(dkey)
@@ -3030,14 +3035,17 @@ def setup(app, context):
         chain.extend(master_post_stages)
         master_post_end = len(chain)
 
-        # Pass 2: per tone, compute active_slots[] — the chain indices the
-        # tone needs un-bypassed. Master slots are always active so the
-        # front-end's bypass-flip leaves them alone.
+        # Pass 2: per tone, build `slots` — list of {idx, bypassed} for
+        # the chain indices this tone uses. The front-end applies each
+        # entry's persisted bypass when the tone becomes active, so a
+        # piece the user explicitly bypassed in the per-song tab stays
+        # bypassed instead of getting forced on. Indices NOT in this
+        # tone's list are always force-bypassed on tone switch (signal
+        # passes through them).
         tone_index: list[dict] = []
         for i, (tone_key, preset_id, _name, _in_gain, _out_gain, _gate) in enumerate(mappings):
-            active_slots: list[int] = []
             tone_stages = per_tone_stages[i]
-            seen = set()    # avoid duplicate indices when a tone references the same dkey twice
+            seen: dict[int, dict] = {}    # idx → {idx, bypassed}
             for stage in tone_stages:
                 slot_type = stage.get("slot") or "unspecified"
                 stype = stage.get("type")
@@ -3049,19 +3057,26 @@ def setup(app, context):
                     dkey = ("vst", tone_key, stage.get("name") or stage.get("path"))
                 idx = index_of_dkey.get((slot_type, dkey))
                 if idx is not None and idx not in seen:
-                    seen.add(idx)
-                    active_slots.append(idx)
-            active_slots.sort()
+                    seen[idx] = {"idx": idx, "bypassed": bool(stage.get("bypassed", False))}
+            slots_list = sorted(seen.values(), key=lambda e: e["idx"])
             tone_index.append({
                 "tone_key": tone_key,
                 "preset_id": int(preset_id),
-                "active_slots": active_slots,
-                "stage_count": len(active_slots),
+                "slots": slots_list,
+                "stage_count": len(slots_list),
             })
 
-        # Master slot ranges (always active — never bypassed by the front-end).
-        master_pre_indices  = list(range(0, master_pre_end))
-        master_post_indices = list(range(master_post_start, master_post_end))
+        # Master slot lists — same shape as `tones[].slots`. The front-end
+        # respects each entry's persisted bypass: a master piece toggled
+        # off in the Master Chain tab stays bypassed in playback.
+        master_pre_slots = [
+            {"idx": i, "bypassed": bool(chain[i].get("bypassed", False))}
+            for i in range(0, master_pre_end)
+        ]
+        master_post_slots = [
+            {"idx": i, "bypassed": bool(chain[i].get("bypassed", False))}
+            for i in range(master_post_start, master_post_end)
+        ]
 
         return {
             "filename": decoded,
@@ -3069,8 +3084,12 @@ def setup(app, context):
             "tones": tone_index,
             "master_pre_count":  len(master_pre_stages),
             "master_post_count": len(master_post_stages),
-            "master_pre_indices":  master_pre_indices,
-            "master_post_indices": master_post_indices,
+            "master_pre_slots":  master_pre_slots,
+            "master_post_slots": master_post_slots,
+            # Back-compat aliases — index-only lists, in case anything
+            # external is still reading the old field names.
+            "master_pre_indices":  [s["idx"] for s in master_pre_slots],
+            "master_post_indices": [s["idx"] for s in master_post_slots],
             "active_tone_key":   tone_index[0]["tone_key"] if tone_index else None,
             "missing": missing,
             "total_stages": len(chain),
