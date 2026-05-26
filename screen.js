@@ -83,6 +83,61 @@
     };
 })();
 
+// ── Click-suppression on chain reloads ─────────────────────────────────
+// During real song playback `nam_tone` re-loads the chain on every tone
+// change (clearChain → loadPreset) WITHOUT muting the monitor between
+// them. With the full chain (multi-NAM + master pre/post) the gap +
+// re-attack of every NAM produces an audible click / volume spike on
+// each tone change. The bundle is signed (we can't edit it), so we
+// monkey-patch `slopsmithDesktop.audio.loadPreset` to wrap every load
+// in a mute → load → restore-mute sequence. Safe for every caller
+// (Listen mode, audio_engine, etc.): when the monitor was already
+// muted on entry, we leave it muted on exit. Kill-switch:
+// `window.__rbLoadPresetWrap = false`.
+(function () {
+    if (window.__rbLoadPresetPatched) return;
+    function tryPatch() {
+        const api = window.slopsmithDesktop && window.slopsmithDesktop.audio;
+        if (!api || typeof api.loadPreset !== 'function') return false;
+        if (api.__rbWrapped) return true;
+        api.__rbWrapped = true;
+        const orig = api.loadPreset.bind(api);
+        api.loadPreset = async function (presetJson) {
+            if (window.__rbLoadPresetWrap === false) return orig(presetJson);
+            let wasMuted = false;
+            try {
+                if (typeof api.isMonitorMuted === 'function') {
+                    wasMuted = !!(await api.isMonitorMuted());
+                }
+            } catch (_) {}
+            try {
+                if (typeof api.setMonitorMute === 'function') await api.setMonitorMute(true);
+            } catch (_) {}
+            let res;
+            try {
+                res = await orig(presetJson);
+            } finally {
+                // Only un-mute if the caller didn't have it muted on entry —
+                // respect explicit mute state from other plugins.
+                if (!wasMuted) {
+                    try {
+                        if (typeof api.setMonitorMute === 'function') await api.setMonitorMute(false);
+                    } catch (_) {}
+                }
+            }
+            return res;
+        };
+        window.__rbLoadPresetPatched = true;
+        return true;
+    }
+    if (!tryPatch()) {
+        // slopsmithDesktop.audio may not be defined yet — poll briefly.
+        const t = setInterval(() => { if (tryPatch()) clearInterval(t); }, 250);
+        // Stop polling after 30 s either way (no audio engine on this build).
+        setTimeout(() => clearInterval(t), 30000);
+    }
+})();
+
 // ── Shared state ────────────────────────────────────────────────────
 
 let rbState = {
