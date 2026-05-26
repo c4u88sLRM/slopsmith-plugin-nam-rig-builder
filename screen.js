@@ -224,6 +224,14 @@ async function rbPreLoadMute(chainLen) {
 
     async function autoApplyChain() {
         if (window.__rbAmpAutoApply === false) return;
+        // When mega-chain mode owns the engine, we MUST NOT call
+        // loadPreset here — it would clobber the pre-loaded whole-song
+        // chain and leave only this single tone's stages loaded. The
+        // mega-chain switcher will handle the AMP-on case itself.
+        if (typeof RbMegaChain !== 'undefined' && RbMegaChain.isActive && RbMegaChain.isActive()) {
+            console.log('[rig_builder] AMP auto-apply skipped — mega-chain owns the engine');
+            return;
+        }
         if (inFlight) return;
         inFlight = true;
         try {
@@ -548,8 +556,11 @@ const RbMegaChain = (function () {
             }
         } catch (e) { console.warn('[rig_builder mega-chain] startAudio failed:', e); }
 
-        // 6. Start watching highway for tone changes.
+        // 6. Start watching highway for tone changes AND the bundle's
+        // AMP button (we have to turn it back off if anything in the
+        // bundle re-prends it, or it will tear down our mega-chain).
         _startPolling();
+        _startAmpGuard();
 
         // 7. Re-check the active tone a few times over the next 3 seconds
         // to catch the case where the highway populates its tone base
@@ -574,6 +585,40 @@ const RbMegaChain = (function () {
         return true;
     }
 
+    // Watch the bundle's AMP button and click it back off if anything
+    // turns it on while we're active. The bundle re-prends AMP on some
+    // events (tone-mapping reload, song restart, MIDI mode toggles…)
+    // and once on it will call _namApplyCurrentSongTone, which does a
+    // clearChain + loadPreset that destroys our mega-chain. Mute monitor
+    // momentarily so the click of the toggle isn't audible.
+    let _ampGuardHandle = null;
+    function _startAmpGuard() {
+        _stopAmpGuard();
+        _ampGuardHandle = setInterval(() => {
+            if (!_active) return;
+            const btn = document.getElementById('btn-nam');
+            if (!btn) return;
+            const isOn = /(?:^|\s)bg-green-/.test(btn.className);
+            if (isOn) {
+                console.warn('[rig_builder mega-chain] AMP turned on by bundle — turning it back off');
+                try { btn.click(); } catch (_) {}
+                // After AMP-off the bundle has already done clearChain;
+                // rebuild our mega-chain so audio comes back.
+                const filename = window.slopsmith && window.slopsmith.currentSong
+                    && window.slopsmith.currentSong.filename;
+                if (filename) {
+                    setTimeout(() => {
+                        buildForSong(filename).catch(e =>
+                            console.warn('[rig_builder mega-chain] re-build after AMP-off failed:', e));
+                    }, 200);
+                }
+            }
+        }, 500);
+    }
+    function _stopAmpGuard() {
+        if (_ampGuardHandle) { clearInterval(_ampGuardHandle); _ampGuardHandle = null; }
+    }
+
     function _startPolling() {
         _stopPolling();
         let lastKey = _activeToneKey;
@@ -596,6 +641,7 @@ const RbMegaChain = (function () {
 
     async function teardown(silent) {
         _stopPolling();
+        _stopAmpGuard();
         if (!silent) _restoreGuitarStem();
         if (_active) {
             const api = _api();
