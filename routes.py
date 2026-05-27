@@ -1011,6 +1011,26 @@ def _enrich_chain_piece(piece: dict, img_idx: dict | None = None) -> dict:
         if irs_root:
             rs_irs = [f for f in candidates if (irs_root / f).exists()]
 
+    # Amp gain variant info — only relevant when the curator has
+    # actually shipped `gain_variants` for this amp in rs_to_real.json.
+    # We expose three fields:
+    #   `available`: ordered list of level keys (e.g. ["clean", "crunch", "dist"])
+    #   `picked`:    the level the system would auto-pick for this tone's Gain knob
+    #   `picked_id`: the tone3000_id that picked level maps to
+    # The per-song UI shows a small badge ("variant: clean") on amps
+    # that have this defined. None when no variants exist for this gear.
+    amp_variant_info = None
+    if category == "amp":
+        variants = info.get("gain_variants") or {}
+        if variants:
+            picked = _pick_amp_gain_variant(info, _gear_rs_gain(piece))
+            amp_variant_info = {
+                "available": list(variants.keys()),
+                "picked": (picked or {}).get("_picked_level"),
+                "picked_id": (picked or {}).get("tone3000_id"),
+                "rs_gain": _gear_rs_gain(piece),
+            }
+
     return {
         **piece,
         "real_name": info.get("name", rs_type),
@@ -1022,6 +1042,7 @@ def _enrich_chain_piece(piece: dict, img_idx: dict | None = None) -> dict:
         "tone3000_platform": platform,
         "tone3000_search_url": deep_link,
         "rs_irs": rs_irs,
+        "amp_variant": amp_variant_info,
         "assigned": assigned,
     }
 

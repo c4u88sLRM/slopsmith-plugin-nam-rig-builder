@@ -1545,6 +1545,30 @@ function rbRenderPiece(p, toneIdx, pIdx) {
             </div>`;
     }
 
+    // Amp gain variant badge: only present when the curator has shipped
+    // `gain_variants` for this amp in rs_to_real.json. Shows which level
+    // (clean / crunch / dist / whatever the curator named it) the system
+    // auto-picked based on the song's Gain knob value. Read-only: to
+    // switch to another variant the user picks a different NAM file via
+    // 📚 Library or the file input — the existing manual flow already
+    // covers the override case without us needing a separate UI.
+    let ampVariantBadge = '';
+    if (p.amp_variant && p.amp_variant.picked) {
+        const av = p.amp_variant;
+        const availList = (av.available || []).map(level =>
+            level === av.picked
+                ? `<span class="text-emerald-300 font-semibold">${rbEsc(level)}</span>`
+                : `<span class="text-gray-500">${rbEsc(level)}</span>`
+        ).join(' · ');
+        ampVariantBadge = `
+            <div class="mt-2 bg-emerald-900/15 border border-emerald-800/30 rounded px-2 py-1.5 text-[11px] leading-snug"
+                 title="Multi-NAM amp: the system auto-picks the variant whose gain range matches this tone's Gain knob (=${rbEsc(av.rs_gain)}). To use a different variant, swap the NAM file via 📚 Library below.">
+                <span class="text-emerald-400">🎛 Amp gain variant:</span>
+                <span class="text-emerald-200">${availList}</span>
+                <span class="text-gray-500 ml-1">· auto from Gain=${rbEsc(av.rs_gain)}</span>
+            </div>`;
+    }
+
     // Rocksmith knob configuration for this piece — the values the in-game
     // tone uses for this gear (e.g. Pedal_Chorus20 with Rate=50 Depth=30 Mix=70).
     // Shown read-only so the user can either replicate manually in the VST
@@ -1625,6 +1649,7 @@ function rbRenderPiece(p, toneIdx, pIdx) {
             </div>
             <div id="rb-lib-${toneIdx}-${pIdx}" class="hidden mt-2 bg-indigo-900/10 border border-indigo-800/30 rounded p-2"></div>
             <div id="rb-tone-vst-editor-${toneIdx}-${pIdx}" class="hidden mt-2 bg-purple-900/10 border border-purple-800/30 rounded p-2 space-y-2"></div>
+            ${ampVariantBadge}
             ${rsKnobsBlock}
             ${rsIrControl}
         </div>`;
