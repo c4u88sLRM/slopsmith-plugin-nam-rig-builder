@@ -24,6 +24,7 @@ import re
 import secrets
 import shutil
 import sqlite3
+import struct
 import subprocess
 import sys
 import threading
@@ -2384,6 +2385,97 @@ def setup(app, context):
             )
         _invalidate_rs_cab_to_ir()
         return {"ok": True, "stdout": result.stdout, "count": len(_load_rs_cab_to_ir())}
+
+    @app.post("/api/plugins/rig_builder/normalize_rocksmith_irs")
+    def normalize_rocksmith_irs():
+        """Peak-normalize every .wav in nam_irs/rocksmith/ in place.
+
+        WHY: the WEM cab IRs that come out of Wwise via the PSARC have
+        samples in an arbitrary scale (empirically peaks of 10-18 in
+        raw float32). Slopsmith's convolver assumes the standard ±1.0
+        float range, so the over-unity samples saturate, the engine's
+        post-IR limiter cuts in, and the user hears 10-20 dB lower
+        output than with the tone3000 IRs (which ship at peak ≈ 1.0).
+
+        This re-scales every RS IR so its peak ≈ 0.95 = -0.45 dBFS.
+        Idempotent — files already at or below 0.95 are left alone, so
+        running this twice doesn't keep shaving level off. Returns a
+        summary of what was changed.
+
+        Backup: each file modified gets a `.unnormalized.bak` sibling
+        on first pass, written only if the backup doesn't already
+        exist (so the original is preserved even across multiple runs).
+        """
+        irs_root = (_config_dir / "nam_irs" / "rocksmith") if _config_dir else None
+        if not irs_root or not irs_root.exists():
+            return JSONResponse(
+                {"error": f"nam_irs/rocksmith/ not found (expected at {irs_root})"},
+                400,
+            )
+
+        modified: list[dict] = []
+        skipped: list[str] = []
+        errors: list[dict] = []
+        for wav in sorted(irs_root.glob("*.wav")):
+            try:
+                with open(wav, "rb") as f:
+                    blob = f.read()
+                if blob[:4] != b"RIFF" or blob[8:12] != b"WAVE":
+                    skipped.append(wav.name)
+                    continue
+                # Walk chunks to find fmt + data
+                pos = 12
+                fmt_tag = ch = sr = bps = None
+                data_off = data_size = None
+                while pos < len(blob) - 8:
+                    cid = blob[pos:pos+4]
+                    csize = struct.unpack("<I", blob[pos+4:pos+8])[0]
+                    if cid == b"fmt ":
+                        fmt_tag, ch, sr, _, _, bps = struct.unpack(
+                            "<HHIIHH", blob[pos+8:pos+8+16])
+                    elif cid == b"data":
+                        data_off = pos + 8
+                        data_size = csize
+                    pos += 8 + csize + (csize & 1)
+                if (fmt_tag, bps) != (3, 32) or data_off is None or ch != 1:
+                    # Not mono float32 — leave it alone (we only know the
+                    # RS-WEM shape; touching anything else might corrupt).
+                    skipped.append(wav.name)
+                    continue
+                audio = blob[data_off:data_off + data_size]
+                n = data_size // 4
+                samples = struct.unpack(f"<{n}f", audio)
+                peak = max((abs(s) for s in samples), default=0.0)
+                if peak <= 0.95 + 1e-6 or peak == 0:
+                    skipped.append(wav.name)
+                    continue
+                scale = 0.95 / peak
+                normalized = struct.pack(f"<{n}f", *(s * scale for s in samples))
+                # Backup the original if we haven't already
+                backup = wav.with_suffix(".unnormalized.bak")
+                if not backup.exists():
+                    backup.write_bytes(blob)
+                # Rebuild the WAV with the new data chunk in place
+                new_blob = blob[:data_off] + normalized + blob[data_off + data_size:]
+                wav.write_bytes(new_blob)
+                modified.append({
+                    "file": wav.name,
+                    "peak_before": round(peak, 3),
+                    "peak_after": 0.95,
+                    "scale": round(scale, 4),
+                })
+            except Exception as e:
+                errors.append({"file": wav.name, "error": str(e)})
+
+        return {
+            "ok": True,
+            "modified_count": len(modified),
+            "skipped_count": len(skipped),
+            "error_count": len(errors),
+            "modified": modified[:50],   # cap response size
+            "errors": errors[:20],
+            "backup_suffix": ".unnormalized.bak",
+        }
 
     @app.post("/api/plugins/rig_builder/extract_gear_map")
     def extract_gear_map(data: dict = Body(...)):

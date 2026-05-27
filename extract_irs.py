@@ -80,13 +80,55 @@ def _parse_didx(didx: bytes) -> list[tuple[int, int, int]]:
     return out
 
 
+def _peak_normalize_float32(samples: bytes, target_peak: float = 0.95) -> bytes:
+    """Peak-normalize float32 PCM samples to `target_peak` (default 0.95
+    = -0.45 dBFS, leaves a tiny safety margin against clipping).
+
+    Wwise WEMs come out of the PSARC with samples in an arbitrary
+    scale — empirically the cab IRs have peaks of 10-18 in raw float
+    (because Rocksmith's engine normalizes internally on load). When
+    we drop them into Slopsmith's convolver, which assumes the
+    standard ±1.0 float range, the over-unity samples saturate the
+    chain output, the engine's limiter cuts in, and the user hears
+    a 10-20 dB drop with the RS-IRs vs tone3000-IRs (which ship pre-
+    normalized to peak ≈ 1.0).
+
+    Idempotent: an already-normalized file (peak ≤ target_peak + tiny
+    epsilon) is returned unchanged so re-extractions don't keep
+    shaving level off.
+    """
+    n = len(samples) // 4
+    if n == 0:
+        return samples
+    floats = struct.unpack(f"<{n}f", samples)
+    peak = 0.0
+    for s in floats:
+        a = -s if s < 0 else s
+        if a > peak:
+            peak = a
+    # Leave alone if already within (or below) target — covers files
+    # that were already normalized (e.g. tone3000 IRs accidentally
+    # dropped into rocksmith/ by mistake) and avoids cumulative shaving.
+    if peak <= target_peak + 1e-6 or peak == 0:
+        return samples
+    scale = target_peak / peak
+    normalized = tuple(s * scale for s in floats)
+    return struct.pack(f"<{n}f", *normalized)
+
+
 def _write_float32_wav(path: Path, samples: bytes, sample_rate: int, channels: int) -> None:
     """Write a 32-bit IEEE float PCM WAV file.
 
     Matches the format nam_tone normalizes uploaded IRs to (48 kHz mono
     float32) so we can drop our extracted IRs directly into nam_irs/
     without going through nam_tone's ffmpeg pipeline.
+
+    Peak-normalizes mono samples to 0.95 before writing (multi-channel
+    PSARC IRs are rare — we leave those untouched to avoid touching
+    channel balance). See `_peak_normalize_float32` for the why.
     """
+    if channels == 1:
+        samples = _peak_normalize_float32(samples)
     bits = 32
     block_align = channels * (bits // 8)
     byte_rate = sample_rate * block_align
