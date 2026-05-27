@@ -642,7 +642,14 @@ const RbMegaChain = (function () {
         // every 200 ms via lastKey-diff, but we kick it explicitly here
         // with a forced re-apply so the user doesn't hear ~600 ms of the
         // wrong tone before the polling notices.
-        for (let i = 1; i <= 6; i++) {
+        // Recheck schedule: front-loaded so we catch the highway tone-base
+        // publication as soon as it lands (most of the time inside the
+        // first second), without giving up too early if the WS feed lags.
+        // Was [500, 1000, 1500, 2000, 2500, 3000] ms — moved start
+        // earlier (100 ms) + extended (5 s total) so a slow song-load
+        // still gets corrected before the user picks up the guitar.
+        const recheckSchedule = [100, 200, 400, 700, 1000, 1500, 2000, 2700, 3500, 4500, 5500];
+        recheckSchedule.forEach((delay, i) => {
             setTimeout(() => {
                 if (!_active || !_mega) return;
                 const key = _resolveActiveToneKey();
@@ -650,10 +657,10 @@ const RbMegaChain = (function () {
                 const tone = _findToneByKey(key);
                 if (!tone) return;
                 _applyActiveTone(tone.tone_key).then(() => {
-                    console.log(`[rig_builder mega-chain] initial-recheck #${i} → switched to "${tone.tone_key}"`);
+                    console.log(`[rig_builder mega-chain] initial-recheck #${i+1} (t+${delay}ms) → switched to "${tone.tone_key}"`);
                 }).catch(() => {});
-            }, i * 500);    // 500, 1000, 1500, 2000, 2500, 3000 ms
-        }
+            }, delay);
+        });
 
         _active = true;
         return true;
