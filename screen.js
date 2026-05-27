@@ -86,13 +86,14 @@
                 // Restore happens on a timer (~300ms covers a 4-NAM standard
                 // chain at buffer 256). Kill-switch:
                 // `window.__rbMutePreLoad = false`.
-                rbPreLoadMute(chain.length).catch(() => {});
+                rbPreLoadMute(chain.length, rbChainGainTargetFor(chain)).catch(() => {});
                 // Schedule a VST-param re-apply after the bundle's
                 // loadPreset finishes. Without this, VSTs in the chain
                 // play at plug-in defaults until the user opens each
                 // VST editor (which itself triggers a setParameter
-                // walk). Delay = hold time + 50 ms cushion.
-                const reapplyDelay = (30 + 15 * Math.max(1, chain.length | 0)) + 50;
+                // walk). Delay = hold time + 50 ms cushion. Matches
+                // rbPreLoadMute's new 100 + 50/stage baseline.
+                const reapplyDelay = (100 + 50 * Math.max(1, chain.length | 0)) + 50;
                 rbReapplyVstParamsAfterLoad(chain, reapplyDelay);
             } catch (_) {
                 return origFetch(input, init);
@@ -102,32 +103,63 @@
     };
 })();
 
+// Compute the chain-gain target for a given chain spec: looks at what's
+// actually active to estimate how much output level the chain will
+// produce, and returns a multiplier that brings it to a perceived-flat
+// level. Solves the "amp raw is loud / amp through cab is quiet"
+// asymmetry without a slider — the caller passes this to rbPreLoadMute
+// so the fade-in lands at the right level for whatever this chain has.
+//
+//   active amp + active cab IR → ×2.0 (compensate cab attenuation)
+//   active amp + no cab IR     → ×0.5 (knock the raw-amp spike down)
+//   no active amp / fallback   → ×1.0 (don't change anything)
+function rbChainGainTargetFor(chainSpec) {
+    if (!Array.isArray(chainSpec)) return 1.0;
+    let hasActiveAmp = false;
+    let hasActiveCab = false;
+    for (const stage of chainSpec) {
+        if (!stage || stage.bypassed) continue;
+        // type 1 = NAM; slot 'amp' = it's an amp (vs pedal/rack)
+        if (stage.type === 1 && stage.slot === 'amp') hasActiveAmp = true;
+        // type 2 = IR; we treat ANY active IR as a cab even if slot is
+        // tagged differently (rs_ir master_pre, etc.) because the
+        // attenuation profile is similar.
+        if (stage.type === 2) hasActiveCab = true;
+    }
+    if (hasActiveAmp && hasActiveCab) return 2.0;   // +6 dB
+    if (hasActiveAmp && !hasActiveCab) return 0.5;  // -6 dB
+    return 1.0;
+}
+
 // Mute everything the engine can mute just long enough that the bundle's
 // clearChain + loadPreset runs at silence, then restore with a short
 // fade-in so the un-mute doesn't pop. Called from the fetch interceptor
-// right before the bundle pulls the preset JSON, and from rbListenTone
-// / rbReloadPreview right before clearChain.
+// right before the bundle pulls the preset JSON, and from rbListenTone /
+// rbReloadPreview / RbMegaChain right before clearChain.
 //
-// Hold-time tuning (assumes `feather`-size NAMs, the recommended setting):
-//   feather load ≈ 5-15 ms per stage. We give 15 ms/stage + 30 ms baseline
-//   so a 4-NAM chain = 90 ms, a 6-NAM chain = 120 ms. Smaller than the
-//   first version (which was sized for `standard` NAMs at 80+50/stage =
-//   380 ms for 6 stages, which felt like a noticeable audio drop-out).
-//   Users on `standard` size can override via `window.__rbMutePreLoadHold`.
+// `targetGain` controls where the fade-in lands. If omitted, falls back
+// to 1.0. Callers should compute it via rbChainGainTargetFor(chain) so
+// the chain output is normalised regardless of whether the user has a
+// cab IR active or not.
 //
-// Fade-in instead of instant restore so the chain-gain transition from 0
-// to 1.0 doesn't click. 4 steps over 24 ms (≈ 5 audio buffers at 256
-// samples / 48 kHz) sounds like a gentle swell, not a switch.
+// Hold-time tuning: assumed worst case is "engine loads stages
+// sequentially and only the last one is in place by the time loadPreset
+// resolves". To cover that window with margin we use a more
+// conservative 100 ms baseline + 50 ms/stage (chain of 5 → 350 ms).
+// Override with `window.__rbMutePreLoadHold` if it feels too long.
 let _rbMuteInFlight = false;
-async function rbPreLoadMute(chainLen) {
+async function rbPreLoadMute(chainLen, targetGain) {
     if (window.__rbMutePreLoad === false) return;
     if (_rbMuteInFlight) return;            // coalesce rapid tone changes
     _rbMuteInFlight = true;
     const audio = window.slopsmithDesktop && window.slopsmithDesktop.audio;
     if (!audio) { _rbMuteInFlight = false; return; }
+    const target = (typeof targetGain === 'number' && isFinite(targetGain) && targetGain >= 0)
+        ? Math.max(0, Math.min(4, targetGain))
+        : 1.0;
     const hold = (typeof window.__rbMutePreLoadHold === 'number')
         ? Math.max(20, window.__rbMutePreLoadHold | 0)
-        : 30 + 15 * Math.max(1, chainLen | 0);
+        : 100 + 50 * Math.max(1, chainLen | 0);
     let wasMuted = false;
     try { if (typeof audio.isMonitorMuted === 'function') wasMuted = !!(await audio.isMonitorMuted()); } catch (_) {}
     try {
@@ -140,10 +172,12 @@ async function rbPreLoadMute(chainLen) {
         try {
             // Un-mute the monitor immediately (it's a hard mute, no transient).
             if (!wasMuted && typeof audio.setMonitorMute === 'function') await audio.setMonitorMute(false);
-            // Fade chain gain 0 → 1.0 over ~24 ms in 4 steps so the
-            // restore doesn't click.
+            // Fade chain gain 0 → target over ~24 ms in 4 steps so the
+            // restore doesn't click. Final value is the smart target,
+            // not a fixed 1.0 — that's how we normalise across "amp +
+            // cab" and "amp only" without a user-facing knob.
             if (typeof audio.setGain === 'function') {
-                const steps = [0.25, 0.5, 0.8, 1.0];
+                const steps = [target * 0.25, target * 0.5, target * 0.8, target];
                 for (const v of steps) {
                     await audio.setGain('chain', v);
                     await new Promise(r => setTimeout(r, 6));
@@ -521,7 +555,10 @@ const RbMegaChain = (function () {
         //    forget call, which raced the loadPreset and let the attack
         //    transient leak through ("still gives feedback sometimes on
         //    initial song load" — Discord report).
-        await rbPreLoadMute(mega.native_preset.chain.length).catch(() => {});
+        await rbPreLoadMute(
+            mega.native_preset.chain.length,
+            rbChainGainTargetFor(mega.native_preset.chain)
+        ).catch(() => {});
         try {
             if (api.clearChain) await api.clearChain().catch(() => {});
             const res = await api.loadPreset(JSON.stringify(mega.native_preset));
@@ -4204,7 +4241,9 @@ async function rbReloadPreview(refetchPresetId) {
         // the loadPreset and letting the attack transient leak through.
         // rbPreLoadMute returns once mute is applied; the un-mute happens
         // on its own internal timer with a fade-in so we don't pop.
-        await rbPreLoadMute(chainLen).catch(() => {});
+        // Target gain is computed from the chain itself (amp+cab → ×2.0,
+        // amp only → ×0.5) so the output is normalised across configs.
+        await rbPreLoadMute(chainLen, rbChainGainTargetFor(chainArr)).catch(() => {});
         if (api.clearChain) await api.clearChain().catch(() => {});
         await api.loadPreset(JSON.stringify(payload.native_preset));
         // Engine sometimes leaves a slot bypassed across reloads — force each
@@ -4893,9 +4932,10 @@ async function rbListenTone(toneIdx, filename) {
             rbState._previewPayload = payload;
             rbApplyBypassToChain(payload, toneIdx);   // honour any pre-set bypasses
             // AWAIT pre-load mute so chain gain is at 0 before clearChain+
-            // loadPreset run. Fire-and-forget race let the attack transient
-            // leak through (Discord report: "feedback on initial song load").
-            await rbPreLoadMute(chain.length).catch(() => {});
+            // loadPreset run. Target gain is computed from the chain
+            // (amp+cab → ×2.0, amp only → ×0.5) so Listen mode normalises
+            // levels the same way the song-playback path does.
+            await rbPreLoadMute(chain.length, rbChainGainTargetFor(chain)).catch(() => {});
             if (api.clearChain) await api.clearChain().catch(() => {});
             const res = await api.loadPreset(JSON.stringify(payload.native_preset));
             const got = res && res.slotsLoaded;
