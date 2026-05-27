@@ -5732,6 +5732,8 @@ async function rbLoadSettings() {
     document.getElementById('rb-min-downloads').value = s.min_downloads;
     const megaCb = document.getElementById('rb-mega-chain-mode');
     if (megaCb) megaCb.checked = !!s.mega_chain_mode;
+    const bac = document.getElementById('rb-bypass-all-cabs');
+    if (bac) bac.checked = !!s.bypass_all_cabs;
     // Mirror the persisted flag onto the runtime mirror so RbMegaChain
     // sees it even if the user never opens Settings. rbLoadSettings is
     // called from rbInit so this runs at page-load.
@@ -5802,10 +5804,12 @@ async function rbSaveSettings() {
     const min_downloads = parseInt(document.getElementById('rb-min-downloads').value, 10) || 0;
     const megaCb = document.getElementById('rb-mega-chain-mode');
     const mega_chain_mode = megaCb ? !!megaCb.checked : false;
+    const bac = document.getElementById('rb-bypass-all-cabs');
+    const bypass_all_cabs = bac ? !!bac.checked : false;
     await fetch(`${RB_API}/settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ aggressive, min_downloads, mega_chain_mode }),
+        body: JSON.stringify({ aggressive, min_downloads, mega_chain_mode, bypass_all_cabs }),
     });
     // Mirror to the runtime so RbMegaChain picks it up without a restart.
     window.__rbMegaChainSetting = mega_chain_mode;
@@ -5898,46 +5902,39 @@ async function rbDownloadForGear(btn, rsGear, toneId) {
     }
 }
 
-async function rbExtractGearMap() {
-    const path = document.getElementById('rb-gears-psarc').value.trim();
+// Combined "Extract everything" — runs the gear map first (the IR mapping
+// depends on it), then the IRs, against one gears.psarc. Aborts before the
+// IR step if the gear map fails (e.g. wrong archive), so a bad file can't
+// leave a half-set-up state.
+async function rbExtractAll() {
+    const path = document.getElementById('rb-all-psarc').value.trim();
     if (!path) return;
-    const status = document.getElementById('rb-extract-status');
-    status.textContent = 'Extracting…';
+    const status = document.getElementById('rb-extract-all-status');
+    status.textContent = 'Step 1/2: rebuilding gear map…';
     try {
-        const r = await fetch(`${RB_API}/extract_gear_map`, {
+        let r = await fetch(`${RB_API}/extract_gear_map`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ gears_psarc: path }),
         });
-        const data = await r.json();
+        let data = await r.json();
         if (!r.ok) {
-            status.innerHTML = `<span class="text-red-400">Error: ${rbEsc(data.error || r.status)}</span>`;
+            status.innerHTML = `<span class="text-red-400">Gear map failed: ${rbEsc(data.error || r.status)} — is this really gears.psarc?</span>`;
             return;
         }
-        status.innerHTML = `<span class="text-green-400">Done: ${data.count} entries. Reloading status…</span>`;
-        rbInit();
-    } catch (e) {
-        status.innerHTML = `<span class="text-red-400">${rbEsc(e.message)}</span>`;
-    }
-}
-
-async function rbExtractIRs() {
-    const path = document.getElementById('rb-irs-psarc').value.trim();
-    if (!path) return;
-    const status = document.getElementById('rb-extract-irs-status');
-    status.textContent = 'Extracting IRs (may take 30-60s)…';
-    try {
-        const r = await fetch(`${RB_API}/extract_irs`, {
+        const gearCount = data.count;
+        status.innerHTML = `<span class="text-gray-400">Gear map: ${gearCount} entries. Step 2/2: extracting cab IRs (30-60s)…</span>`;
+        r = await fetch(`${RB_API}/extract_irs`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ gears_psarc: path }),
         });
-        const data = await r.json();
+        data = await r.json();
         if (!r.ok) {
-            status.innerHTML = `<span class="text-red-400">Error: ${rbEsc(data.error || r.status)}</span>`;
+            status.innerHTML = `<span class="text-yellow-400">Gear map OK (${gearCount}), but IR extraction failed: ${rbEsc(data.error || r.status)}</span>`;
             return;
         }
-        status.innerHTML = `<span class="text-green-400">Done: ${data.count} RS entities with IR. Reloading status…</span>`;
+        status.innerHTML = `<span class="text-green-400">Done: ${gearCount} gear entries + ${data.count} cabs with IR. Reloading…</span>`;
         rbInit();
     } catch (e) {
         status.innerHTML = `<span class="text-red-400">${rbEsc(e.message)}</span>`;

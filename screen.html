@@ -296,39 +296,31 @@
             </label>
         </div>
 
-
         <div class="bg-dark-700/50 border border-gray-800/50 rounded-xl p-5 mb-6">
-            <h3 class="text-white font-semibold mb-3">Regenerate gear map</h3>
-            <p class="text-gray-500 text-sm mb-3">
-                If Rocksmith ships new gear or you want to re-extract after
-                editing the overrides, point this at your
-                <code class="bg-dark-800 px-1 rounded">gears.psarc</code>.
-            </p>
-            <div class="flex gap-3 mb-2">
-                <input type="text" id="rb-gears-psarc" placeholder="/path/to/gears.psarc"
-                       class="flex-1 bg-dark-800 border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-300 placeholder-gray-600 focus:border-accent/50 outline-none">
-                <button onclick="rbBrowseForPsarc('rb-gears-psarc')" class="bg-dark-600 hover:bg-dark-500 text-gray-300 px-4 py-2 rounded-lg text-sm transition">Browse…</button>
-                <button onclick="rbExtractGearMap()" class="bg-dark-600 hover:bg-dark-500 text-gray-300 px-4 py-2 rounded-lg text-sm transition">Extract</button>
-            </div>
-            <div id="rb-extract-status" class="text-xs text-gray-500"></div>
+            <h3 class="text-white font-semibold mb-3">Cabinets</h3>
+            <label class="flex items-center gap-2 text-sm text-gray-300">
+                <input type="checkbox" id="rb-bypass-all-cabs" onchange="rbSaveSettings()" class="rounded">
+                Disable cabinets on all songs (bypass — raw amp, e.g. for your own cab sim)
+            </label>
+            <p class="text-[11px] text-gray-500 mt-2 leading-snug">Takes effect when you (re)open or replay a song.</p>
         </div>
 
         <div class="bg-dark-700/50 border border-gray-800/50 rounded-xl p-5">
-            <h3 class="text-white font-semibold mb-3">Extract Rocksmith IRs</h3>
+            <h3 class="text-white font-semibold mb-3">Set up Rocksmith gear</h3>
             <p class="text-gray-500 text-sm mb-3">
-                Pulls cab IRs out of the Wwise <code class="bg-dark-800 px-1 rounded">.bnk</code>
-                files inside your <code class="bg-dark-800 px-1 rounded">gears.psarc</code> and
-                saves them as 48 kHz float32 <code class="bg-dark-800 px-1 rounded">.wav</code>
-                files in <code class="bg-dark-800 px-1 rounded">nam_irs/rocksmith/</code>. The
-                auto-mode batch prefers these over tone3000 for cabs.
+                Point this at your game's
+                <code class="bg-dark-800 px-1 rounded">gears.psarc</code> (the gear
+                archive — <strong>not</strong> <code class="bg-dark-800 px-1 rounded">guitars.psarc</code>).
+                It rebuilds the gear map and extracts the cab IRs in one step.
+                Re-run it whenever Rocksmith ships new gear.
             </p>
             <div class="flex gap-3 mb-2">
-                <input type="text" id="rb-irs-psarc" placeholder="/path/to/gears.psarc"
+                <input type="text" id="rb-all-psarc" placeholder="/path/to/gears.psarc"
                        class="flex-1 bg-dark-800 border border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-300 placeholder-gray-600 focus:border-accent/50 outline-none">
-                <button onclick="rbBrowseForPsarc('rb-irs-psarc')" class="bg-dark-600 hover:bg-dark-500 text-gray-300 px-4 py-2 rounded-lg text-sm transition">Browse…</button>
-                <button onclick="rbExtractIRs()" class="bg-dark-600 hover:bg-dark-500 text-gray-300 px-4 py-2 rounded-lg text-sm transition">Extract</button>
+                <button onclick="rbBrowseForPsarc('rb-all-psarc')" class="bg-dark-600 hover:bg-dark-500 text-gray-300 px-4 py-2 rounded-lg text-sm transition">Browse…</button>
+                <button onclick="rbExtractAll()" class="bg-accent hover:bg-accent/80 text-white px-4 py-2 rounded-lg text-sm transition">Extract</button>
             </div>
-            <div id="rb-extract-irs-status" class="text-xs text-gray-500"></div>
+            <div id="rb-extract-all-status" class="text-xs text-gray-500"></div>
         </div>
 
         <div class="bg-dark-700/50 border border-gray-800/50 rounded-xl p-5 mt-6">

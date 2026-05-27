@@ -80,40 +80,36 @@ def _parse_didx(didx: bytes) -> list[tuple[int, int, int]]:
     return out
 
 
-def _peak_normalize_float32(samples: bytes, target_peak: float = 0.95) -> bytes:
-    """Peak-normalize float32 PCM samples to `target_peak` (default 0.95
-    = -0.45 dBFS, leaves a tiny safety margin against clipping).
+_IR_TARGET_L2 = 2.4    # match tone3000 cab IRs' broadband convolution gain
+_IR_PEAK_CAP = 2.0     # clip safety — never let an IR's peak exceed this
 
-    Wwise WEMs come out of the PSARC with samples in an arbitrary
-    scale — empirically the cab IRs have peaks of 10-18 in raw float
-    (because Rocksmith's engine normalizes internally on load). When
-    we drop them into Slopsmith's convolver, which assumes the
-    standard ±1.0 float range, the over-unity samples saturate the
-    chain output, the engine's limiter cuts in, and the user hears
-    a 10-20 dB drop with the RS-IRs vs tone3000-IRs (which ship pre-
-    normalized to peak ≈ 1.0).
 
-    Idempotent: an already-normalized file (peak ≤ target_peak + tiny
-    epsilon) is returned unchanged so re-extractions don't keep
-    shaving level off.
-    """
+def _peak_normalize_float32(samples: bytes) -> bytes:
+    """Scale raw float32 cab-IR PCM so its **L2 norm** (sqrt of total energy)
+    hits a tone3000-like target — capping the peak for clip safety.
+
+    A cab IR's playback loudness tracks its L2 (the broadband convolution
+    gain), NOT its peak. Rocksmith's raw IRs are unnormalized (peaks ~7-19) AND,
+    even after peak-normalizing, carry only ~half the L2 of a tone3000 IR — so
+    the guitar/bass comes out far quieter with a Rocksmith cab engaged. Matching
+    L2 equalizes cab loudness across the set and against tone3000. Scaling is
+    uniform across (interleaved) channels — level only, not frequency response.
+    (Name kept for the call site; it's an L2 normalize now.)"""
+    import math
     n = len(samples) // 4
     if n == 0:
         return samples
-    floats = struct.unpack(f"<{n}f", samples)
-    peak = 0.0
-    for s in floats:
-        a = -s if s < 0 else s
-        if a > peak:
-            peak = a
-    # Leave alone if already within (or below) target — covers files
-    # that were already normalized (e.g. tone3000 IRs accidentally
-    # dropped into rocksmith/ by mistake) and avoids cumulative shaving.
-    if peak <= target_peak + 1e-6 or peak == 0:
+    vals = struct.unpack("<%df" % n, samples)
+    peak = max((abs(v) for v in vals), default=0.0)
+    l2 = math.sqrt(sum(v * v for v in vals))
+    if l2 <= 0.0 or peak <= 0.0:
         return samples
-    scale = target_peak / peak
-    normalized = tuple(s * scale for s in floats)
-    return struct.pack(f"<{n}f", *normalized)
+    scale = _IR_TARGET_L2 / l2
+    if peak * scale > _IR_PEAK_CAP:
+        scale = _IR_PEAK_CAP / peak
+    if abs(scale - 1.0) < 1e-3:   # already normalized — leave it (idempotent)
+        return samples
+    return struct.pack("<%df" % n, *(v * scale for v in vals))
 
 
 def _write_float32_wav(path: Path, samples: bytes, sample_rate: int, channels: int) -> None:
@@ -122,13 +118,7 @@ def _write_float32_wav(path: Path, samples: bytes, sample_rate: int, channels: i
     Matches the format nam_tone normalizes uploaded IRs to (48 kHz mono
     float32) so we can drop our extracted IRs directly into nam_irs/
     without going through nam_tone's ffmpeg pipeline.
-
-    Peak-normalizes mono samples to 0.95 before writing (multi-channel
-    PSARC IRs are rare — we leave those untouched to avoid touching
-    channel balance). See `_peak_normalize_float32` for the why.
     """
-    if channels == 1:
-        samples = _peak_normalize_float32(samples)
     bits = 32
     block_align = channels * (bits // 8)
     byte_rate = sample_rate * block_align
@@ -195,6 +185,7 @@ def extract_all(gears_psarc: str, irs_root: Path) -> dict:
             if not samples:
                 continue
             out_name = f"{bank_name}_{idx:02d}.wav"
+            samples = _peak_normalize_float32(samples)
             _write_float32_wav(out_dir / out_name, samples, sample_rate, channels)
             ir_files.append(f"rocksmith/{out_name}")
             total_irs += 1

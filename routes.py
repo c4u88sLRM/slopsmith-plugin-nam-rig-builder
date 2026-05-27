@@ -149,6 +149,11 @@ _DEFAULT_SETTINGS = {
     # different levels. Capped to ±12 dB inside `_nam_normalized_output_level`.
     "normalize_nam_loudness": True,
     "nam_loudness_target_lufs": -18.0,
+    # When toggled, bypasses (or un-bypasses) the cabinet slot on EVERY song's
+    # tones in one shot — for users who'd rather run no cab (raw amp) or their
+    # own external cab sim. Stored just for the checkbox state; the actual
+    # effect is the per-piece `bypassed` flag the toggle writes.
+    "bypass_all_cabs": False,
 }
 
 # Tone3000 platform value to request per Rocksmith category. Amps and
@@ -3424,6 +3429,23 @@ def _start_watcher() -> None:
 # ── FastAPI route registration ───────────────────────────────────────
 
 
+def _canonical_song_key(filename: str) -> str:
+    """Identity of a song independent of container format, so the same song in
+    `.psarc` and `.sloppak` resolves to one thing. Drops the extension and the
+    psarc PC marker (`_p`). E.g. both
+    `RHCP_Aquatic-Mouth-Dance_v1.sloppak` and
+    `RHCP_Aquatic-Mouth-Dance_v1_p.psarc` → `rhcp_aquatic-mouth-dance_v1`.
+    The version suffix (`_v1`) is kept on purpose — different versions/charts
+    are genuinely different files."""
+    base = filename.rsplit("/", 1)[-1]
+    if "." in base:
+        base = base.rsplit(".", 1)[0]
+    low = base.lower()
+    if low.endswith("_p"):
+        low = low[:-2]
+    return low
+
+
 def setup(app, context):
     global _config_dir, _get_dlc_dir, _get_sloppak_cache_dir, _db_path
 
@@ -3659,6 +3681,7 @@ def setup(app, context):
             "aggressive": s.get("aggressive", False),
             "preferred_size": s.get("preferred_size", "standard"),
             "mega_chain_mode": s.get("mega_chain_mode", False),
+            "bypass_all_cabs": s.get("bypass_all_cabs", False),
             "has_tone3000_key": bool(key),
             "tone3000_api_key_preview": (key[:6] + "…") if key else "",
             "tone3000_connected": bool(s.get("tone3000_access_token")),
@@ -3677,6 +3700,17 @@ def setup(app, context):
                 allowed["preferred_size"] = size
         if "mega_chain_mode" in data:
             allowed["mega_chain_mode"] = bool(data["mega_chain_mode"])
+        if "bypass_all_cabs" in data:
+            want = bool(data["bypass_all_cabs"])
+            allowed["bypass_all_cabs"] = want
+            # Only rewrite the DB when the toggle actually flips, so changing
+            # an unrelated setting doesn't clobber a manual per-cab bypass.
+            if want != _load_settings().get("bypass_all_cabs", False):
+                conn = _get_conn()
+                with _lock:
+                    conn.execute("UPDATE preset_pieces SET bypassed=? WHERE slot='cabinet'",
+                                 (1 if want else 0,))
+                    conn.commit()
         _save_settings(allowed)
         return {"ok": True}
 
@@ -4169,21 +4203,40 @@ def setup(app, context):
         pieces = data.get("pieces") or []
         if not filename or not isinstance(pieces, list):
             return JSONResponse({"error": "filename and pieces required"}, 400)
+        in_gain = float(data.get("input_gain", 1.0))
+        out_gain = float(data.get("output_gain", 0.5))
+        gate = float(data.get("gate_threshold", -60.0))
+        mode = data.get("assigned_mode", "manual")
         try:
             preset_id = _persist_preset_chain(
-                filename=filename,
-                tone_key=tone_key,
-                name=name,
-                pieces=pieces,
-                input_gain=float(data.get("input_gain", 1.0)),
-                output_gain=float(data.get("output_gain", 0.5)),
-                gate_threshold=float(data.get("gate_threshold", -60.0)),
-                assigned_mode=data.get("assigned_mode", "manual"),
+                filename=filename, tone_key=tone_key, name=name, pieces=pieces,
+                input_gain=in_gain, output_gain=out_gain, gate_threshold=gate,
+                assigned_mode=mode,
             )
         except Exception as e:
             log.exception("save_preset failed")
             return JSONResponse({"error": f"{type(e).__name__}: {e}"}, 500)
-        return {"ok": True, "preset_id": preset_id}
+        # Mirror to the SAME song in the other container format (.psarc <->
+        # .sloppak): editing one keeps both in sync, so a song doesn't sound
+        # different depending on which file got played. Matched by canonical
+        # name (ext + the psarc "_p" marker dropped).
+        mirrored = []
+        try:
+            ckey = _canonical_song_key(filename)
+            sibs = [r[0] for r in _get_conn().execute(
+                "SELECT DISTINCT filename FROM tone_mappings WHERE filename != ?", (filename,)
+            ).fetchall() if _canonical_song_key(r[0]) == ckey]
+            for sib in sibs:
+                _persist_preset_chain(
+                    filename=sib, tone_key=tone_key,
+                    name=f"{sib}::{tone_key or 'tone'}", pieces=pieces,
+                    input_gain=in_gain, output_gain=out_gain, gate_threshold=gate,
+                    assigned_mode=mode,
+                )
+                mirrored.append(sib)
+        except Exception:
+            log.warning("save_preset: mirror to sibling format failed", exc_info=True)
+        return {"ok": True, "preset_id": preset_id, "mirrored": mirrored}
 
     # ── Export current gear→capture assignments as shipped defaults ───
     @app.post("/api/plugins/nam_rig_builder/export_default_captures")
@@ -5738,11 +5791,12 @@ def setup(app, context):
         # Track basename collisions across subfolders. The host's
         # web_library.db is keyed by basename so collisions would already
         # be a host-side ambiguity; we just keep the first hit.
-        seen_basenames = set()
+        # Collapse the same song across container formats (.psarc + .sloppak)
+        # into ONE entry, keyed by canonical name — preferring the .psarc (and
+        # a materialized file over a cloud stub) so the single shown row is the
+        # canonical, editable one. (Editing it mirrors to the sibling on save.)
+        by_canon: dict[str, dict] = {}
         for p in candidates:
-            if p.name in seen_basenames:
-                continue
-            seen_basenames.add(p.name)
             meta = meta_by_filename.get(p.name, {})
             if not _matches(p.name, meta):
                 continue
@@ -5750,7 +5804,7 @@ def setup(app, context):
                 size = p.stat().st_size
             except OSError:
                 continue
-            matches.append({
+            entry = {
                 "name": p.name,
                 "size": size,
                 "materialized": size > 0,
@@ -5758,9 +5812,18 @@ def setup(app, context):
                 "artist": meta.get("artist", ""),
                 "album": meta.get("album", ""),
                 "year": meta.get("year", ""),
-            })
-            if len(matches) >= limit:
-                break
+            }
+            key = _canonical_song_key(p.name)
+            prev = by_canon.get(key)
+            if prev is None:
+                by_canon[key] = entry
+                continue
+            cur_ps = p.suffix.lower() == ".psarc"
+            prev_ps = prev["name"].lower().endswith(".psarc")
+            if (cur_ps and not prev_ps) or (cur_ps == prev_ps
+                                            and entry["materialized"] and not prev["materialized"]):
+                by_canon[key] = entry
+        matches = list(by_canon.values())
 
         # Sort: songs with metadata first (sorted by artist then title),
         # then the unmatched filename-only ones (alphabetical) as fallback.
@@ -5773,4 +5836,4 @@ def setup(app, context):
                 entry["name"].lower(),
             )
         matches.sort(key=_key)
-        return {"songs": matches}
+        return {"songs": matches[:limit]}
