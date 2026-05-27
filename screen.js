@@ -4957,8 +4957,6 @@ async function rbLoadSettings() {
     }
     document.getElementById('rb-aggressive').checked = !!s.aggressive;
     document.getElementById('rb-min-downloads').value = s.min_downloads;
-    const sizeSel = document.getElementById('rb-preferred-size');
-    if (sizeSel) sizeSel.value = s.preferred_size || 'standard';
     const megaCb = document.getElementById('rb-mega-chain-mode');
     if (megaCb) megaCb.checked = !!s.mega_chain_mode;
     // Mirror the persisted flag onto the runtime mirror so RbMegaChain
@@ -5029,14 +5027,12 @@ async function rbOauthDisconnect() {
 async function rbSaveSettings() {
     const aggressive = document.getElementById('rb-aggressive').checked;
     const min_downloads = parseInt(document.getElementById('rb-min-downloads').value, 10) || 0;
-    const sizeSel = document.getElementById('rb-preferred-size');
-    const preferred_size = sizeSel ? sizeSel.value : 'standard';
     const megaCb = document.getElementById('rb-mega-chain-mode');
     const mega_chain_mode = megaCb ? !!megaCb.checked : false;
     await fetch(`${RB_API}/settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ aggressive, min_downloads, preferred_size, mega_chain_mode }),
+        body: JSON.stringify({ aggressive, min_downloads, mega_chain_mode }),
     });
     // Mirror to the runtime so RbMegaChain picks it up without a restart.
     window.__rbMegaChainSetting = mega_chain_mode;
