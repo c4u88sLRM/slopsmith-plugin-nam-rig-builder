@@ -7044,7 +7044,14 @@ def setup(app, context):
 
     @app.get("/api/plugins/rig_builder/coverage")
     def coverage():
-        """Pending = preset_pieces with kind='none' or missing file.
+        """Pending = preset_pieces with no NAM/IR file AND no VST plugin.
+
+        A VST-assigned piece (kind='vst', vst_path set) is NOT pending —
+        the audio engine plays the plugin and never reads `file`. The old
+        criterion `kind='none' OR file IS NULL OR file=''` flagged every
+        VST piece as pending because VST rows legitimately have file=NULL.
+        Fixed: also require `vst_path` to be empty for a piece to count
+        as pending.
 
         Excludes the master-chain sentinel presets so pieces added to the
         global pre/post chain don't surface as "pending gears" — those
@@ -7055,24 +7062,31 @@ def setup(app, context):
         master_ids = [pid for pid in (_get_master_preset_id("pre"),
                                       _get_master_preset_id("post"))
                       if pid is not None]
+        # A piece is pending iff it has neither a usable NAM/IR file nor
+        # a VST plugin assigned. Encoded once here to keep the two query
+        # branches consistent.
+        pending_expr = (
+            "(kind='none' OR file IS NULL OR file='') "
+            "AND (vst_path IS NULL OR vst_path='')"
+        )
         if master_ids:
             placeholders = ",".join("?" for _ in master_ids)
             rows = conn.execute(
-                "SELECT rs_gear_type, COUNT(*) AS n, "
-                "  SUM(CASE WHEN kind='none' OR file IS NULL OR file='' THEN 1 ELSE 0 END) AS pending "
-                "FROM preset_pieces "
+                f"SELECT rs_gear_type, COUNT(*) AS n, "
+                f"  SUM(CASE WHEN {pending_expr} THEN 1 ELSE 0 END) AS pending "
+                f"FROM preset_pieces "
                 f"WHERE preset_id NOT IN ({placeholders}) "
-                "GROUP BY rs_gear_type "
-                "ORDER BY pending DESC, n DESC",
+                f"GROUP BY rs_gear_type "
+                f"ORDER BY pending DESC, n DESC",
                 tuple(master_ids),
             ).fetchall()
         else:
             rows = conn.execute(
-                "SELECT rs_gear_type, COUNT(*) AS n, "
-                "  SUM(CASE WHEN kind='none' OR file IS NULL OR file='' THEN 1 ELSE 0 END) AS pending "
-                "FROM preset_pieces "
-                "GROUP BY rs_gear_type "
-                "ORDER BY pending DESC, n DESC"
+                f"SELECT rs_gear_type, COUNT(*) AS n, "
+                f"  SUM(CASE WHEN {pending_expr} THEN 1 ELSE 0 END) AS pending "
+                f"FROM preset_pieces "
+                f"GROUP BY rs_gear_type "
+                f"ORDER BY pending DESC, n DESC"
             ).fetchall()
         rs_map = _load_rs_to_real()
         out = []
