@@ -161,6 +161,23 @@ function rbApplyChainInputDrive(opts) {
         drive = (typeof window.__rbChainInputDrive === 'number' && window.__rbChainInputDrive > 0)
             ? window.__rbChainInputDrive : 8.0;
     }
+    // Re-poll guard: the song-playback callers fire this ~600 ms after
+    // the bundle's chain load — but `highway.getStringCount()` may not
+    // have absorbed the song_info WS message yet (it defaults to 6
+    // until the first song_info arrives). For a bass arrangement that
+    // means we'd land here once with guitar drive (8×), distort the
+    // bass amp, and never re-check. Schedule two cheap re-applies at
+    // +1500 ms and +3500 ms post-initial-call; each one re-runs the
+    // detection. If stringCount has flipped to 4 by then we update the
+    // gain. No-op if it's still guitar (setGain to the same value is
+    // idempotent on the engine side). Skipped when the caller passed
+    // an explicit isBass — they already KNOW the answer (catalog
+    // audition path).
+    const calledExplicitly = opts && (opts.isBass === true || opts.isBass === false);
+    if (!calledExplicitly && !opts?._isRepoll) {
+        setTimeout(() => rbApplyChainInputDrive({ _isRepoll: true }), 1500);
+        setTimeout(() => rbApplyChainInputDrive({ _isRepoll: true }), 3500);
+    }
     return audio.setGain('input', drive).catch((e) => {
         console.warn('[rig_builder] setGain(input,', drive, ') failed:', e);
     });
