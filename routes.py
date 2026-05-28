@@ -4070,7 +4070,16 @@ def setup(app, context):
                             tone_to_cab_key[key] = ck
                 # Now process each piece in this song.
                 for pid_row, preset_id, rs_gear, cur_file, mode, _fn, tone_key in group:
-                    if only_auto and mode and mode != "auto":
+                    # `assigned_mode='manual'` normally protects manually-
+                    # picked rows, but when rs_gear_type is the generic
+                    # placeholder "Cabinets" the row is by definition NOT
+                    # a deliberate user choice (no UI lets you pick the
+                    # generic Cabinets entity — it's always a fallback
+                    # from a parser miss). Force-promote those even when
+                    # mode='manual' so DLC songs like Reptilia get their
+                    # real cab back.
+                    is_generic_cabinets = (rs_gear == "Cabinets")
+                    if only_auto and mode and mode != "auto" and not is_generic_cabinets:
                         counts["skipped_manual"] += 1
                         continue
                     cabinet_key = tone_to_cab_key.get(tone_key)
