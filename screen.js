@@ -4973,7 +4973,14 @@ async function rbStopPreview() {
     }
     if (wasAudition) {
         const b = document.getElementById(wasAudition);
-        if (b) { b.disabled = false; b.textContent = '▶'; }
+        if (b) {
+            b.disabled = false;
+            // Restore the button's original label ("▶ clean", "▶ crunch",
+            // "▶ Listen", "▶ Dynamic Cone", …) instead of a bare "▶" —
+            // variant audition buttons were losing their level label
+            // every time the user stopped/switched.
+            b.textContent = b.dataset.origLabel || '▶';
+        }
     }
 }
 
@@ -5132,6 +5139,11 @@ async function rbAuditionFile(file, kind, btnId) {
     await rbStopPreview();   // stop any other preview/audition first
     const api = rbNativeAudio();
     if (!api) { alert('Audio engine unavailable. Open the “NAM” plugin once to initialize it.'); return; }
+    // Stash the button's original label (e.g. "▶ clean", "▶ Listen")
+    // so we can restore it after the user stops or switches buttons.
+    // The previous implementation hard-coded "▶" on restore, which
+    // wiped the level/mic label off variant audition buttons.
+    if (btn && !btn.dataset.origLabel) btn.dataset.origLabel = btn.textContent;
     if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
     try {
         const url = `${RB_API}/native_preset_one?file=${encodeURIComponent(file)}&kind=${encodeURIComponent(kind || 'nam')}`;
@@ -5148,9 +5160,20 @@ async function rbAuditionFile(file, kind, btnId) {
         rbState._previewStartedAudio = !wasRunning;
         rbState._previewMode = 'native';
         rbState._auditionId = btnId;
-        if (btn) { btn.disabled = false; btn.textContent = '⏸'; }
+        // "⏸ <label>" lets the user see what they're listening to AND
+        // know how to pause. Falls back to a bare ⏸ when no original
+        // label was captured (legacy button, no dataset.origLabel).
+        if (btn) {
+            btn.disabled = false;
+            const orig = btn.dataset.origLabel || '';
+            const labelTail = orig.replace(/^\s*▶\s*/, '');
+            btn.textContent = labelTail ? `⏸ ${labelTail}` : '⏸';
+        }
     } catch (e) {
-        if (btn) { btn.disabled = false; btn.textContent = '▶'; }
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = btn.dataset.origLabel || '▶';
+        }
         alert(`Could not play: ${e && e.message ? e.message : e}`);
     }
 }
@@ -5162,6 +5185,10 @@ async function rbAuditionCandidate(btn, rsGear, toneId) {
     if (rbState._auditionId === btnId) { await rbStopPreview(); return; }
     await rbStopPreview();
     const old = btn.textContent;
+    // Stash the original label so rbStopPreview can restore it later.
+    // Set BEFORE changing textContent so rbAuditionFile (which only
+    // assigns origLabel if missing) doesn't pick up the ⏳ marker.
+    if (!btn.dataset.origLabel) btn.dataset.origLabel = old;
     btn.disabled = true; btn.textContent = '⏳';
     try {
         const r = await fetch(`${RB_API}/audition_candidate`, {
@@ -5436,15 +5463,16 @@ function rbRenderCatalogCard(g) {
 
     // Action buttons (only rendered when expanded).
     const btnId = `rb-aud-${_rbCatalogSeq++}`;
+    // ▶ Listen shown only for VST assignments — NAMs and IRs already
+    // have richer audition rows (amp gain variants, cab mic positions)
+    // that cover the same use case with better labels, and standalone
+    // Listen on a NAM/IR was redundant clutter. VST audition has no
+    // equivalent inline row so the button stays for that one case.
     let listenBtn = '';
     if (isVst) {
         listenBtn = `<button id="${btnId}" onclick="event.stopPropagation(); rbAuditionVst('${rbEsc(g.vst_path).replace(/'/g,"\\'")}','${rbEsc(g.vst_format || 'VST3')}','${btnId}')"
                             title="Listen to this VST in isolation"
                             class="bg-purple-700/50 hover:bg-purple-600/60 text-purple-100 px-3 py-1.5 rounded text-xs">▶ Listen</button>`;
-    } else if (g.assigned) {
-        listenBtn = `<button id="${btnId}" onclick="event.stopPropagation(); rbAuditionFile('${rbEsc(g.file).replace(/'/g,"\\'")}', '${rbEsc(g.kind || 'nam')}', '${btnId}')"
-                            title="Listen to this gear in isolation"
-                            class="bg-dark-600 hover:bg-dark-500 text-gray-200 px-3 py-1.5 rounded text-xs">▶ Listen</button>`;
     }
     // tone3000 link → small icon in the card header, not a competing
     // button. Reduces the action-row noise.
@@ -6413,12 +6441,13 @@ async function rbAuditionVst(vstPath, vstFormat, btnId) {
     // Toggle off if already auditioning this one.
     if (rbState._auditionId === btnId) {
         await rbStopPreview();
-        if (btn) { btn.disabled = false; btn.textContent = '▶'; }
-        return;
+        return;   // rbStopPreview restores btn.dataset.origLabel
     }
     if (rbState.listeningTone !== null || rbState._auditionId) {
         await rbStopPreview();
     }
+    // Stash the original button text so stop/swap can restore it.
+    if (btn && !btn.dataset.origLabel) btn.dataset.origLabel = btn.textContent;
     try {
         if (btn) { btn.disabled = true; btn.textContent = '…'; }
         const url = `${RB_API}/native_preset_one?kind=vst&vst_path=${encodeURIComponent(vstPath)}&vst_format=${encodeURIComponent(vstFormat || 'VST3')}`;
@@ -6433,9 +6462,17 @@ async function rbAuditionVst(vstPath, vstFormat, btnId) {
         rbState._previewStartedAudio = !wasRunning;
         rbState._previewMode = 'native';
         rbState._auditionId = btnId;
-        if (btn) { btn.disabled = false; btn.textContent = '⏸'; }
+        if (btn) {
+            btn.disabled = false;
+            const orig = btn.dataset.origLabel || '';
+            const labelTail = orig.replace(/^\s*▶\s*/, '');
+            btn.textContent = labelTail ? `⏸ ${labelTail}` : '⏸';
+        }
     } catch (e) {
-        if (btn) { btn.disabled = false; btn.textContent = '▶'; }
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = btn.dataset.origLabel || '▶';
+        }
         alert(`Audition failed: ${e.message || e}`);
     }
 }
