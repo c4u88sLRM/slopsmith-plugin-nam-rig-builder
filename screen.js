@@ -5130,8 +5130,9 @@ async function rbAuditionCandidate(btn, rsGear, toneId) {
 let _rbCatalogSeq = 0;
 // Gear-tab nav state. Lives on rbState so toggling filters mid-session
 // doesn't lose the user's setup, and so tab switches re-apply the same
-// filters when they come back. The Set is rebuilt fresh per session.
+// filters when they come back. The Sets are rebuilt fresh per session.
 if (!rbState.gearCollapsedCats) rbState.gearCollapsedCats = new Set();
+if (!rbState.gearExpanded) rbState.gearExpanded = new Set();
 
 const RB_GEAR_LABEL = {
     amp:   'Amplifiers',
@@ -5322,59 +5323,92 @@ function rbRenderCatalogCardCompact(g) {
 }
 
 function rbRenderCatalogCard(g) {
-    const btnId = `rb-aud-${_rbCatalogSeq++}`;
-    const img = g.image
-        ? `<img src="${rbEsc(g.image)}" alt="" loading="lazy" class="w-14 h-14 rounded object-cover bg-dark-900 flex-shrink-0" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'w-14 h-14 rounded bg-dark-900 flex-shrink-0'}))">`
-        : `<div class="w-14 h-14 rounded bg-dark-900 flex items-center justify-center text-gray-700 text-[10px] flex-shrink-0">no photo</div>`;
-    // VST takes priority over NAM/IR in the label/audition button: kind='vst'
-    // with vst_path set means the user has explicitly chosen a plugin for
-    // every preset using this gear.
+    // v2 catalog card — minimal collapsed state, click row to expand
+    // ─────────────────────────────────────────────────────────────
+    // Header (always visible): photo · full name · rs_gear · status pill
+    //   ▸ The full name no longer truncates — it wraps over 2 lines so
+    //     "Marshall JCM800 2203" et al. stay readable.
+    //   ▸ Rocksmith gear photo (/gear_photo/{rs_gear}) first; if the
+    //     RS extraction hasn't been run, fall back to the tone3000
+    //     capture image when the curator has assigned one.
+    //
+    // Action panel (revealed on click): ▶ Listen · 🎚 Variants ·
+    //   📚 Library · 🔍 Search · ↗ tone3000 · the variant audition row
+    //   and the existing Library / Variants panels.
+
+    const safeId = g.rs_gear.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const expanded = rbState.gearExpanded && rbState.gearExpanded.has(g.rs_gear);
     const isVst = g.kind === 'vst' && g.vst_path;
-    let parent;
+
+    // Status text under the rs_gear. Three states:
+    //   ✓ VST   — purple
+    //   ✓ <NAM/IR name> — green
+    //   (unassigned)    — gray
+    let statusLine;
     if (isVst) {
         const vstName = g.vst_path.split('/').pop();
-        parent = `<span class="text-purple-300" title="${rbEsc(g.vst_path)}">✓ VST: ${rbEsc(vstName)}</span>`;
+        statusLine = `<div class="text-xs text-purple-300/90 truncate" title="${rbEsc(g.vst_path)}">✓ VST: ${rbEsc(vstName)}</div>`;
     } else if (g.assigned) {
-        parent = `<span class="text-green-400" title="${rbEsc(g.file || '')}">✓ ${rbEsc(g.tone3000_title || rbLibShortName(g.file) || 'assigned')}</span>`;
+        const label = g.tone3000_title || rbLibShortName(g.file) || 'assigned';
+        statusLine = `<div class="text-xs text-green-400/90 truncate" title="${rbEsc(g.file || '')}">✓ ${rbEsc(label)}</div>`;
     } else {
-        parent = `<span class="text-gray-500">(unassigned)</span>`;
+        statusLine = `<div class="text-xs text-gray-500">(unassigned)</div>`;
     }
+
+    // Status dot: green = NAM/IR, purple = VST, gray = unassigned.
+    let dotColor, dotTitle;
+    if (isVst) { dotColor = 'bg-purple-400'; dotTitle = 'VST plugin loaded'; }
+    else if (g.assigned) { dotColor = 'bg-green-400'; dotTitle = 'NAM/IR assigned'; }
+    else { dotColor = 'bg-gray-600 ring-1 ring-gray-700'; dotTitle = 'Unassigned'; }
+
+    // Rocksmith art with tone3000 image as a fallback. The sibling-swap
+    // trick avoids the HTML-in-attribute escaping issue we hit in the
+    // song editor — onerror just hides this img and reveals the next
+    // sibling, which is the next photo source down the chain.
+    const rsArt = `${RB_API}/gear_photo/${encodeURIComponent(g.rs_gear)}`;
+    const onerrChain = "this.style.display='none'; var n=this.nextElementSibling; if(n){ if(n.tagName==='IMG'){n.style.display=''} else {n.classList.remove('hidden')} }";
+    const t3kImgTag = g.image
+        ? `<img src="${rbEsc(g.image)}" alt="" loading="lazy" style="display:none"
+               class="max-w-full max-h-full rounded object-cover bg-dark-900"
+               onerror="${onerrChain}">`
+        : '';
+    const photoBlock = `
+        <div class="flex-shrink-0 w-16 h-16 flex items-center justify-center rounded bg-dark-900 overflow-hidden">
+            <img src="${rsArt}" alt="" loading="lazy"
+                 class="max-w-full max-h-full rounded object-contain"
+                 onerror="${onerrChain}">
+            ${t3kImgTag}
+            <div class="hidden w-full h-full flex items-center justify-center text-gray-700 text-[10px] uppercase tracking-wide">${rbEsc(g.category || 'gear')}</div>
+        </div>`;
+
+    // Action buttons (only rendered when expanded).
+    const btnId = `rb-aud-${_rbCatalogSeq++}`;
     let listenBtn = '';
     if (isVst) {
-        listenBtn = `<button id="${btnId}" onclick="rbAuditionVst('${rbEsc(g.vst_path).replace(/'/g,"\\'")}','${rbEsc(g.vst_format || 'VST3')}','${btnId}')"
-                            title="Listen to this VST in isolation" class="bg-purple-700/50 hover:bg-purple-600/60 text-purple-100 px-2.5 py-1 rounded text-xs flex-shrink-0">▶</button>`;
+        listenBtn = `<button id="${btnId}" onclick="event.stopPropagation(); rbAuditionVst('${rbEsc(g.vst_path).replace(/'/g,"\\'")}','${rbEsc(g.vst_format || 'VST3')}','${btnId}')"
+                            title="Listen to this VST in isolation"
+                            class="bg-purple-700/50 hover:bg-purple-600/60 text-purple-100 px-3 py-1.5 rounded text-xs">▶ Listen</button>`;
     } else if (g.assigned) {
-        listenBtn = `<button id="${btnId}" onclick="rbAuditionFile('${rbEsc(g.file).replace(/'/g,"\\'")}', '${rbEsc(g.kind || 'nam')}', '${btnId}')"
-                            title="Listen to this gear in isolation" class="bg-dark-600 hover:bg-dark-500 text-gray-200 px-2.5 py-1 rounded text-xs flex-shrink-0">▶</button>`;
+        listenBtn = `<button id="${btnId}" onclick="event.stopPropagation(); rbAuditionFile('${rbEsc(g.file).replace(/'/g,"\\'")}', '${rbEsc(g.kind || 'nam')}', '${btnId}')"
+                            title="Listen to this gear in isolation"
+                            class="bg-dark-600 hover:bg-dark-500 text-gray-200 px-3 py-1.5 rounded text-xs">▶ Listen</button>`;
     }
     const t3kLink = g.tone3000_url
-        ? `<a href="${rbEsc(g.tone3000_url)}" target="_blank" title="Ver en tone3000" class="text-xs text-gray-500 hover:text-gray-300 flex-shrink-0">↗</a>` : '';
-
-    // VST panel — same UX as in the per-song view, but uses bulk-assign via
-    // /vst/assign (writes the choice to EVERY preset_piece for this gear).
-    const vstPanelId = `rb-cat-vst-${g.rs_gear.replace(/[^a-zA-Z0-9_-]/g,'_')}`;
-    const knownCount = rbState.knownVsts ? rbState.knownVsts.length : 0;
-
-    // Amp gain variants button — only on amps. Opens the multi-NAM
-    // picker where the curator can map distinct captures to gain
-    // ranges (clean/crunch/dist), with a per-row capture dropdown for
-    // tone3000 pages that host multiple captures.
-    const safeId = g.rs_gear.replace(/[^a-zA-Z0-9_-]/g, '_');
+        ? `<a href="${rbEsc(g.tone3000_url)}" target="_blank" onclick="event.stopPropagation()"
+              title="Ver en tone3000" class="text-xs text-gray-500 hover:text-gray-300 px-2 py-1.5">↗ tone3000</a>` : '';
     const variantsBtn = g.category === 'amp' ? `
-        <button onclick="rbToggleAmpVariants('${rbEsc(g.rs_gear)}')"
+        <button onclick="event.stopPropagation(); rbToggleAmpVariants('${rbEsc(g.rs_gear)}')"
                 title="Set clean / crunch / dist captures so the song's Gain knob picks the right one"
-                class="bg-emerald-900/30 hover:bg-emerald-900/50 text-emerald-300 border border-emerald-800/40 px-2.5 py-1 rounded text-xs">🎚 Variants</button>` : '';
+                class="bg-emerald-900/30 hover:bg-emerald-900/50 text-emerald-300 border border-emerald-800/40 px-3 py-1.5 rounded text-xs">🎚 Variants</button>` : '';
+    const libraryBtn = `<button onclick="event.stopPropagation(); rbToggleCatalogLibrary('${rbEsc(g.rs_gear)}','${rbEsc(g.category || '')}','${rbEsc(g.vst_path || '')}','${rbEsc(g.vst_format || 'VST3')}')"
+                                title="Pick a downloaded NAM/IR or an installed VST/AU and bulk-assign to every preset using this gear"
+                                class="bg-indigo-900/30 hover:bg-indigo-900/50 text-indigo-300 border border-indigo-800/40 px-3 py-1.5 rounded text-xs">📚 Library</button>`;
+    const searchBtn = `<button onclick="event.stopPropagation(); rbOpenSuggest('${rbEsc(g.rs_gear)}')"
+                                title="Search tone3000 for more candidate captures for this gear"
+                                class="bg-dark-600 hover:bg-dark-500 text-gray-200 px-3 py-1.5 rounded text-xs">🔍 Search</button>`;
 
-    // (no global Replace button: gear swapping is a per-song operation,
-    // exposed from the Songs editor's 🔁 Swap button per piece. A global
-    // swap is too coarse — the user almost always wants to keep some
-    // songs with the original gear and only override a subset.)
-
-    // Audition row for amps with curated gain_variants — one mini ▶
-    // per variant (clean/crunch/dist/whatever the curator named them).
-    // Lets the user A/B the 3 captures without opening a song. The
-    // backend stamps `available: false` on variants whose NAM file is
-    // missing on disk; those render as a dimmed button.
+    // Audition row for curated multi-NAM amps — one mini ▶ per variant
+    // (clean/crunch/dist). A/B the captures without leaving the catalog.
     let variantAuditionRow = '';
     if (Array.isArray(g.variants) && g.variants.length) {
         const btns = g.variants.map(v => {
@@ -5383,38 +5417,67 @@ function rbRenderCatalogCard(g) {
                 return `<button disabled title="NAM not downloaded — Setup → Download all curated variants"
                                 class="text-[10px] px-2 py-0.5 rounded bg-dark-800/50 text-gray-600 cursor-not-allowed">▶ ${rbEsc(v.level)}</button>`;
             }
-            return `<button id="${vId}" onclick="rbAuditionFile('${rbEsc(v.file).replace(/'/g,"\\'")}','nam','${vId}')"
+            return `<button id="${vId}" onclick="event.stopPropagation(); rbAuditionFile('${rbEsc(v.file).replace(/'/g,"\\'")}','nam','${vId}')"
                             title="${rbEsc(v.notes || v.level)}"
                             class="text-[10px] px-2 py-0.5 rounded bg-emerald-900/30 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-800/40">▶ ${rbEsc(v.level)}</button>`;
         }).join(' ');
-        variantAuditionRow = `<div class="flex items-center gap-1 flex-wrap pl-[3.75rem]">
-            <span class="text-[10px] text-gray-500">variants:</span>${btns}
+        variantAuditionRow = `<div class="flex items-center gap-1 flex-wrap">
+            <span class="text-[10px] text-gray-500">A/B variants:</span>${btns}
         </div>`;
     }
 
-    return `
-        <div class="bg-dark-700/50 border border-gray-800/50 rounded-lg p-3 flex flex-col gap-2">
-            <div class="flex items-center gap-3">
-                ${img}
-                <div class="min-w-0 flex-1">
-                    <div class="text-gray-200 truncate">${rbEsc(g.real_name)}</div>
-                    <div class="text-xs text-gray-500 truncate">${rbEsc(g.rs_gear)}</div>
-                    <div class="text-xs mt-0.5 truncate">${parent}</div>
-                </div>
-                <div class="flex items-center gap-2 flex-shrink-0">
-                    ${t3kLink}${listenBtn}
-                    <button onclick="rbOpenSuggest('${rbEsc(g.rs_gear)}')"
-                            class="bg-dark-600 hover:bg-dark-500 text-gray-200 px-2.5 py-1 rounded text-xs">Search</button>
-                    <button onclick="rbToggleCatalogLibrary('${rbEsc(g.rs_gear)}','${rbEsc(g.category || '')}','${rbEsc(g.vst_path || '')}','${rbEsc(g.vst_format || 'VST3')}')"
-                            title="Pick a downloaded NAM/IR or an installed VST/AU and bulk-assign to every preset using this gear"
-                            class="bg-indigo-900/30 hover:bg-indigo-900/50 text-indigo-300 border border-indigo-800/40 px-2.5 py-1 rounded text-xs">📚 Library</button>
-                    ${variantsBtn}
-                </div>
+    // The action panel only renders into the DOM when the card is
+    // expanded. Keeping the existing rb-cat-lib-* / rb-cat-variants-*
+    // panel IDs even when collapsed means hiding+collapsing don't fight
+    // each other — they stay hidden by class.
+    const actionsPanel = expanded ? `
+        <div class="border-t border-gray-800/50 mt-2 pt-2 space-y-2">
+            <div class="flex flex-wrap items-center gap-1.5">
+                ${listenBtn}
+                ${variantsBtn}
+                ${libraryBtn}
+                ${searchBtn}
+                ${t3kLink}
             </div>
             ${variantAuditionRow}
             <div id="rb-cat-lib-${safeId}" class="hidden bg-indigo-900/10 border border-indigo-800/30 rounded p-2"></div>
             <div id="rb-cat-variants-${safeId}" class="hidden bg-emerald-900/10 border border-emerald-800/30 rounded p-2"></div>
+        </div>` : '';
+
+    const chevron = expanded ? '▼' : '▶';
+    const cardHighlight = expanded
+        ? 'border-accent/40 bg-dark-700/70'
+        : 'border-gray-800/50 bg-dark-700/40 hover:border-gray-700 hover:bg-dark-700/60';
+
+    return `
+        <div onclick="rbToggleGearCard('${rbEsc(g.rs_gear)}')"
+             class="cursor-pointer border rounded-lg p-3 transition ${cardHighlight}">
+            <div class="flex items-start gap-3">
+                ${photoBlock}
+                <div class="min-w-0 flex-1">
+                    <div class="flex items-start gap-2">
+                        <span class="w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${dotColor}" title="${rbEsc(dotTitle)}"></span>
+                        <div class="min-w-0 flex-1">
+                            <div class="text-gray-100 font-medium leading-tight break-words" title="${rbEsc(g.real_name)}">${rbEsc(g.real_name)}</div>
+                            <div class="text-[11px] text-gray-500 font-mono break-all">${rbEsc(g.rs_gear)}</div>
+                            ${statusLine}
+                        </div>
+                        <span class="text-gray-500 text-xs flex-shrink-0 select-none mt-0.5" aria-hidden="true">${chevron}</span>
+                    </div>
+                </div>
+            </div>
+            ${actionsPanel}
         </div>`;
+}
+
+// Toggle the expanded state for one gear. Re-renders the catalog so
+// the action panel materializes (or collapses). The expanded set is
+// persisted on rbState so a tab switch and back keeps the panel open.
+function rbToggleGearCard(rsGear) {
+    if (!rbState.gearExpanded) rbState.gearExpanded = new Set();
+    if (rbState.gearExpanded.has(rsGear)) rbState.gearExpanded.delete(rsGear);
+    else rbState.gearExpanded.add(rsGear);
+    rbApplyGearFilters();
 }
 
 // Toggle + render the Gain-variants panel for an amp in the Gear catalog.
