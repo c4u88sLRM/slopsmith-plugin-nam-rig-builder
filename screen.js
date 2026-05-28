@@ -5840,6 +5840,57 @@ async function rbLoadCatalogVstSuggestions(rsGearType, panelId) {
 // → re-pick the same VST → open editor" detour once a gear already has a
 // VST assigned. Stops any other preview/audition first and closes any
 // open VST editor window (orphaned windows are the known crash trigger).
+// DIAGNOSTIC — sweep one param across [0..1] in N steps to discover the
+// display→normalized mapping (especially for stepped/enum params whose
+// step layout isn't documented). User invokes from DevTools console:
+//   await window.rbSweepParam(slot, 'Type')             // 21 steps
+//   await window.rbSweepParam(slot, 'Type', 51)         // 51 steps for fine detail
+// Reads the `text` field returned by getParameters at each value — that's
+// the display string the plugin uses (e.g. "Saturate" / "Hard Clip").
+// Logs one line per UNIQUE display value with its normalized range.
+// Use after a freshly-loaded VST so you know the slot id (returned by
+// loadVST, also visible in [rig_builder restore] logs).
+window.rbSweepParam = async function (slotId, paramName, steps) {
+    const api = window.slopsmithDesktop && window.slopsmithDesktop.audio;
+    if (!api || typeof api.setParameter !== 'function' || typeof api.getParameters !== 'function') {
+        console.error('[rb-sweep] No audio API or missing setParameter / getParameters'); return;
+    }
+    const params = await api.getParameters(slotId);
+    if (!Array.isArray(params)) { console.error('[rb-sweep] getParameters returned non-array'); return; }
+    const target = params.find(p => (p.name || p.label || '').toLowerCase() === String(paramName).toLowerCase());
+    if (!target) {
+        console.error(`[rb-sweep] No param named "${paramName}". Available:`, params.map(p => p.name || p.label).slice(0, 30));
+        return;
+    }
+    const pid = target.id ?? target.paramId ?? target.index;
+    const N = Math.max(2, parseInt(steps || 21, 10));
+    console.log(`[rb-sweep] slot=${slotId} param "${paramName}" (id=${pid}) — sweeping ${N} points from 0.0 to 1.0`);
+    const rows = [];
+    for (let i = 0; i < N; i++) {
+        const v = i / (N - 1);
+        await api.setParameter(slotId, pid, v);
+        // Re-fetch the single param so `text` reflects post-set display.
+        const fresh = await api.getParameters(slotId);
+        const cur = fresh.find(p => (p.id ?? p.paramId ?? p.index) === pid);
+        const text = cur ? (cur.text ?? cur.display ?? '<no-text>') : '<missing>';
+        rows.push({ v: v.toFixed(3), text });
+    }
+    // Collapse adjacent rows with the same text into ranges.
+    const ranges = [];
+    let runStart = rows[0]; let last = rows[0];
+    for (let i = 1; i < rows.length; i++) {
+        if (rows[i].text !== last.text) {
+            ranges.push({ from: runStart.v, to: last.v, text: last.text });
+            runStart = rows[i];
+        }
+        last = rows[i];
+    }
+    ranges.push({ from: runStart.v, to: last.v, text: last.text });
+    console.log(`[rb-sweep] "${paramName}" display mapping (${ranges.length} unique values):`);
+    ranges.forEach(r => console.log(`    [${r.from} .. ${r.to}]  →  ${r.text}`));
+    return ranges;
+};
+
 async function rbCatalogEditVst(vstPath, vstFormat, rsGear) {
     const api = rbNativeAudio();
     if (!api || typeof api.loadVST !== 'function') {
