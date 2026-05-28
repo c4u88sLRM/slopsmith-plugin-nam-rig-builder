@@ -2171,22 +2171,15 @@ async function rbToneEditVst(toneIdx, pIdx) {
         piece._vst_opaque = piece._vst_opaque
             || rbParseVstStateOpaque(piece._vst_state)
             || rbParseVstStateOpaque(piece.assigned && piece.assigned.vst_state);
-        // Re-apply previously captured params if any.
+        // Re-apply previously captured params if any. Helper resolves NAME
+        // keys (from apply_vst_state.py bulk-populated states) → numeric
+        // ids and clamps values to [0,1]. Without this, name-keyed states
+        // silently no-op (parseInt("Threshold")=NaN) → editor opens at
+        // plugin defaults.
         const saved = piece._vst_params
             || (piece.assigned && piece.assigned.vst_state
                 ? rbParseVstStateParams(piece.assigned.vst_state) : null);
-        if (saved && typeof api.setParameter === 'function') {
-            for (const [pid, v] of Object.entries(saved)) {
-                try { await api.setParameter(slotId, parseInt(pid, 10), parseFloat(v)); } catch (_) {}
-            }
-        }
-        let params = [];
-        if (typeof api.getParameters === 'function') {
-            try {
-                const raw = await api.getParameters(slotId);
-                if (Array.isArray(raw)) params = raw;
-            } catch (_) {}
-        }
+        const params = await rbRestoreSavedParamsToSlot(api, slotId, saved);
         piece._vst_param_meta = params;
         // Seed _vst_params with the FULL current snapshot so subsequent
         // slider drags modify a complete dict (not just the touched ids).
@@ -2789,23 +2782,13 @@ async function rbMasterEditVst(role, idx) {
         piece._vst_opaque = piece._vst_opaque
             || rbParseVstStateOpaque(piece._vst_state)
             || rbParseVstStateOpaque(piece.assigned && piece.assigned.vst_state);
-        // Re-apply any previously-captured param state.
+        // Re-apply any previously-captured param state. Helper resolves
+        // NAME keys → numeric ids and clamps to [0,1]; same fix as the
+        // per-tone editor path.
         const saved = piece._vst_params
             || (piece.assigned && piece.assigned.vst_state
                 ? rbParseVstStateParams(piece.assigned.vst_state) : null);
-        if (saved && typeof api.setParameter === 'function') {
-            for (const [pid, v] of Object.entries(saved)) {
-                try { await api.setParameter(slotId, parseInt(pid, 10), parseFloat(v)); } catch (_) {}
-            }
-        }
-        // Grab the live param list (after the restore so values reflect it).
-        let params = [];
-        if (typeof api.getParameters === 'function') {
-            try {
-                const raw = await api.getParameters(slotId);
-                if (Array.isArray(raw)) params = raw;
-            } catch (_) {}
-        }
+        const params = await rbRestoreSavedParamsToSlot(api, slotId, saved);
         piece._vst_param_meta = params;
         // Seed _vst_params with the FULL current snapshot. Without this,
         // subsequent slider drags would write a PARTIAL dict — untouched
@@ -4138,6 +4121,53 @@ function rbResolveStagedPath(toneIdx, pIdx) {
     return (piece.assigned && piece.assigned.vst_path) || '';
 }
 
+// Restore a saved {paramId|paramName → value} dict into a freshly-loaded
+// VST slot. Returns the live `getParameters()` snapshot AFTER restoration
+// (or `[]` if the engine lacks `getParameters`). Used by all 3 editor-open
+// paths (per-tone Load & Edit, per-tone 🎛 Edit VST, master 🎛 Edit VST)
+// to avoid duplicating name→id resolution + value clamping logic.
+//
+// Why we need both name→id and clamp: `apply_vst_state.py` writes param
+// NAMES (durable across plugin versions, e.g. {"Threshold": 0.2}), while
+// a 📸 Capture writes numeric IDs ({"5": 0.2}). The engine's setParameter
+// takes ID + normalized [0,1]. Without name resolution, the bulk-populated
+// states silently no-op (parseInt("Threshold") = NaN → editor opens at
+// plugin defaults). Without clamping, an out-of-range value gets pinned
+// to the param's min or behaves erratically (see `Gain -2328 dB` bug).
+async function rbRestoreSavedParamsToSlot(api, slotId, savedParams) {
+    let params = [];
+    if (typeof api.getParameters === 'function') {
+        try {
+            const raw = await api.getParameters(slotId);
+            if (Array.isArray(raw)) params = raw;
+        } catch (_) {}
+    }
+    if (!savedParams || typeof api.setParameter !== 'function') return params;
+    const nameToId = {};
+    params.forEach((p, idx) => {
+        const pid = p.id ?? p.paramId ?? p.index ?? idx;
+        const pname = (p.name ?? p.label ?? '').toLowerCase();
+        if (pname) nameToId[pname] = pid;
+    });
+    for (const [pid, v] of Object.entries(savedParams)) {
+        let targetId = parseInt(pid, 10);
+        if (isNaN(targetId) || String(targetId) !== String(pid).trim()) {
+            targetId = nameToId[String(pid).toLowerCase()];
+        }
+        if (targetId == null || isNaN(targetId)) continue;
+        const clamped = Math.max(0, Math.min(1, parseFloat(v)));
+        try { await api.setParameter(slotId, targetId, clamped); } catch (_) {}
+    }
+    // Refresh so the caller sees the actual post-restore values.
+    if (typeof api.getParameters === 'function') {
+        try {
+            const refreshed = await api.getParameters(slotId);
+            if (Array.isArray(refreshed)) params = refreshed;
+        } catch (_) {}
+    }
+    return params;
+}
+
 async function rbLoadAndEditVst(toneIdx, pIdx) {
     const api = window.slopsmithDesktop && window.slopsmithDesktop.audio;
     if (!api) return alert('Native VST hosting not available');
@@ -4157,32 +4187,14 @@ async function rbLoadAndEditVst(toneIdx, pIdx) {
         // bug — our UI renders crisp at any Retina scale because it's HTML.
         const piece = rbState.songTones.tones[toneIdx].chain[pIdx];
         piece._vst_slot_id = slotId;
-        let params = [];
-        if (typeof api.getParameters === 'function') {
-            try {
-                const raw = await api.getParameters(slotId);
-                if (Array.isArray(raw)) params = raw;
-            } catch (e) {
-                console.warn('[rig_builder] getParameters failed:', e);
-            }
-        }
-        piece._vst_param_meta = params;
         // If we have previously-captured param values, re-apply them so the
         // editor opens with the user's saved tweaks instead of plugin defaults.
+        // Helper resolves NAME keys (from apply_vst_state.py) → numeric ids
+        // and clamps values to [0,1] (engine's normalized range).
         const savedParams = piece._vst_params || (piece.assigned && piece.assigned.vst_state
             ? rbParseVstStateParams(piece.assigned.vst_state) : null);
-        if (savedParams && typeof api.setParameter === 'function') {
-            for (const [pid, v] of Object.entries(savedParams)) {
-                try { await api.setParameter(slotId, parseInt(pid, 10), parseFloat(v)); } catch (_) {}
-            }
-            // Re-query to reflect the restored values.
-            if (typeof api.getParameters === 'function') {
-                try {
-                    const refreshed = await api.getParameters(slotId);
-                    if (Array.isArray(refreshed)) piece._vst_param_meta = refreshed;
-                } catch (_) {}
-            }
-        }
+        const params = await rbRestoreSavedParamsToSlot(api, slotId, savedParams);
+        piece._vst_param_meta = params;
         rbRenderInlineVstParams(toneIdx, pIdx);
         if (statusEl) {
             statusEl.textContent = `loaded slot ${slotId} · ${params.length} params · tweak below, then "Capture state"`;
@@ -4277,8 +4289,15 @@ async function rbReapplyVstParamsToChain(api, chainSpec) {
                 failed.push(pid);
                 continue;
             }
+            // Engine takes normalized [0,1]. Old states may still carry raw
+            // dB/Hz values from before the apply_vst_state.py normalization
+            // fix — clamp defensively so they don't pin params to the wrong
+            // extreme (the symptom that produced "Gain -2328 dB" in the
+            // editor). New states are already normalized so clamp is a no-op
+            // for them.
+            const clamped = Math.max(0, Math.min(1, parseFloat(v)));
             try {
-                await api.setParameter(slotId, targetId, parseFloat(v));
+                await api.setParameter(slotId, targetId, clamped);
                 appliedCount++;
             } catch (e) {
                 console.warn(`[rig_builder reapply] setParameter slot=${slotId} param=${pid}(${targetId}):`, e);

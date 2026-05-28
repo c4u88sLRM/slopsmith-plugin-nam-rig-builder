@@ -51,6 +51,7 @@ What this script does NOT do:
 
 import argparse
 import json
+import math
 import os
 import platform
 import sqlite3
@@ -59,6 +60,104 @@ from pathlib import Path
 
 
 _PLUGIN_DIR = Path(__file__).parent
+
+
+# VST param display-value ranges, used to convert curated dB/Hz/etc values to
+# the engine's normalized [0,1] range that `api.setParameter` actually
+# expects. Engine setParameter ROUND-TRIPS captured 0..1 values from
+# `getParameters` (confirmed by inspecting opaque captures in the DB — every
+# value is 0..1). So if our curated mapping outputs raw dB (e.g. Compress=48
+# × scale=-1 → Threshold=-48), we MUST normalize before writing or the
+# engine clamps the out-of-range value to 0 → param sits at its minimum
+# instead of the intended display value.
+#
+# Each entry: vst_stem (lowercased file basename without .vst3/.component)
+# → {param_name: (kind, min_display, max_display)} where kind is "linear" or
+# "log" (logarithmic mapping for frequency/Q/time params per VST3 convention).
+#
+# Ranges are sourced from Melda free plugin manuals (MCompressor, MEqualizer,
+# MTremolo, MFlanger, MChorus, MFreqShifter, MReverb). Params absent from this
+# table fall back to "treat the translated value as already-normalized" =
+# clamp to [0,1] — same as the manual ⇶ Apply RS settings path in screen.js.
+_VST_PARAM_RANGES: dict[str, dict[str, tuple[str, float, float]]] = {
+    "mcompressor": {
+        "Gain":        ("linear", -24.0, 24.0),
+        "Output gain": ("linear", -24.0, 24.0),
+        "Threshold":   ("linear", -80.0,  0.0),
+        "Ratio":       ("log",     1.0, 100.0),
+        "Attack":      ("log",     0.01, 1000.0),
+        "Release":     ("log",     0.5, 10000.0),
+        "RMS length":  ("log",     0.1, 1000.0),
+        "Knee size":   ("linear",  0.0, 100.0),
+    },
+    "mequalizer": {
+        "Gain":          ("linear", -24.0, 24.0),
+        "Dry/Wet":       ("linear",  0.0, 100.0),
+        "Soft saturation": ("linear", 0.0, 100.0),
+        # Bands 1..16 — Melda free MEqualizer exposes up to 16 bands. Curated
+        # entries only use 1..6, but cover the rest so a future curator
+        # mapping (e.g. EQ8 → all 8 bands) Just Works.
+        **{f"Band {i} Gain":      ("linear", -24.0, 24.0)    for i in range(1, 17)},
+        **{f"Band {i} Frequency": ("log",     20.0, 20000.0) for i in range(1, 17)},
+        **{f"Band {i} Q":         ("log",      0.1,   100.0) for i in range(1, 17)},
+    },
+    "mtremolo": {
+        "Depth":       ("linear", 0.0, 100.0),
+        "Rate":        ("log",    0.01, 100.0),  # Hz
+    },
+    "mflanger": {
+        "Depth":       ("linear", 0.0, 100.0),
+        "Rate":        ("log",    0.01, 100.0),
+        "Feedback":    ("linear", -100.0, 100.0),
+        "Dry/Wet":     ("linear", 0.0, 100.0),
+    },
+    "mchorus": {
+        "Depth":       ("linear", 0.0, 100.0),
+        "Rate":        ("log",    0.01, 100.0),
+        "Dry/Wet":     ("linear", 0.0, 100.0),
+    },
+    "mfreqshifter": {
+        "Shift":       ("linear", -1000.0, 1000.0),  # Hz
+        "Dry/Wet":     ("linear", 0.0, 100.0),
+    },
+    "mreverb": {
+        "Length":      ("log",    0.01, 100.0),     # s
+        "Dry/Wet":     ("linear", 0.0, 100.0),
+    },
+    # Kilohearts free Essentials — KHS plugins expose almost everything as
+    # 0..100% sliders already, so most curated mappings (scale=0.01) land in
+    # [0,1] without help. Only the dB/Hz params need ranges here.
+    "khs compressor": {
+        "Threshold":   ("linear", -60.0, 0.0),
+        "Attack":      ("log",     0.1, 1000.0),
+        "Release":     ("log",     1.0, 10000.0),
+        "Makeup gain": ("linear", -24.0, 24.0),
+    },
+    "khs 3-band eq": {
+        "Low Gain":    ("linear", -24.0, 24.0),
+        "Mid Gain":    ("linear", -24.0, 24.0),
+        "High Gain":   ("linear", -24.0, 24.0),
+        "Low Freq":    ("log",    20.0, 1000.0),
+        "High Freq":   ("log",   1000.0, 20000.0),
+    },
+}
+
+
+def _normalize_display(value: float, kind: str, lo: float, hi: float) -> float:
+    """Map a display-domain value to the engine's normalized [0,1].
+
+    `linear`: (v - lo) / (hi - lo) — clamped.
+    `log`:    log(v/lo) / log(hi/lo) — clamped; v <= 0 falls to 0.
+    """
+    if kind == "log":
+        if value <= 0 or lo <= 0 or hi <= lo:
+            return 0.0
+        v = max(lo, min(hi, value))
+        return math.log(v / lo) / math.log(hi / lo)
+    # linear
+    if hi == lo:
+        return 0.0
+    return (value - lo) / (hi - lo)
 
 
 def _default_db_path() -> Path | None:
@@ -88,15 +187,22 @@ def _vst_stem(vst_path: str) -> str:
     return name.lower()
 
 
-def _translate_one_knob(rs_value, mapping: dict) -> tuple[str, float] | None:
+def _translate_one_knob(rs_value, mapping: dict, vst_stem: str) -> tuple[str, float] | None:
     """Apply one mapping entry (param/scale/offset/invert) to an RS value.
 
-    Returns (param_name, value_float) or None if the entry is malformed.
+    Returns (param_name, normalized_value) or None if the entry is malformed.
     The `param` field in the mapping is the human-readable VST param NAME
     (e.g. "Rate"). The runtime's setParameter walker
     (`rbReapplyVstParamsToChain` in screen.js) resolves NAME → numeric
     paramId via `getParameters()` per-slot at apply time — so storing
     the name (durable across plugin versions) is the right pivot.
+
+    Value normalization (NEW): the engine's `setParameter` takes a [0,1]
+    normalized value, not the display-domain value. If the (vst_stem,
+    param_name) pair appears in _VST_PARAM_RANGES we map display →
+    normalized here. Otherwise we treat the translated value as already
+    normalized and clamp to [0,1] — mirrors the manual ⇶ Apply RS settings
+    path in screen.js which has the same clamp.
     """
     try:
         v = float(rs_value)
@@ -107,11 +213,17 @@ def _translate_one_knob(rs_value, mapping: dict) -> tuple[str, float] | None:
     out = v * scale + offset
     if mapping.get("invert"):
         out = 1.0 - out
-    # Clamp to a sane VST normalized range; opaque/dB params will get
-    # plausible values but the engine will quantize on setParameter.
-    if -10_000.0 <= out <= 10_000.0:
-        return (mapping.get("param"), out)
-    return None
+    param_name = mapping.get("param")
+    if not isinstance(param_name, str):
+        return None
+    # If the curator declared a display-domain range, normalize. Else
+    # assume `out` is already normalized (curator chose scale=0.01 etc.).
+    rng = _VST_PARAM_RANGES.get(vst_stem, {}).get(param_name)
+    if rng:
+        kind, lo, hi = rng
+        out = _normalize_display(out, kind, lo, hi)
+    out = max(0.0, min(1.0, out))
+    return (param_name, out)
 
 
 def _build_params_for_piece(
@@ -139,7 +251,7 @@ def _build_params_for_piece(
         if not isinstance(m, dict) or "param" not in m:
             skipped.append(rs_knob)
             continue
-        translated = _translate_one_knob(rs_value, m)
+        translated = _translate_one_knob(rs_value, m, stem)
         if translated is None:
             skipped.append(rs_knob)
             continue
@@ -207,14 +319,22 @@ def main() -> int:
             key, {"written": 0, "no_knobs": 0, "no_mapping": 0, "has_state": 0, "no_params": 0},
         )
 
-        # Skip rows that already have an `opaque` capture (user clicked
-        # 📸 Capture or this script already ran) unless --overwrite.
-        if existing_state and not args.overwrite:
+        # Decide whether to skip based on what the existing vst_state contains.
+        #   - opaque blob present → ALWAYS preserve (a 📸 Capture click; sacred,
+        #     even with --overwrite — that blob is the only thing that
+        #     round-trips perfectly through the engine)
+        #   - params-only         → skip by default, rewrite with --overwrite
+        #     (legacy params written before the dB→normalized fix are wrong)
+        if existing_state:
             try:
                 ex = json.loads(existing_state)
-                if isinstance(ex, dict) and (ex.get("opaque") or ex.get("params")):
-                    bucket["has_state"] += 1
-                    continue
+                if isinstance(ex, dict):
+                    if ex.get("opaque"):
+                        bucket["has_state"] += 1
+                        continue
+                    if ex.get("params") and not args.overwrite:
+                        bucket["has_state"] += 1
+                        continue
             except (ValueError, TypeError):
                 pass
 
