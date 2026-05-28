@@ -1597,6 +1597,34 @@ async function rbSuggestSaveOverride(rsGear) {
 
 // ── By song ────────────────────────────────────────────────────────
 
+// Show / hide of the song list panel above the editor. Hidden after a
+// song is opened so the editor takes the whole tab; reappears as soon
+// as the user touches the search box (focus or input).
+function rbHideSongList() {
+    const el = document.getElementById('rb-song-list');
+    if (el) el.classList.add('hidden');
+}
+
+function rbShowSongList() {
+    const el = document.getElementById('rb-song-list');
+    if (el) el.classList.remove('hidden');
+}
+
+// Called from the search input's oninput. Shows the list right away
+// (the user just started typing — they expect to see candidates) and
+// debounces an actual /list_songs hit so we don't spam the backend on
+// every keystroke. 250 ms is the sweet spot between "feels live" and
+// "doesn't fire 8 fetches for a single word".
+let _rbSongSearchDebounce = null;
+function rbOnSongSearchInput() {
+    rbShowSongList();
+    if (_rbSongSearchDebounce) clearTimeout(_rbSongSearchDebounce);
+    _rbSongSearchDebounce = setTimeout(() => {
+        _rbSongSearchDebounce = null;
+        rbListSongs();
+    }, 250);
+}
+
 async function rbListSongs() {
     const q = document.getElementById('rb-song-search').value.trim();
     const r = await fetch(`${RB_API}/list_songs?q=${encodeURIComponent(q)}`);
@@ -1691,6 +1719,9 @@ async function rbLoadSongTones(filename) {
         el.innerHTML = `<p class="text-red-400">Error rendering tones: ${rbEsc(e.message)}</p>`;
         return;
     }
+    // Hide the song list now that we're inside a specific song. Typing
+    // in the search box (or focusing it) brings the list back.
+    rbHideSongList();
     // Auto-scroll the editor into view so picking a song from the (long)
     // song list doesn't leave the user staring at the same list — they
     // expect to land in the editor immediately. requestAnimationFrame

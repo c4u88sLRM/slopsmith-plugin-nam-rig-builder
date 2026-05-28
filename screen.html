@@ -36,9 +36,11 @@
     <div id="rb-tab-song" class="rb-tab-panel hidden">
         <div class="flex gap-3 mb-6">
             <input type="text" id="rb-song-search" placeholder="Filename (e.g. 2minutes_p.psarc)"
+                   oninput="rbOnSongSearchInput()"
+                   onfocus="rbShowSongList()"
                    onkeydown="if(event.key==='Enter')rbListSongs()"
                    class="flex-1 bg-dark-700 border border-gray-800 rounded-xl px-4 py-2.5 text-sm text-gray-300 placeholder-gray-600 focus:border-accent/50 outline-none">
-            <button onclick="rbListSongs()" class="bg-dark-600 hover:bg-dark-500 px-5 py-2.5 rounded-xl text-sm text-gray-300 transition">Search</button>
+            <button onclick="rbShowSongList(); rbListSongs()" class="bg-dark-600 hover:bg-dark-500 px-5 py-2.5 rounded-xl text-sm text-gray-300 transition">Search</button>
         </div>
         <div id="rb-song-list" class="space-y-1 mb-6"></div>
         <div id="rb-song-tones" class="space-y-6"></div>
