@@ -792,13 +792,23 @@
         "scale": 0.01
       },
       "Tone": {
-        "param": "Dry/Wet",
+        "param": "Bias",
         "scale": 0.01,
-        "_hint": "KHS Distortion has no Tone \u2014 use Mix as the closest analog (more wet = more characterful)"
+        "_hint": "RS Tone 0-100 \u2192 kHs Distortion Bias 0-1. Bias=0.5 (RS Tone 50) is symmetric clipping; <0.5 darker, >0.5 brighter character via asymmetric harmonics."
       },
       "_static": {
         "Dynamics": 1.0,
         "Type": 0.0
+      },
+      "Filter": {
+        "param": "Dynamics",
+        "scale": 0.01,
+        "_hint": "RS Filter 0-100 \u2192 kHs Dynamics 0-1. Overrides the _static Dynamics=1.0 pin when this gear exposes a Filter knob."
+      },
+      "Blend": {
+        "param": "Dry/Wet",
+        "scale": 0.01,
+        "_hint": "RS Blend 0-100 \u2192 kHs Dry/Wet 0-1. Most distortion pedals don't expose Blend; Bass_Pedal_BassOverdrive does."
       }
     }
   },
@@ -809,12 +819,23 @@
         "scale": 0.01
       },
       "Tone": {
-        "param": "Dry/Wet",
-        "scale": 0.01
+        "param": "Bias",
+        "scale": 0.01,
+        "_hint": "RS Tone 0-100 \u2192 kHs Distortion Bias 0-1. Bias=0.5 (RS Tone 50) is symmetric clipping; <0.5 darker, >0.5 brighter character via asymmetric harmonics."
       },
       "_static": {
         "Dynamics": 1.0,
         "Type": 0.0
+      },
+      "Filter": {
+        "param": "Dynamics",
+        "scale": 0.01,
+        "_hint": "RS Filter 0-100 \u2192 kHs Dynamics 0-1. Overrides the _static Dynamics=1.0 pin when this gear exposes a Filter knob."
+      },
+      "Blend": {
+        "param": "Dry/Wet",
+        "scale": 0.01,
+        "_hint": "RS Blend 0-100 \u2192 kHs Dry/Wet 0-1. Most distortion pedals don't expose Blend; Bass_Pedal_BassOverdrive does."
       }
     }
   },
@@ -825,12 +846,23 @@
         "scale": 0.01
       },
       "Tone": {
-        "param": "Dry/Wet",
-        "scale": 0.01
+        "param": "Bias",
+        "scale": 0.01,
+        "_hint": "RS Tone 0-100 \u2192 kHs Distortion Bias 0-1. Bias=0.5 (RS Tone 50) is symmetric clipping; <0.5 darker, >0.5 brighter character via asymmetric harmonics."
       },
       "_static": {
         "Dynamics": 1.0,
         "Type": 0.0
+      },
+      "Filter": {
+        "param": "Dynamics",
+        "scale": 0.01,
+        "_hint": "RS Filter 0-100 \u2192 kHs Dynamics 0-1. Overrides the _static Dynamics=1.0 pin when this gear exposes a Filter knob."
+      },
+      "Blend": {
+        "param": "Dry/Wet",
+        "scale": 0.01,
+        "_hint": "RS Blend 0-100 \u2192 kHs Dry/Wet 0-1. Most distortion pedals don't expose Blend; Bass_Pedal_BassOverdrive does."
       }
     }
   },
@@ -841,12 +873,23 @@
         "scale": 0.01
       },
       "Tone": {
-        "param": "Dry/Wet",
-        "scale": 0.01
+        "param": "Bias",
+        "scale": 0.01,
+        "_hint": "RS Tone 0-100 \u2192 kHs Distortion Bias 0-1. Bias=0.5 (RS Tone 50) is symmetric clipping; <0.5 darker, >0.5 brighter character via asymmetric harmonics."
       },
       "_static": {
         "Dynamics": 1.0,
         "Type": 0.0
+      },
+      "Filter": {
+        "param": "Dynamics",
+        "scale": 0.01,
+        "_hint": "RS Filter 0-100 \u2192 kHs Dynamics 0-1. Overrides the _static Dynamics=1.0 pin when this gear exposes a Filter knob."
+      },
+      "Blend": {
+        "param": "Dry/Wet",
+        "scale": 0.01,
+        "_hint": "RS Blend 0-100 \u2192 kHs Dry/Wet 0-1. Most distortion pedals don't expose Blend; Bass_Pedal_BassOverdrive does."
       }
     }
   },
@@ -858,12 +901,23 @@
         "_hint": "Halve scale \u2014 booster shouldn't fully saturate"
       },
       "Tone": {
-        "param": "Dry/Wet",
-        "scale": 0.01
+        "param": "Bias",
+        "scale": 0.01,
+        "_hint": "RS Tone 0-100 \u2192 kHs Distortion Bias 0-1. Bias=0.5 (RS Tone 50) is symmetric clipping; <0.5 darker, >0.5 brighter character via asymmetric harmonics."
       },
       "_static": {
         "Dynamics": 1.0,
         "Type": 0.0
+      },
+      "Filter": {
+        "param": "Dynamics",
+        "scale": 0.01,
+        "_hint": "RS Filter 0-100 \u2192 kHs Dynamics 0-1. Overrides the _static Dynamics=1.0 pin when this gear exposes a Filter knob."
+      },
+      "Blend": {
+        "param": "Dry/Wet",
+        "scale": 0.01,
+        "_hint": "RS Blend 0-100 \u2192 kHs Dry/Wet 0-1. Most distortion pedals don't expose Blend; Bass_Pedal_BassOverdrive does."
       }
     }
   },
@@ -876,6 +930,21 @@
       "_static": {
         "Dynamics": 1.0,
         "Type": 0.0
+      },
+      "Tone": {
+        "param": "Bias",
+        "scale": 0.01,
+        "_hint": "RS Tone 0-100 \u2192 kHs Distortion Bias 0-1. Bias=0.5 (RS Tone 50) is symmetric clipping; <0.5 darker, >0.5 brighter character via asymmetric harmonics."
+      },
+      "Filter": {
+        "param": "Dynamics",
+        "scale": 0.01,
+        "_hint": "RS Filter 0-100 \u2192 kHs Dynamics 0-1. Overrides the _static Dynamics=1.0 pin when this gear exposes a Filter knob."
+      },
+      "Blend": {
+        "param": "Dry/Wet",
+        "scale": 0.01,
+        "_hint": "RS Blend 0-100 \u2192 kHs Dry/Wet 0-1. Most distortion pedals don't expose Blend; Bass_Pedal_BassOverdrive does."
       }
     }
   },
@@ -888,6 +957,21 @@
       "_static": {
         "Dynamics": 1.0,
         "Type": 0.8
+      },
+      "Tone": {
+        "param": "Bias",
+        "scale": 0.01,
+        "_hint": "RS Tone 0-100 \u2192 kHs Distortion Bias 0-1. Bias=0.5 (RS Tone 50) is symmetric clipping; <0.5 darker, >0.5 brighter character via asymmetric harmonics."
+      },
+      "Filter": {
+        "param": "Dynamics",
+        "scale": 0.01,
+        "_hint": "RS Filter 0-100 \u2192 kHs Dynamics 0-1. Overrides the _static Dynamics=1.0 pin when this gear exposes a Filter knob."
+      },
+      "Blend": {
+        "param": "Dry/Wet",
+        "scale": 0.01,
+        "_hint": "RS Blend 0-100 \u2192 kHs Dry/Wet 0-1. Most distortion pedals don't expose Blend; Bass_Pedal_BassOverdrive does."
       }
     }
   },
@@ -900,6 +984,21 @@
       "_static": {
         "Dynamics": 1.0,
         "Type": 0.8
+      },
+      "Tone": {
+        "param": "Bias",
+        "scale": 0.01,
+        "_hint": "RS Tone 0-100 \u2192 kHs Distortion Bias 0-1. Bias=0.5 (RS Tone 50) is symmetric clipping; <0.5 darker, >0.5 brighter character via asymmetric harmonics."
+      },
+      "Filter": {
+        "param": "Dynamics",
+        "scale": 0.01,
+        "_hint": "RS Filter 0-100 \u2192 kHs Dynamics 0-1. Overrides the _static Dynamics=1.0 pin when this gear exposes a Filter knob."
+      },
+      "Blend": {
+        "param": "Dry/Wet",
+        "scale": 0.01,
+        "_hint": "RS Blend 0-100 \u2192 kHs Dry/Wet 0-1. Most distortion pedals don't expose Blend; Bass_Pedal_BassOverdrive does."
       }
     }
   },
@@ -912,6 +1011,21 @@
       "_static": {
         "Dynamics": 1.0,
         "Type": 0.8
+      },
+      "Tone": {
+        "param": "Bias",
+        "scale": 0.01,
+        "_hint": "RS Tone 0-100 \u2192 kHs Distortion Bias 0-1. Bias=0.5 (RS Tone 50) is symmetric clipping; <0.5 darker, >0.5 brighter character via asymmetric harmonics."
+      },
+      "Filter": {
+        "param": "Dynamics",
+        "scale": 0.01,
+        "_hint": "RS Filter 0-100 \u2192 kHs Dynamics 0-1. Overrides the _static Dynamics=1.0 pin when this gear exposes a Filter knob."
+      },
+      "Blend": {
+        "param": "Dry/Wet",
+        "scale": 0.01,
+        "_hint": "RS Blend 0-100 \u2192 kHs Dry/Wet 0-1. Most distortion pedals don't expose Blend; Bass_Pedal_BassOverdrive does."
       }
     }
   },
@@ -924,6 +1038,21 @@
       "_static": {
         "Dynamics": 1.0,
         "Type": 0.8
+      },
+      "Tone": {
+        "param": "Bias",
+        "scale": 0.01,
+        "_hint": "RS Tone 0-100 \u2192 kHs Distortion Bias 0-1. Bias=0.5 (RS Tone 50) is symmetric clipping; <0.5 darker, >0.5 brighter character via asymmetric harmonics."
+      },
+      "Filter": {
+        "param": "Dynamics",
+        "scale": 0.01,
+        "_hint": "RS Filter 0-100 \u2192 kHs Dynamics 0-1. Overrides the _static Dynamics=1.0 pin when this gear exposes a Filter knob."
+      },
+      "Blend": {
+        "param": "Dry/Wet",
+        "scale": 0.01,
+        "_hint": "RS Blend 0-100 \u2192 kHs Dry/Wet 0-1. Most distortion pedals don't expose Blend; Bass_Pedal_BassOverdrive does."
       }
     }
   },
@@ -936,6 +1065,21 @@
       "_static": {
         "Dynamics": 1.0,
         "Type": 0.2
+      },
+      "Tone": {
+        "param": "Bias",
+        "scale": 0.01,
+        "_hint": "RS Tone 0-100 \u2192 kHs Distortion Bias 0-1. Bias=0.5 (RS Tone 50) is symmetric clipping; <0.5 darker, >0.5 brighter character via asymmetric harmonics."
+      },
+      "Filter": {
+        "param": "Dynamics",
+        "scale": 0.01,
+        "_hint": "RS Filter 0-100 \u2192 kHs Dynamics 0-1. Overrides the _static Dynamics=1.0 pin when this gear exposes a Filter knob."
+      },
+      "Blend": {
+        "param": "Dry/Wet",
+        "scale": 0.01,
+        "_hint": "RS Blend 0-100 \u2192 kHs Dry/Wet 0-1. Most distortion pedals don't expose Blend; Bass_Pedal_BassOverdrive does."
       }
     }
   },
@@ -948,6 +1092,21 @@
       "_static": {
         "Dynamics": 1.0,
         "Type": 0.2
+      },
+      "Tone": {
+        "param": "Bias",
+        "scale": 0.01,
+        "_hint": "RS Tone 0-100 \u2192 kHs Distortion Bias 0-1. Bias=0.5 (RS Tone 50) is symmetric clipping; <0.5 darker, >0.5 brighter character via asymmetric harmonics."
+      },
+      "Filter": {
+        "param": "Dynamics",
+        "scale": 0.01,
+        "_hint": "RS Filter 0-100 \u2192 kHs Dynamics 0-1. Overrides the _static Dynamics=1.0 pin when this gear exposes a Filter knob."
+      },
+      "Blend": {
+        "param": "Dry/Wet",
+        "scale": 0.01,
+        "_hint": "RS Blend 0-100 \u2192 kHs Dry/Wet 0-1. Most distortion pedals don't expose Blend; Bass_Pedal_BassOverdrive does."
       }
     }
   },
@@ -956,6 +1115,21 @@
       "Gain": {
         "param": "Drive",
         "scale": 0.01
+      },
+      "Tone": {
+        "param": "Bias",
+        "scale": 0.01,
+        "_hint": "RS Tone 0-100 \u2192 kHs Distortion Bias 0-1. Bias=0.5 (RS Tone 50) is symmetric clipping; <0.5 darker, >0.5 brighter character via asymmetric harmonics."
+      },
+      "Filter": {
+        "param": "Dynamics",
+        "scale": 0.01,
+        "_hint": "RS Filter 0-100 \u2192 kHs Dynamics 0-1. Overrides the _static Dynamics=1.0 pin when this gear exposes a Filter knob."
+      },
+      "Blend": {
+        "param": "Dry/Wet",
+        "scale": 0.01,
+        "_hint": "RS Blend 0-100 \u2192 kHs Dry/Wet 0-1. Most distortion pedals don't expose Blend; Bass_Pedal_BassOverdrive does."
       }
     }
   },
@@ -968,6 +1142,21 @@
       "_static": {
         "Dynamics": 1.0,
         "Type": 0.2
+      },
+      "Tone": {
+        "param": "Bias",
+        "scale": 0.01,
+        "_hint": "RS Tone 0-100 \u2192 kHs Distortion Bias 0-1. Bias=0.5 (RS Tone 50) is symmetric clipping; <0.5 darker, >0.5 brighter character via asymmetric harmonics."
+      },
+      "Filter": {
+        "param": "Dynamics",
+        "scale": 0.01,
+        "_hint": "RS Filter 0-100 \u2192 kHs Dynamics 0-1. Overrides the _static Dynamics=1.0 pin when this gear exposes a Filter knob."
+      },
+      "Blend": {
+        "param": "Dry/Wet",
+        "scale": 0.01,
+        "_hint": "RS Blend 0-100 \u2192 kHs Dry/Wet 0-1. Most distortion pedals don't expose Blend; Bass_Pedal_BassOverdrive does."
       }
     }
   },
@@ -980,6 +1169,21 @@
       "_static": {
         "Dynamics": 1.0,
         "Type": 0.2
+      },
+      "Tone": {
+        "param": "Bias",
+        "scale": 0.01,
+        "_hint": "RS Tone 0-100 \u2192 kHs Distortion Bias 0-1. Bias=0.5 (RS Tone 50) is symmetric clipping; <0.5 darker, >0.5 brighter character via asymmetric harmonics."
+      },
+      "Filter": {
+        "param": "Dynamics",
+        "scale": 0.01,
+        "_hint": "RS Filter 0-100 \u2192 kHs Dynamics 0-1. Overrides the _static Dynamics=1.0 pin when this gear exposes a Filter knob."
+      },
+      "Blend": {
+        "param": "Dry/Wet",
+        "scale": 0.01,
+        "_hint": "RS Blend 0-100 \u2192 kHs Dry/Wet 0-1. Most distortion pedals don't expose Blend; Bass_Pedal_BassOverdrive does."
       }
     }
   },
@@ -1728,6 +1932,21 @@
       "Gain": {
         "param": "Drive",
         "scale": 0.01
+      },
+      "Tone": {
+        "param": "Bias",
+        "scale": 0.01,
+        "_hint": "RS Tone 0-100 \u2192 kHs Distortion Bias 0-1. Bias=0.5 (RS Tone 50) is symmetric clipping; <0.5 darker, >0.5 brighter character via asymmetric harmonics."
+      },
+      "Filter": {
+        "param": "Dynamics",
+        "scale": 0.01,
+        "_hint": "RS Filter 0-100 \u2192 kHs Dynamics 0-1. Overrides the _static Dynamics=1.0 pin when this gear exposes a Filter knob."
+      },
+      "Blend": {
+        "param": "Dry/Wet",
+        "scale": 0.01,
+        "_hint": "RS Blend 0-100 \u2192 kHs Dry/Wet 0-1. Most distortion pedals don't expose Blend; Bass_Pedal_BassOverdrive does."
       }
     }
   },
