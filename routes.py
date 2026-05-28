@@ -58,20 +58,29 @@ def _find_gear_photo(rs_gear: str) -> Path | None:
     has been run. The script names files `<rs_gear> - <name>.png`, so
     the primary lookup is a prefix match across every known photo dir.
 
-    Cab fallback: songs reference cabs by the BASE rs_gear (e.g.
-    `Bass_Cab_AT1150BC`) but extract_gear_photos.py emits one PNG per
-    mic-position variant (`Bass_Cab_AT1150BC_5c - ...png`, `_5e`, …).
-    All variants share the same texture, so when the exact prefix has
-    no hit, accept the first `<rs_gear>_<short>` variant we find. The
-    "short" guard (a ` - ` separator within 3 chars of the underscore)
-    keeps `Cab_TW40` from accidentally matching `Cab_TW400_5c`.
+    Two layers of fuzziness needed because the rs_gear "spelling" differs
+    between data sources:
+
+    1. **Case-insensitive comparison**. The DB stores brand-prefixed
+       codenames in ALL CAPS (`Bass_Cab_EDEND212XLT`,
+       `Cab_MARSHALL1960A`) but extract_gear_photos.py and rs_to_real
+       use the proper case (`Bass_Cab_EdenD212XLT`,
+       `Cab_Marshall1960A`). The mismatch silently dropped every
+       branded cab from the photo lookup.
+    2. **Cab base-form fallback**. Songs reference cabs by the BASE
+       rs_gear (e.g. `Bass_Cab_AT1150BC`) but the photos are per
+       mic-position variant (`Bass_Cab_AT1150BC_5c - ...png`, `_5e`, …
+       — same texture). When the exact prefix has no hit, accept the
+       first `<rs_gear>_<short>` variant we find. The "short" guard
+       (a ` - ` separator within 3 chars of the underscore) keeps
+       `Cab_TW40` from accidentally matching `Cab_TW400_5c`.
 
     Returns None when no photo exists (UI falls back to a placeholder).
     """
     if not rs_gear:
         return None
-    prefix = f"{rs_gear} - "
-    variant_prefix = f"{rs_gear}_"
+    prefix = f"{rs_gear} - ".lower()
+    variant_prefix = f"{rs_gear}_".lower()
     fallback: Path | None = None
     for sub in _GEAR_PHOTO_DIRS:
         d = _plugin_dir / sub
@@ -81,11 +90,11 @@ def _find_gear_photo(rs_gear: str) -> Path | None:
             for p in d.iterdir():
                 if not p.is_file() or p.suffix.lower() != ".png":
                     continue
-                name = p.name
-                if name.startswith(prefix):
+                name_lc = p.name.lower()
+                if name_lc.startswith(prefix):
                     return p
-                if fallback is None and name.startswith(variant_prefix):
-                    rest = name[len(variant_prefix):]
+                if fallback is None and name_lc.startswith(variant_prefix):
+                    rest = name_lc[len(variant_prefix):]
                     sep = rest.find(" - ")
                     if 0 < sep <= 3:
                         fallback = p
