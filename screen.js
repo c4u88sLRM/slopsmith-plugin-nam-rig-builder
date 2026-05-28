@@ -1899,18 +1899,60 @@ function rbRenderToneHeader(tone, toneIdx, filename) {
 function rbRenderChainStrip(tone, toneIdx, selectedPIdx) {
     const chain = tone.chain || [];
     const total = chain.length;
-    const cards = chain.map((p, pIdx) => rbRenderPieceCard(p, toneIdx, pIdx, pIdx === selectedPIdx, total)).join(
-        '<div class="flex-shrink-0 flex items-center text-gray-700 text-lg select-none" aria-hidden="true">→</div>'
-    );
+    const filename = rbState.currentSongFile || '';
+    // Build the strip piece-by-piece so we can interleave:
+    //   ◀  (only on the LEFT side of the selected card, if not first)
+    //   card
+    //   ▶  (only on the RIGHT side of the selected card, if not last)
+    //   →  (signal-flow arrow between adjacent cards)
+    //   ＋ (always at the very end — adds a new piece)
+    const parts = [];
+    chain.forEach((p, pIdx) => {
+        const isSelected = pIdx === selectedPIdx;
+        const prevSelected = (pIdx > 0 && selectedPIdx === pIdx - 1);
+        const isFirst = pIdx === 0;
+        const isLast = pIdx === total - 1;
+        // What goes IN FRONT of this card:
+        //   - ◀ button if THIS card is the selected one (and not first)
+        //   - nothing if the PREVIOUS card was selected (its ▶ button
+        //     already sits in that slot)
+        //   - → otherwise (the normal signal-flow arrow between
+        //     adjacent stages)
+        if (pIdx > 0) {
+            if (isSelected && !isFirst) {
+                parts.push(`<button onclick="event.stopPropagation(); rbMovePiece(${toneIdx}, ${pIdx}, -1)"
+                                    title="Move this piece earlier in the chain"
+                                    class="flex-shrink-0 self-stretch w-7 rounded-md bg-dark-700 hover:bg-accent/30 text-gray-300 hover:text-white text-sm transition flex items-center justify-center">◀</button>`);
+            } else if (!prevSelected) {
+                parts.push('<div class="flex-shrink-0 flex items-center text-gray-700 text-lg select-none" aria-hidden="true">→</div>');
+            }
+        }
+        parts.push(rbRenderPieceCard(p, toneIdx, pIdx, isSelected, total));
+        // ▶ Move-right button glued to the selected card's right side
+        // (so visually the selected card always wears its reorder
+        // controls on either flank).
+        if (isSelected && !isLast) {
+            parts.push(`<button onclick="event.stopPropagation(); rbMovePiece(${toneIdx}, ${pIdx}, 1)"
+                                title="Move this piece later in the chain"
+                                class="flex-shrink-0 self-stretch w-7 rounded-md bg-dark-700 hover:bg-accent/30 text-gray-300 hover:text-white text-sm transition flex items-center justify-center">▶</button>`);
+        }
+    });
+    // ＋ Add-piece dropzone at the end of the chain — replaces the old
+    // footer button so the "insert a new gear" affordance lives where
+    // the user's eye already is (in the signal flow itself).
+    parts.push(`<button onclick="rbOpenAddPiecePicker(${toneIdx}, '${rbEsc(filename).replace(/'/g,"\\'")}')"
+                        title="Insert a new gear at the end of this tone's chain"
+                        class="flex-shrink-0 w-16 self-stretch rounded-lg border-2 border-dashed border-emerald-800/40 hover:border-emerald-500 hover:bg-emerald-900/20 text-emerald-400 text-2xl transition flex items-center justify-center"
+                        aria-label="Add piece to chain">＋</button>`);
     return `
         <div class="px-3 pb-3">
             <div class="text-[10px] text-gray-500 mb-1.5">
-                Signal flow (${total} stage${total === 1 ? '' : 's'}, L → R) — click a piece to edit it.
+                Signal flow (${total} stage${total === 1 ? '' : 's'}, L → R) — click a piece to edit · ◀ ▶ to reorder the selected one · ＋ to add.
             </div>
             <div id="rb-chain-${toneIdx}"
                  class="flex items-stretch gap-2 overflow-x-auto pb-2"
                  style="scrollbar-width: thin;">
-                ${cards || '<div class="text-xs text-gray-600 italic">empty chain</div>'}
+                ${parts.join('') || '<div class="text-xs text-gray-600 italic">empty chain</div>'}
             </div>
         </div>`;
 }
@@ -1973,25 +2015,22 @@ function rbRenderPieceCard(p, toneIdx, pIdx, isSelected, total) {
 }
 
 function rbRenderEditorFooter(toneIdx, filename) {
+    // The "＋ Add piece" button used to live here, but it moved to the
+    // tail of the chain strip (rbRenderChainStrip) so the affordance
+    // sits where the user is already looking when planning the signal
+    // flow. The footer is now just the playback controls.
     return `
-        <div class="flex flex-wrap justify-between items-center gap-2 px-4 py-3 border-t border-gray-800/40 bg-dark-800/30">
-            <button onclick="rbOpenAddPiecePicker(${toneIdx}, '${rbEsc(filename).replace(/'/g,"\\'")}')"
-                    title="Insert a new gear at the end of this tone's chain"
-                    class="bg-emerald-900/30 hover:bg-emerald-900/50 text-emerald-300 border border-emerald-800/40 px-3 py-1.5 rounded text-xs transition">
-                ＋ Add piece
+        <div class="flex flex-wrap justify-end items-center gap-2 px-4 py-3 border-t border-gray-800/40 bg-dark-800/30">
+            <button id="rb-listen-${toneIdx}"
+                    onclick="rbListenTone(${toneIdx}, '${rbEsc(filename).replace(/'/g,"\\'")}')"
+                    title="Saves the tone and plays it live through the NAM engine"
+                    class="bg-dark-600 hover:bg-dark-500 text-gray-200 px-4 py-1.5 rounded-lg text-xs transition">
+                ▶ Listen
             </button>
-            <div class="flex gap-2">
-                <button id="rb-listen-${toneIdx}"
-                        onclick="rbListenTone(${toneIdx}, '${rbEsc(filename).replace(/'/g,"\\'")}')"
-                        title="Saves the tone and plays it live through the NAM engine"
-                        class="bg-dark-600 hover:bg-dark-500 text-gray-200 px-4 py-1.5 rounded-lg text-xs transition">
-                    ▶ Listen
-                </button>
-                <button onclick="rbSaveTonePreset(${toneIdx}, '${rbEsc(filename).replace(/'/g,"\\'")}')"
-                        class="bg-accent hover:bg-accent/80 text-white px-4 py-1.5 rounded-lg text-xs transition">
-                    💾 Save preset
-                </button>
-            </div>
+            <button onclick="rbSaveTonePreset(${toneIdx}, '${rbEsc(filename).replace(/'/g,"\\'")}')"
+                    class="bg-accent hover:bg-accent/80 text-white px-4 py-1.5 rounded-lg text-xs transition">
+                💾 Save preset
+            </button>
         </div>`;
 }
 
@@ -2087,10 +2126,6 @@ function rbRenderPieceEditor(p, toneIdx, pIdx, filename) {
             </div>`;
     }
 
-    const total = (rbState.songTones && rbState.songTones.tones[toneIdx] && rbState.songTones.tones[toneIdx].chain.length) || 1;
-    const isFirst = pIdx === 0;
-    const isLast  = pIdx === total - 1;
-
     // Bypass button — same toggle as before, styled larger for the editor.
     const bypassCls = bypassed
         ? 'bg-amber-700/40 text-amber-300 border-amber-600/40'
@@ -2153,14 +2188,6 @@ function rbRenderPieceEditor(p, toneIdx, pIdx, filename) {
                     🎛 Edit VST
                 </button>` : ''}
                 <div class="flex-1"></div>
-                <button onclick="rbMovePiece(${toneIdx}, ${pIdx}, -1)"
-                        title="Move earlier in the signal flow"
-                        ${isFirst ? 'disabled' : ''}
-                        class="px-2 py-1 rounded text-xs transition ${isFirst ? 'bg-dark-700/40 text-gray-700 cursor-not-allowed' : 'bg-dark-700 hover:bg-dark-600 text-gray-300'}">◀</button>
-                <button onclick="rbMovePiece(${toneIdx}, ${pIdx}, 1)"
-                        title="Move later in the signal flow"
-                        ${isLast ? 'disabled' : ''}
-                        class="px-2 py-1 rounded text-xs transition ${isLast ? 'bg-dark-700/40 text-gray-700 cursor-not-allowed' : 'bg-dark-700 hover:bg-dark-600 text-gray-300'}">▶</button>
                 <button onclick="rbRemovePiece(${toneIdx}, ${pIdx})"
                         title="Remove this piece from the chain"
                         class="px-2 py-1 rounded text-xs bg-red-900/30 hover:bg-red-900/50 text-red-300 border border-red-800/40 transition">✗ Remove</button>
@@ -3553,6 +3580,16 @@ function rbMovePiece(toneIdx, pIdx, direction) {
     const tmp = tone.chain[pIdx];
     tone.chain[pIdx] = tone.chain[newIdx];
     tone.chain[newIdx] = tmp;
+    // If the user moved the SELECTED piece (the common case now that
+    // ◀ / ▶ live in the chain strip next to it), keep the selection
+    // glued to that piece — otherwise the detail panel would suddenly
+    // be editing whatever piece ended up at the old index.
+    const ed = rbEnsureEditorState();
+    if (ed.selectedToneIdx === toneIdx && ed.selectedPIdx === pIdx) {
+        ed.selectedPIdx = newIdx;
+    } else if (ed.selectedToneIdx === toneIdx && ed.selectedPIdx === newIdx) {
+        ed.selectedPIdx = pIdx;
+    }
     // Persist + re-render.
     tone.chain_source = 'edited';
     rbAfterChainEdit(toneIdx);
