@@ -6311,34 +6311,76 @@ def setup(app, context):
                 return chosen_file, None, "rs_ir"
             return None, None, None
 
-        # ── Amp / pedal / rack branch: NAMs via gain_variants ───────
+        # ── Amp / pedal / rack branch: NAMs ────────────────────────
+        # Step 1 — curated gain_variants (amps with clean/crunch/dist
+        # captures). Pedals/racks don't usually have these.
         variants = info.get("gain_variants") or {}
-        # Decide which variant we're after.
         spec = None
         if level and level != "auto" and variants:
             spec = variants.get(level)
         if spec is None and variants:
             # Auto-pick by rs_gain (or 50.0 fallback in the helper).
             spec = _pick_amp_gain_variant(info, rs_gain if rs_gain is not None else 50.0)
-        if not spec or not isinstance(spec, dict):
-            return None, None, None
-        # Find the file on disk — same dual-naming lookup the wire-up
-        # sweep uses (readable-from-notes first, legacy second).
-        subdir = _category_subdir_for_gear(rs_gear)
-        amp_dir = _config_dir / "nam_models" / subdir
-        title = (spec.get("notes") or "").strip()
-        tone3000_id = spec.get("tone3000_id")
-        model_id = spec.get("model_id")
-        if title:
-            cand = amp_dir / f"{_safe_filename_human(title)}.nam"
-            if cand.exists():
-                return f"{subdir}/{cand.name}", tone3000_id, "nam"
-        if model_id and tone3000_id:
-            legacy = (f"tone3000_{tone3000_id}_m{model_id}_"
-                      f"{_safe_filename(rs_gear)}.nam")
-            if (amp_dir / legacy).exists():
-                return f"{subdir}/{legacy}", tone3000_id, "nam"
-        return None, tone3000_id, None
+        if spec and isinstance(spec, dict):
+            subdir = _category_subdir_for_gear(rs_gear)
+            amp_dir = _config_dir / "nam_models" / subdir
+            title = (spec.get("notes") or "").strip()
+            tone3000_id = spec.get("tone3000_id")
+            model_id = spec.get("model_id")
+            if title:
+                cand = amp_dir / f"{_safe_filename_human(title)}.nam"
+                if cand.exists():
+                    return f"{subdir}/{cand.name}", tone3000_id, "nam"
+            if model_id and tone3000_id:
+                legacy = (f"tone3000_{tone3000_id}_m{model_id}_"
+                          f"{_safe_filename(rs_gear)}.nam")
+                if (amp_dir / legacy).exists():
+                    return f"{subdir}/{legacy}", tone3000_id, "nam"
+            # Variant resolved but file is missing — keep tone3000_id
+            # around for the response, fall through to general lookup.
+            fallback_tid = tone3000_id
+        else:
+            fallback_tid = None
+
+        # Step 2 — most-used NAM file already on disk for this rs_gear.
+        # Lets users swap to pedals/racks that have no curated variants:
+        # the picker would otherwise refuse them. We pick the file the
+        # rest of the DB has been using for this gear (highest row
+        # count) — that's the representative NAM the auto-download
+        # landed on. Skip if no rows have a file yet.
+        conn = _get_conn()
+        row = conn.execute(
+            "SELECT file, COUNT(*) FROM preset_pieces "
+            "WHERE rs_gear_type = ? AND file IS NOT NULL AND file != '' "
+            "  AND kind = 'nam' "
+            "GROUP BY file ORDER BY COUNT(*) DESC LIMIT 1",
+            (rs_gear,),
+        ).fetchone()
+        if row and row[0]:
+            # Sanity-check it's still on disk before returning.
+            cand_path = _safe_child(_config_dir / "nam_models", row[0])
+            if cand_path and cand_path.exists():
+                return row[0], fallback_tid, "nam"
+
+        # Step 3 — default_captures.json pinned tone3000_id + an
+        # existing download with that id. Last-ditch for gears whose
+        # NAM hasn't been used in any preset_piece yet (could happen
+        # right after the user added a song that introduced this gear).
+        dflt = (_load_default_captures().get(rs_gear) or {})
+        dflt_tid = dflt.get("tone3000_id")
+        if dflt_tid:
+            row = conn.execute(
+                "SELECT file FROM preset_pieces "
+                "WHERE tone3000_id = ? AND file IS NOT NULL AND file != '' "
+                "ORDER BY id DESC LIMIT 1",
+                (int(dflt_tid),),
+            ).fetchone()
+            if row and row[0]:
+                cand_path = _safe_child(_config_dir / "nam_models", row[0])
+                if cand_path and cand_path.exists():
+                    return row[0], dflt_tid, "nam"
+
+        return None, fallback_tid, None
 
     @app.get("/api/plugins/rig_builder/gears_in_category/{category}")
     def gears_in_category(category: str):
@@ -6542,33 +6584,13 @@ def setup(app, context):
             preset_id_filter = None
         if from_gear == to_gear:
             return {"ok": True, "noop": True}
-        rs_map = _load_rs_to_real() or {}
-        to_info = rs_map.get(to_gear) or {}
-        to_category = (to_info.get("category") or "").lower()
-        # Detect cabs by ANY of:
-        #   1. category=='cab' in rs_to_real (works when the base key
-        #      exists, which is rare for cabs — only for novelty ones)
-        #   2. presence in rs_cab_mic_map (HIRC-derived, keyed by base)
-        #   3. codename prefix (Cab_/Bass_Cab_)
-        # The gears_in_category picker collapses mic-suffix variants to
-        # the base form, so `to_gear` is e.g. "Cab_Marshall1960a" — that
-        # base form isn't a literal key in rs_to_real.json (only
-        # `Cab_Marshall1960a_5c`, `_5e`, … are). Without this looser
-        # detection the swap fell through to the gain_variants check
-        # and errored as if the cab were an amp.
-        is_cab_target = (
-            to_category == "cab"
-            or (_load_rs_cab_mic_map().get(to_gear) is not None)
-            or to_gear.lower().startswith(("cab_", "bass_cab_"))
-        )
-        if is_cab_target:
-            if not (_load_rs_cab_mic_map().get(to_gear) or
-                    (_load_rs_cab_to_ir().get(to_gear) or {}).get("irs")):
-                return JSONResponse(
-                    {"error": f"{to_gear} has no extracted IRs on disk"}, 400)
-        elif not to_info.get("gain_variants"):
-            return JSONResponse(
-                {"error": f"{to_gear} has no gain_variants curated"}, 400)
+        # We used to pre-validate that the target gear had `gain_variants`
+        # (for amps) or extracted IRs (for cabs) before walking rows.
+        # That blocked pedals/racks (which never have gain_variants) and
+        # cabs whose base form isn't a literal key in rs_to_real.json.
+        # Instead, let _resolve_gear_file do the talking: when it can't
+        # find ANY file for `to_gear` we count those rows as skipped
+        # and report 0 updates back to the UI.
         conn = _get_conn()
         # Walk every row of the source gear, resolve the replacement's
         # variant for each row's Gain, then update.
