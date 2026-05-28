@@ -2005,11 +2005,6 @@ function rbRenderPiece(p, toneIdx, pIdx) {
                 <input type="file" accept="${acceptExt}"
                        onchange="rbUploadFile(this, ${toneIdx}, ${pIdx})"
                        class="text-xs text-gray-500 file:bg-dark-700 file:border-0 file:text-gray-300 file:px-2 file:py-1 file:rounded file:text-xs file:cursor-pointer">
-                <button onclick="rbToggleLibraryPicker(${toneIdx}, ${pIdx})"
-                        title="Pick from your downloaded ${isCab ? 'IRs' : 'NAMs'}"
-                        class="bg-indigo-900/30 hover:bg-indigo-900/50 text-indigo-300 border border-indigo-800/40 px-2 py-1 rounded text-xs">
-                    📚 Library
-                </button>
                 ${!isCab ? `
                 <button onclick="rbToggleGearSwap(${toneIdx}, ${pIdx})"
                         title="Swap this ${rbEsc(p.rs_category)} for a different one — just for this song"
@@ -2025,7 +2020,6 @@ function rbRenderPiece(p, toneIdx, pIdx) {
                 <span class="rb-piece-file text-xs ${stageClass} truncate" title="${rbEsc(hasVst ? effVstPath : (hasFile ? effFile : ''))}">${rbEsc(stageLabel)}</span>
                 ${(hasFile || hasVst) && mode ? `<span class="text-[10px] text-gray-600 whitespace-nowrap">(${rbEsc(mode)})</span>` : ''}
             </div>
-            <div id="rb-lib-${toneIdx}-${pIdx}" class="hidden mt-2 bg-indigo-900/10 border border-indigo-800/30 rounded p-2"></div>
             <div id="rb-swap-${toneIdx}-${pIdx}" class="hidden mt-2 bg-amber-900/10 border border-amber-800/30 rounded p-2"></div>
             <div id="rb-tone-vst-editor-${toneIdx}-${pIdx}" class="hidden mt-2 bg-purple-900/10 border border-purple-800/30 rounded p-2 space-y-2"></div>
             ${ampVariantBadge}
@@ -2381,112 +2375,26 @@ async function rbToneCaptureVstState(toneIdx, pIdx) {
     }
 }
 
-// ── Local library picker (pick from already-downloaded NAMs / IRs) ────
+// ── Library label helpers (still used by piece + catalog renderers) ────
+//
+// The per-song "📚 Library" button was removed once the 🔁 Swap and the
+// Gear-catalog 📚 Library cover the same ground without duplication.
+// These two short helpers stayed because the piece/catalog renderers
+// still call rbLibShortName / rbLibLabel to humanise tone3000 filenames.
 
-// Open/close the per-piece library picker. Loads the file list on first
-// open and caches it; the dropdown then renders client-side filtering.
-async function rbToggleLibraryPicker(toneIdx, pIdx) {
-    const el = document.getElementById(`rb-lib-${toneIdx}-${pIdx}`);
-    if (!el) return;
-    el.classList.toggle('hidden');
-    if (el.classList.contains('hidden')) return;
-    if (el.dataset.built === '1') return;
-    el.dataset.built = '1';
-    const fileLabel = rbState.songTones.tones[toneIdx].chain[pIdx].rs_category === 'cab' ? 'IRs' : 'NAMs';
-    el.innerHTML = `
-        <div class="flex items-center gap-1 mb-2 border-b border-gray-800">
-            <button id="rb-lib-tab-files-${toneIdx}-${pIdx}" onclick="rbLibTab(${toneIdx}, ${pIdx}, 'files')"
-                    class="px-3 py-1 text-xs border-b-2">📚 ${fileLabel}</button>
-            <button id="rb-lib-tab-plugins-${toneIdx}-${pIdx}" onclick="rbLibTab(${toneIdx}, ${pIdx}, 'plugins')"
-                    class="px-3 py-1 text-xs border-b-2">🎛 Plugins</button>
-        </div>
-        <div id="rb-lib-content-${toneIdx}-${pIdx}"></div>`;
-    rbLibTab(toneIdx, pIdx, 'files');
-}
-
-// Switch the per-piece library picker between local NAM/IR files and the
-// scanned VST/AU plugins. The Plugins tab reuses the full VST panel (search,
-// category groups, hide-instruments, assign, param editor). Files are loaded
-// once and cached on the outer element so the filter can re-render quickly.
-async function rbLibTab(toneIdx, pIdx, tab) {
-    const el = document.getElementById(`rb-lib-${toneIdx}-${pIdx}`);
-    const content = document.getElementById(`rb-lib-content-${toneIdx}-${pIdx}`);
-    if (!el || !content) return;
-    const piece = rbState.songTones.tones[toneIdx].chain[pIdx];
-    for (const t of ['files', 'plugins']) {
-        const b = document.getElementById(`rb-lib-tab-${t}-${toneIdx}-${pIdx}`);
-        if (b) {
-            const on = t === tab;
-            b.classList.toggle('border-indigo-400', on);
-            b.classList.toggle('text-indigo-300', on);
-            b.classList.toggle('border-transparent', !on);
-            b.classList.toggle('text-gray-400', !on);
-        }
-    }
-    if (tab === 'plugins') {
-        const cur = piece._vst_staged_path || (piece.assigned && piece.assigned.vst_path) || '';
-        const fmt = piece._vst_format || (piece.assigned && piece.assigned.vst_format) || 'VST3';
-        content.innerHTML = rbRenderVstPanelBody(toneIdx, pIdx, cur, fmt);
-        return;
-    }
-    const kind = piece.rs_category === 'cab' ? 'ir' : 'nam';
-    if (el.dataset.filesLoaded !== '1') {
-        content.innerHTML = `<div class="text-xs text-gray-500">loading library…</div>`;
-        try {
-            // Pass the piece's category so the picker only shows relevant
-            // NAMs (an amp slot doesn't get pedal NAMs cluttering the list).
-            // Backend falls back to the full root if the subdir is missing.
-            const cat = piece.rs_category ? `&category=${encodeURIComponent(piece.rs_category)}` : '';
-            const r = await fetch(`${RB_API}/local_files?kind=${kind}${cat}`);
-            if (!r.ok) throw new Error(`HTTP ${r.status}`);
-            const data = await r.json();
-            el._rbAllFiles = data.files || [];
-            el.dataset.kind = kind;
-            el.dataset.filesLoaded = '1';
-        } catch (e) {
-            content.innerHTML = `<div class="text-xs text-red-400">Failed to load library: ${rbEsc(e.message || e)}</div>`;
-            return;
-        }
-    }
-    rbRenderLibraryList(content, el._rbAllFiles, toneIdx, pIdx, kind, '');
-}
-
-// Initial render of the library picker: lays out the (stable) header
-// with the search input + count badge + the rows container. The input is
-// never re-created after this, so typing doesn't lose focus.
-function rbRenderLibraryList(container, files, toneIdx, pIdx, kind, filter) {
-    const inputId = `rb-lib-search-${toneIdx}-${pIdx}`;
-    const countId = `rb-lib-count-${toneIdx}-${pIdx}`;
-    const rowsId  = `rb-lib-rows-${toneIdx}-${pIdx}`;
-    container.innerHTML = `
-        <div class="flex items-center gap-2 mb-2">
-            <input id="${inputId}" type="text" placeholder="🔍 Filter ${kind === 'ir' ? 'IRs' : 'NAMs'}…"
-                   oninput="rbFilterLibrary(${toneIdx}, ${pIdx})"
-                   value="${rbEsc(filter || '')}"
-                   class="flex-1 bg-dark-800 border border-gray-800 rounded text-[11px] text-gray-200 px-2 py-1">
-            <span id="${countId}" class="text-[10px] text-gray-500">${files.length}/${files.length}</span>
-        </div>
-        <div id="${rowsId}" class="max-h-64 overflow-y-auto"></div>`;
-    rbRenderLibraryRows(container, files, toneIdx, pIdx, kind, filter);
-}
-
-// Inner-only render: refreshes the rows + count badge based on the current
-// filter, but leaves the search <input> alone so focus + cursor position
-// survive every keystroke. Called both on initial paint and on every
-// oninput event.
-// Disambiguate library rows that share a tone3000 title (several captures
-// can all be called "EQ"): show the title, and append the technical filename
-// in muted text only when the title alone is ambiguous in the shown list.
 // Short, readable form of a downloaded filename: drop the
-// tone3000_<id>_m<model>_ prefix and the extension, leaving the descriptive
-// tail (the Rocksmith gear), e.g. "tone3000_31843_m146073_Rack_StudioEQ.nam"
-// -> "Rack_StudioEQ". Non-tone3000 files just lose their extension.
+// tone3000_<id>_m<model>_ prefix and the extension, leaving the
+// descriptive tail. Non-tone3000 files just lose their extension.
 function rbLibShortName(name) {
     const base = String(name || '').replace(/\.[^./]+$/, '');
     const m = base.match(/^tone3000_\d+_m\d+_(.+)$/);
     return m ? m[1] : base;
 }
 
+// Disambiguate library rows that share a tone3000 title (several
+// captures can all be called "EQ"): show the title, and append the
+// technical filename in muted text only when the title alone is
+// ambiguous within the visible list.
 function rbLibLabel(file, titleCounts) {
     const t = file.title;
     const short = rbLibShortName(file.name);
@@ -2495,65 +2403,6 @@ function rbLibLabel(file, titleCounts) {
         return `${rbEsc(t)} <span class="text-gray-500">· ${rbEsc(short)}</span>`;
     }
     return rbEsc(t);
-}
-
-function rbRenderLibraryRows(container, files, toneIdx, pIdx, kind, filter) {
-    const rowsEl  = document.getElementById(`rb-lib-rows-${toneIdx}-${pIdx}`);
-    const countEl = document.getElementById(`rb-lib-count-${toneIdx}-${pIdx}`);
-    if (!rowsEl) return;
-    const f = (filter || '').toLowerCase().trim();
-    const filtered = f
-        ? files.filter(x => (x.name + ' ' + (x.title || '')).toLowerCase().includes(f))
-        : files;
-    const titleCounts = {};
-    filtered.forEach(x => { if (x.title) titleCounts[x.title] = (titleCounts[x.title] || 0) + 1; });
-    const rows = filtered.slice(0, 50).map(file => {
-        const usedFor = (file.used_for_gears || []).slice(0, 2).join(', ');
-        const usedBadge = file.use_count > 0
-            ? `<span class="text-[10px] text-amber-300/80" title="${rbEsc(usedFor)}">used ${file.use_count}×</span>`
-            : `<span class="text-[10px] text-gray-600">unused</span>`;
-        const safeName = file.name.replace(/'/g, "\\'");
-        return `
-            <div class="flex items-center gap-2 px-2 py-1 hover:bg-indigo-900/20 rounded cursor-pointer"
-                 onclick="rbPickFromLibrary(${toneIdx}, ${pIdx}, '${rbEsc(safeName)}', '${rbEsc(kind)}')">
-                <span class="flex-1 text-[11px] text-gray-200 truncate" title="${rbEsc(file.name)}">${rbLibLabel(file, titleCounts)}</span>
-                ${usedBadge}
-                <button onclick="event.stopPropagation(); rbAuditionFile('${rbEsc(safeName)}', '${rbEsc(kind === 'ir' ? 'ir' : 'nam')}', null)"
-                        title="Audition in isolation"
-                        class="text-[10px] text-gray-400 hover:text-gray-200 px-1">▶</button>
-            </div>`;
-    }).join('');
-    const moreNote = filtered.length > 50
-        ? `<div class="text-[10px] text-gray-500 italic mt-1">…and ${filtered.length - 50} more (refine search)</div>`
-        : '';
-    rowsEl.innerHTML = (rows || '<div class="text-xs text-gray-500 italic">no matches</div>') + moreNote;
-    if (countEl) countEl.textContent = `${filtered.length}/${files.length}`;
-}
-
-function rbFilterLibrary(toneIdx, pIdx) {
-    const container = document.getElementById(`rb-lib-${toneIdx}-${pIdx}`);
-    if (!container || !container._rbAllFiles) return;
-    const input = document.getElementById(`rb-lib-search-${toneIdx}-${pIdx}`);
-    rbRenderLibraryRows(container, container._rbAllFiles, toneIdx, pIdx,
-                        container.dataset.kind || 'nam', input ? input.value : '');
-}
-
-// Apply a chosen file from the library to this piece. Mirrors the upload
-// flow: set _uploaded_file + _uploaded_kind, re-render, re-audition.
-function rbPickFromLibrary(toneIdx, pIdx, fileName, kind) {
-    const piece = rbState.songTones.tones[toneIdx].chain[pIdx];
-    piece._uploaded_file = fileName;
-    piece._uploaded_kind = kind;
-    // Picking from local library = drop any pending VST assignment so
-    // the NAM/IR takes priority (kind precedence is in rbPersistTone).
-    piece._vst_path = null;
-    piece._vst_format = null;
-    piece._vst_kind = null;
-    piece._vst_state = null;
-    // Collapse the picker so the song-list isn't covered after the click.
-    const lib = document.getElementById(`rb-lib-${toneIdx}-${pIdx}`);
-    if (lib) lib.classList.add('hidden');
-    rbAfterGearChange(toneIdx);
 }
 
 // ── Per-song variant override + per-song gear swap ──────────────────────
@@ -5246,16 +5095,10 @@ function rbRenderCatalogCard(g) {
                 title="Set clean / crunch / dist captures so the song's Gain knob picks the right one"
                 class="bg-emerald-900/30 hover:bg-emerald-900/50 text-emerald-300 border border-emerald-800/40 px-2.5 py-1 rounded text-xs">🎚 Variants</button>` : '';
 
-    // Gear-centric Replace: opens a picker that lists OTHER curated
-    // gears in the same category and bulk-swaps THIS gear's NAM for
-    // theirs across every song. Per-song variants are auto-picked by
-    // each row's Gain knob. Only shown for categories that have a
-    // gear-centric replacement story (amps definitively; pedals + racks
-    // for parity); cabs use the IR dropdown instead.
-    const replaceBtn = (g.category === 'amp' || g.category === 'pedal' || g.category === 'rack') ? `
-        <button onclick="rbToggleCatalogReplace('${rbEsc(g.rs_gear)}','${rbEsc(g.category || '')}')"
-                title="Replace this gear's NAM with another gear's curated NAMs across every song"
-                class="bg-amber-900/25 hover:bg-amber-900/45 text-amber-300 border border-amber-800/40 px-2.5 py-1 rounded text-xs">🔁 Replace</button>` : '';
+    // (no global Replace button: gear swapping is a per-song operation,
+    // exposed from the Songs editor's 🔁 Swap button per piece. A global
+    // swap is too coarse — the user almost always wants to keep some
+    // songs with the original gear and only override a subset.)
 
     // Audition row for amps with curated gain_variants — one mini ▶
     // per variant (clean/crunch/dist/whatever the curator named them).
@@ -5295,13 +5138,11 @@ function rbRenderCatalogCard(g) {
                     <button onclick="rbToggleCatalogLibrary('${rbEsc(g.rs_gear)}','${rbEsc(g.category || '')}','${rbEsc(g.vst_path || '')}','${rbEsc(g.vst_format || 'VST3')}')"
                             title="Pick a downloaded NAM/IR or an installed VST/AU and bulk-assign to every preset using this gear"
                             class="bg-indigo-900/30 hover:bg-indigo-900/50 text-indigo-300 border border-indigo-800/40 px-2.5 py-1 rounded text-xs">📚 Library</button>
-                    ${replaceBtn}
                     ${variantsBtn}
                 </div>
             </div>
             ${variantAuditionRow}
             <div id="rb-cat-lib-${safeId}" class="hidden bg-indigo-900/10 border border-indigo-800/30 rounded p-2"></div>
-            <div id="rb-cat-replace-${safeId}" class="hidden bg-amber-900/10 border border-amber-800/30 rounded p-2"></div>
             <div id="rb-cat-variants-${safeId}" class="hidden bg-emerald-900/10 border border-emerald-800/30 rounded p-2"></div>
         </div>`;
 }
@@ -5501,107 +5342,10 @@ function rbReopenAmpVariants(rsGear) {
     rbToggleAmpVariants(rsGear);
 }
 
-// ── Catalog-level gear Replace (bulk swap across every song) ────────────
-//
-// Opens a gear picker in the Gear catalog card. Picking a target gear
-// rewrites every preset_piece using THIS gear with that target's NAM,
-// auto-picking the variant by each row's Gain knob. Confirmation
-// dialog quotes the number of presets affected and that the rs_gear
-// type stays the same (so the Songs tab still labels it as the
-// original; only the SOUND changes).
-async function rbToggleCatalogReplace(rsGear, category) {
-    const safeId = rsGear.replace(/[^a-zA-Z0-9_-]/g, '_');
-    const el = document.getElementById(`rb-cat-replace-${safeId}`);
-    if (!el) return;
-    if (!el.classList.contains('hidden')) {
-        el.classList.add('hidden');
-        return;
-    }
-    el.classList.remove('hidden');
-    el.innerHTML = `<div class="text-xs text-gray-500">Loading ${rbEsc(category)}s…</div>`;
-    try {
-        const gears = await rbLoadGearsInCategory(category);
-        const inputId = `rb-cat-replace-search-${safeId}`;
-        el.innerHTML = `
-            <div class="flex items-center gap-2 mb-2">
-                <span class="text-[11px] text-amber-300">🔁 Replace globally with…</span>
-                <input id="${inputId}" type="text" placeholder="🔍 Filter gears…"
-                       oninput="rbFilterCatalogReplace('${rbEsc(rsGear)}')"
-                       class="flex-1 bg-dark-800 border border-gray-800 rounded text-[11px] text-gray-200 px-2 py-0.5">
-                <span class="text-[10px] text-gray-500">${gears.length} gears</span>
-            </div>
-            <div id="rb-cat-replace-rows-${safeId}" class="max-h-72 overflow-y-auto grid grid-cols-2 gap-1"></div>
-            <div class="text-[10px] text-gray-500 italic mt-2">Bulk action — affects EVERY song using this gear. Sets each row's mode to "manual" so Remap All won't undo it.</div>`;
-        el._rbGearList = gears;
-        el._rbFromGear = rsGear;
-        rbRenderCatalogReplaceRows(rsGear, '');
-    } catch (e) {
-        el.innerHTML = `<div class="text-xs text-red-400">Failed to load gears: ${rbEsc(e.message || e)}</div>`;
-    }
-}
-
-function rbFilterCatalogReplace(rsGear) {
-    const safeId = rsGear.replace(/[^a-zA-Z0-9_-]/g, '_');
-    const input = document.getElementById(`rb-cat-replace-search-${safeId}`);
-    rbRenderCatalogReplaceRows(rsGear, input ? input.value : '');
-}
-
-function rbRenderCatalogReplaceRows(rsGear, filter) {
-    const safeId = rsGear.replace(/[^a-zA-Z0-9_-]/g, '_');
-    const panel = document.getElementById(`rb-cat-replace-${safeId}`);
-    const rows = document.getElementById(`rb-cat-replace-rows-${safeId}`);
-    if (!panel || !rows) return;
-    const list = panel._rbGearList || [];
-    const q = (filter || '').toLowerCase().trim();
-    const filtered = q ? list.filter(g => (g.name + ' ' + g.rs_gear).toLowerCase().includes(q)) : list;
-    rows.innerHTML = filtered.map(g => {
-        const dim = g.rs_gear === rsGear ? 'opacity-40 cursor-not-allowed' : 'hover:bg-amber-900/30 cursor-pointer';
-        const img = g.image
-            ? `<img src="${rbEsc(g.image)}" alt="" loading="lazy" class="w-9 h-9 rounded object-cover bg-dark-900 flex-shrink-0">`
-            : `<div class="w-9 h-9 rounded bg-dark-900 flex items-center justify-center text-gray-700 text-[9px] flex-shrink-0">no photo</div>`;
-        const variantBadge = g.variant_count > 0
-            ? `<span class="text-[9px] text-emerald-400 bg-emerald-900/30 border border-emerald-800/40 rounded px-1">${g.variant_count}×</span>`
-            : `<span class="text-[9px] text-gray-600">no variants</span>`;
-        const onclick = g.rs_gear === rsGear ? '' :
-            `onclick="rbConfirmCatalogReplace('${rbEsc(rsGear)}','${rbEsc(g.rs_gear)}','${rbEsc(g.name)}')"`;
-        return `
-            <div ${onclick} class="flex items-center gap-2 p-1.5 rounded ${dim}">
-                ${img}
-                <div class="min-w-0 flex-1">
-                    <div class="text-xs text-gray-200 truncate">${rbEsc(g.name)}</div>
-                    <div class="text-[10px] text-gray-500 truncate">${rbEsc(g.rs_gear)}</div>
-                </div>
-                ${variantBadge}
-            </div>`;
-    }).join('') || '<div class="text-xs text-gray-500 italic col-span-2">no matches</div>';
-}
-
-async function rbConfirmCatalogReplace(fromRsGear, toRsGear, toName) {
-    if (!confirm(`Replace EVERY song using ${fromRsGear} with the NAM from ${toName} (${toRsGear})?\n\nThe rs_gear stays the same (Rocksmith still calls it ${fromRsGear}) — only the SOUND changes. Per-song gain variant is auto-picked.\n\nUse "Remap All" to revert.`)) {
-        return;
-    }
-    try {
-        const r = await fetch(`${RB_API}/gear/replace_with`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                from_rs_gear: fromRsGear,
-                to_rs_gear: toRsGear,
-            }),
-        });
-        const data = await r.json();
-        if (!r.ok) {
-            alert(`Replace failed: ${data.error || r.status}`);
-            return;
-        }
-        alert(`Replaced ${data.pieces_updated} piece${data.pieces_updated === 1 ? '' : 's'} across ${data.presets_affected} song${data.presets_affected === 1 ? '' : 's'}.${data.skipped ? ' (' + data.skipped + ' rows skipped — NAM missing for that Gain.)' : ''}`);
-        // Reload the catalog so the card shows the new assignment.
-        if (typeof rbLoadCatalog === 'function') {
-            await rbLoadCatalog();
-        }
-    } catch (e) {
-        alert(`Replace failed: ${e.message || e}`);
-    }
-}
+// (catalog-level bulk Replace removed: the Gear tab no longer exposes
+// a global swap. Per-song gear swapping lives in the Songs editor's
+// 🔁 Swap button — the backend POST /gear/replace_with endpoint still
+// supports both modes, the UI just doesn't surface the global one.)
 
 // Open the catalog-card library picker (bulk-assigns to every preset using
 // this rs_gear_type). `category` tells us whether to list NAMs or IRs.
