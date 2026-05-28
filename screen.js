@@ -5578,6 +5578,11 @@ async function rbToggleAmpVariants(rsGear) {
         el.classList.add('hidden');
         return;
     }
+    // Mutual exclusivity: opening Variants closes Library (and vice versa).
+    // Sibling panels under the same card would otherwise stack up vertically
+    // and the user wouldn't see the one they just clicked.
+    const libEl = document.getElementById(`rb-cat-lib-${safeId}`);
+    if (libEl) libEl.classList.add('hidden');
     el.classList.remove('hidden');
     el.innerHTML = `<div class="text-xs text-gray-500">Loading…</div>`;
     try {
@@ -5895,6 +5900,11 @@ async function rbToggleCatalogLibrary(rsGear, category, vstPath, vstFormat) {
     const safeId = rsGear.replace(/[^a-zA-Z0-9_-]/g, '_');
     const el = document.getElementById(`rb-cat-lib-${safeId}`);
     if (!el) return;
+    // Mutual exclusivity with the Variants panel (sibling under the
+    // same card) — opening Library closes Variants so the user only
+    // sees the one they just clicked.
+    const varEl = document.getElementById(`rb-cat-variants-${safeId}`);
+    if (varEl) varEl.classList.add('hidden');
     el.classList.toggle('hidden');
     if (el.classList.contains('hidden')) return;
     if (el.dataset.built === '1') return;
@@ -5941,10 +5951,13 @@ async function rbCatLibTab(rsGear, tab) {
     if (el.dataset.filesLoaded !== '1') {
         content.innerHTML = `<div class="text-xs text-gray-500">loading library…</div>`;
         try {
-            // Pass category so the picker only shows relevant files
-            // (an amp slot doesn't get pedal NAMs cluttering the list).
-            const cat = el._rbCategory ? `&category=${encodeURIComponent(el._rbCategory)}` : '';
-            const r = await fetch(`${RB_API}/local_files?kind=${kind}${cat}`);
+            // Fetch the whole bucket for this `kind` (no `category` query
+            // param) so the picker can show NAMs/IRs from EVERY subdir
+            // grouped together. The user might want to assign an amp NAM
+            // to a pedal slot (or vice versa) for experimentation — the
+            // category-restricted version blocked that. Defaults to the
+            // current gear's category being expanded; others collapsed.
+            const r = await fetch(`${RB_API}/local_files?kind=${kind}`);
             if (!r.ok) throw new Error(`HTTP ${r.status}`);
             const data = await r.json();
             el._rbAllFiles = data.files || [];
@@ -5958,6 +5971,29 @@ async function rbCatLibTab(rsGear, tab) {
     rbRenderCatalogLibraryList(content, el._rbAllFiles, rsGear, kind, '');
 }
 
+// Friendly labels for the subdir categories the v1.2 storage layout
+// uses. Anything not matching one of these (legacy flat files, RS-
+// extracted IRs under rocksmith/, etc.) lands in the appropriate
+// "other" bucket per kind.
+const _RB_LIB_CATEGORY_LABEL = {
+    amps:      '🎚 Amps',
+    pedals:    '🎛 Pedals',
+    racks:     '📦 Racks',
+    cabs:      '🔊 Cabs',
+    rocksmith: '🎮 Rocksmith IRs',
+    other:     '… Other',
+};
+
+// Pick the bucket for a relative filename based on its subdir prefix.
+// Falls back to "other" when no subdir is present (legacy flat layout)
+// or the subdir isn't one we know about.
+function rbLibBucketFor(name) {
+    const i = name.indexOf('/');
+    if (i < 0) return 'other';
+    const head = name.slice(0, i);
+    return (head in _RB_LIB_CATEGORY_LABEL) ? head : 'other';
+}
+
 function rbRenderCatalogLibraryList(container, files, rsGear, kind, filter) {
     const safeId = rsGear.replace(/[^a-zA-Z0-9_-]/g, '_');
     const inputId = `rb-cat-lib-search-${safeId}`;
@@ -5965,7 +6001,7 @@ function rbRenderCatalogLibraryList(container, files, rsGear, kind, filter) {
     const rowsId  = `rb-cat-lib-rows-${safeId}`;
     container.innerHTML = `
         <div class="text-[10px] text-indigo-300 mb-1">
-            Pick from your downloaded ${kind === 'ir' ? 'IRs' : 'NAMs'} · click "Use for all" to apply to every preset using <code>${rbEsc(rsGear)}</code>
+            Pick from your downloaded ${kind === 'ir' ? 'IRs' : 'NAMs'} · "Use for all" applies to every preset using <code>${rbEsc(rsGear)}</code>
         </div>
         <div class="flex items-center gap-2 mb-2">
             <input id="${inputId}" type="text" placeholder="🔍 Filter…"
@@ -5974,7 +6010,7 @@ function rbRenderCatalogLibraryList(container, files, rsGear, kind, filter) {
                    class="flex-1 bg-dark-800 border border-gray-800 rounded text-[11px] text-gray-200 px-2 py-1">
             <span id="${countId}" class="text-[10px] text-gray-500">${files.length}/${files.length}</span>
         </div>
-        <div id="${rowsId}" class="max-h-64 overflow-y-auto"></div>`;
+        <div id="${rowsId}" class="max-h-72 overflow-y-auto"></div>`;
     rbRenderCatalogLibraryRows(container, files, rsGear, kind, filter);
 }
 
@@ -5989,7 +6025,41 @@ function rbRenderCatalogLibraryRows(container, files, rsGear, kind, filter) {
         : files;
     const titleCounts = {};
     filtered.forEach(x => { if (x.title) titleCounts[x.title] = (titleCounts[x.title] || 0) + 1; });
-    const rows = filtered.slice(0, 50).map(file => {
+    // Group files by subdir bucket — keeps the picker readable when
+    // the user has hundreds of files spread across categories.
+    const buckets = {};
+    for (const file of filtered) {
+        const b = rbLibBucketFor(file.name);
+        (buckets[b] = buckets[b] || []).push(file);
+    }
+    // Render order is intent-aware: the current gear's category first
+    // (expanded by default), then the rest in the canonical order
+    // amps → pedals → racks → cabs → rocksmith → other.
+    const containerEl = document.getElementById(`rb-cat-lib-${safeId}`);
+    const currentCat = (containerEl && containerEl._rbCategory) || '';
+    const currentBucket = (
+        currentCat === 'amp' ? 'amps' :
+        currentCat === 'pedal' ? 'pedals' :
+        currentCat === 'rack' ? 'racks' :
+        currentCat === 'cab' ? 'cabs' : null
+    );
+    const canonOrder = ['amps', 'pedals', 'racks', 'cabs', 'rocksmith', 'other'];
+    const orderedBuckets = [
+        ...(currentBucket && buckets[currentBucket] ? [currentBucket] : []),
+        ...canonOrder.filter(b => b !== currentBucket && buckets[b]),
+    ];
+    // Track open/closed sections on the container so re-rendering on
+    // filter input preserves what the user expanded. By default the
+    // current-category bucket is open; the rest are collapsed unless
+    // there's an active filter (then everything stays open so
+    // matches are visible).
+    if (!containerEl._rbBucketOpen) {
+        containerEl._rbBucketOpen = {};
+        for (const b of orderedBuckets) {
+            containerEl._rbBucketOpen[b] = (b === currentBucket);
+        }
+    }
+    const renderRow = (file) => {
         const usedBadge = file.use_count > 0
             ? `<span class="text-[10px] text-amber-300/80" title="${rbEsc((file.used_for_gears || []).join(', '))}">used ${file.use_count}×</span>`
             : `<span class="text-[10px] text-gray-600">unused</span>`;
@@ -6005,12 +6075,41 @@ function rbRenderCatalogLibraryRows(container, files, rsGear, kind, filter) {
                         title="Apply to every preset using ${rbEsc(rsGear)}"
                         class="bg-indigo-700 hover:bg-indigo-600 text-white text-[10px] px-2 py-0.5 rounded">Use for all</button>
             </div>`;
+    };
+    const groupsHtml = orderedBuckets.map(b => {
+        const list = buckets[b];
+        // With an active filter, expand all matching buckets so the
+        // user sees what they searched for.
+        const open = f ? true : !!containerEl._rbBucketOpen[b];
+        const label = _RB_LIB_CATEGORY_LABEL[b] || b;
+        const isCurrent = (b === currentBucket);
+        const rows = list.slice(0, 50).map(renderRow).join('');
+        const moreNote = list.length > 50
+            ? `<div class="text-[10px] text-gray-500 italic px-2 py-0.5">…and ${list.length - 50} more in this category (refine search)</div>`
+            : '';
+        return `
+            <details ${open ? 'open' : ''}
+                     onclick="event.stopPropagation()"
+                     ontoggle="rbCatLibToggleBucket('${rbEsc(rsGear)}','${rbEsc(b)}', this.open)"
+                     class="mb-1">
+                <summary class="cursor-pointer select-none px-2 py-1 text-[11px] ${isCurrent ? 'text-indigo-300 font-semibold' : 'text-gray-400'} hover:text-gray-200">
+                    ${label} <span class="text-gray-600">(${list.length})</span>${isCurrent ? ' <span class="text-[9px] text-indigo-400">· this gear&apos;s category</span>' : ''}
+                </summary>
+                ${rows}${moreNote}
+            </details>`;
     }).join('');
-    const moreNote = filtered.length > 50
-        ? `<div class="text-[10px] text-gray-500 italic mt-1">…and ${filtered.length - 50} more (refine search)</div>`
-        : '';
-    rowsEl.innerHTML = (rows || '<div class="text-xs text-gray-500 italic">no matches</div>') + moreNote;
+    rowsEl.innerHTML = groupsHtml || '<div class="text-xs text-gray-500 italic">no matches</div>';
     if (countEl) countEl.textContent = `${filtered.length}/${files.length}`;
+}
+
+// Persist which buckets the user expanded/collapsed so a filter
+// re-render doesn't reset their open state.
+function rbCatLibToggleBucket(rsGear, bucket, isOpen) {
+    const safeId = rsGear.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const el = document.getElementById(`rb-cat-lib-${safeId}`);
+    if (!el) return;
+    el._rbBucketOpen = el._rbBucketOpen || {};
+    el._rbBucketOpen[bucket] = !!isOpen;
 }
 
 function rbFilterCatalogLibrary(rsGear) {
@@ -6070,66 +6169,60 @@ function rbRenderCatalogVstPanelBody(panelId, rsGear, currentVstPath, currentFor
     const el = document.getElementById(panelId);
     const stagedPath = (el && el.dataset.stagedPath) || currentVstPath || '';
     const stagedName = stagedPath ? stagedPath.split('/').pop() : '(none selected)';
+
+    // Plugin selector. Two flavours:
+    //   - Scanned VSTs exist → single dropdown with a tiny "hide
+    //     instruments" toggle. No separate search input — the dropdown
+    //     already filters by name when you start typing in many
+    //     browsers, and the per-row knob editor lives in the per-song
+    //     editor anyway.
+    //   - No scan yet → hint to use Pick file. The file picker is the
+    //     scan-less path.
     let pluginSelector;
     if (known.length === 0) {
         pluginSelector = `
-            <div class="text-xs text-gray-400">
-                No plugins scanned yet — scan in <span class="text-gray-300">Settings → VST / Audio Unit plugins</span>, or use 📁 Pick file below.
+            <div class="text-[11px] text-gray-400">
+                No plugins scanned yet — scan in <span class="text-gray-300">Settings → VST / Audio Unit plugins</span>,
+                or use 📁 Pick file below.
             </div>`;
     } else {
         const selId = `${panelId}-select`;
         const opts = rbBuildVstOptions(stagedPath, '', true);
         pluginSelector = `
-            <div class="flex items-center gap-2 mb-1">
-                <input id="${selId}-search" type="text" placeholder="🔍 filter by name / brand / category"
-                       oninput="rbFilterVstSelect('${rbEsc(selId)}')"
-                       class="flex-1 bg-dark-900 border border-gray-800 rounded text-xs text-gray-200 px-2 py-1">
+            <div class="flex items-center gap-2">
+                <select id="${selId}" data-staged="${rbEsc(stagedPath)}"
+                        onchange="rbCatalogStagePath('${rbEsc(panelId)}', this.value)"
+                        class="flex-1 bg-dark-800 border border-gray-800 rounded text-xs text-gray-200 px-2 py-1">${opts}</select>
                 <label class="text-[10px] text-gray-400 flex items-center gap-1 whitespace-nowrap">
                     <input id="${selId}-hideinst" type="checkbox" checked
                            onchange="rbFilterVstSelect('${rbEsc(selId)}')"> hide instruments
                 </label>
-            </div>
-            <select id="${selId}" data-staged="${rbEsc(stagedPath)}"
-                    onchange="rbCatalogStagePath('${rbEsc(panelId)}', this.value)"
-                    class="w-full bg-dark-800 border border-gray-800 rounded text-xs text-gray-200 px-2 py-1">${opts}</select>`;
+            </div>`;
     }
     return `
-        <div class="text-xs text-purple-300 font-semibold">VST3 / Audio Unit</div>
+        <div class="text-xs text-purple-300 font-semibold mb-1">VST3 / Audio Unit</div>
         ${pluginSelector}
-        <div class="flex items-center gap-2 flex-wrap">
+        <div class="flex items-center gap-2 flex-wrap mt-2">
             <button onclick="rbCatalogPickFile('${rbEsc(panelId)}','${rbEsc(rsGear)}','${rbEsc(currentFormat)}')"
-                    title="File picker — bypass scan entirely"
-                    class="bg-emerald-700 hover:bg-emerald-600 text-white text-xs px-2 py-1 rounded">
+                    title="Browse to a .vst3 / .component bundle"
+                    class="bg-dark-700 hover:bg-dark-600 text-gray-200 text-xs px-2 py-1 rounded">
                 📁 Pick file
             </button>
-        </div>
-        <div class="flex items-center gap-2">
             <input id="${panelId}-pathinput" type="text"
-                   placeholder="Or paste path: /Library/Audio/Plug-Ins/VST3/TAL-Chorus-LX.vst3 (or .component for AU)"
+                   placeholder="or paste path…"
                    value="${rbEsc(stagedPath)}"
                    onchange="rbCatalogUpdatePathFromInput('${rbEsc(panelId)}','${rbEsc(rsGear)}', this.value)"
-                   class="flex-1 bg-dark-800 border border-gray-800 rounded text-[11px] text-gray-300 px-2 py-1 font-mono">
+                   class="flex-1 bg-dark-800 border border-gray-800 rounded text-[10px] text-gray-400 px-2 py-1 font-mono">
         </div>
-        <div id="${panelId}-selected" class="text-[10px] text-purple-200/80 break-all">Selected: ${rbEsc(stagedName)}</div>
-        <div class="text-[10px] text-gray-500 leading-snug">
-            The text input above wins over the dropdown — pasting a full path overrides any scanned plugin selection. <code>.component</code> (Audio Units) and <code>.vst3</code> both work.
-        </div>
-        <div class="flex items-center gap-2 flex-wrap">
-            <button onclick="rbCatalogLoadAndEdit('${rbEsc(panelId)}')"
-                    class="bg-blue-700 hover:bg-blue-600 text-white text-xs px-2 py-1 rounded">
-                ▶ Load &amp; Edit
-            </button>
-            <button onclick="rbCatalogCaptureState('${rbEsc(panelId)}')"
-                    title="Capture current parameter state from the engine"
-                    class="bg-amber-700/60 hover:bg-amber-600/60 text-amber-100 text-xs px-2 py-1 rounded">
-                📸 Capture state
-            </button>
+        <div id="${panelId}-selected" class="text-[10px] text-purple-200/80 break-all mt-1">Selected: ${rbEsc(stagedName)}</div>
+        <div class="mt-2">
             <button onclick="rbCatalogAssignVst('${rbEsc(panelId)}','${rbEsc(rsGear)}')"
-                    class="bg-purple-700 hover:bg-purple-600 text-white text-xs px-2 py-1 rounded">
-                ✓ Assign to ALL ${rbEsc(rsGear)}
+                    class="bg-purple-700 hover:bg-purple-600 text-white text-xs px-3 py-1.5 rounded">
+                ✓ Use this plugin for ${rbEsc(rsGear)}
             </button>
+            <span class="text-[10px] text-gray-500 ml-2">Per-song knob tweaks happen in the Songs editor.</span>
         </div>
-        <div id="${panelId}-status" class="text-[10px] text-gray-500"></div>`;
+        <div id="${panelId}-status" class="text-[10px] text-gray-500 mt-1"></div>`;
 }
 
 function rbCatalogStagePath(panelId, path) {
