@@ -6608,9 +6608,10 @@ async function rbRemapCabMics() {
         const c = data.counts || {};
         const parts = [
             `<strong class="text-green-400">${c.updated || 0} updated</strong>`,
-            `${c.same || 0} already correct`,
-            `${c.skipped_manual || 0} manual (left alone)`,
         ];
+        if (c.promoted_generic) parts.push(`${c.promoted_generic} promoted from "Cabinets" to real cab`);
+        parts.push(`${c.same || 0} already correct`);
+        parts.push(`${c.skipped_manual || 0} manual (left alone)`);
         if (c.no_psarc) parts.push(`${c.no_psarc} PSARC unavailable`);
         if (c.no_key) parts.push(`${c.no_key} no Cabinet.Key`);
         if (c.no_mic_map) parts.push(`${c.no_mic_map} no mic map`);

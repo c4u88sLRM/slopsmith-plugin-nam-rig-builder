@@ -4022,14 +4022,18 @@ def setup(app, context):
         only_auto = bool(data.get("only_auto", True))
         conn = _get_conn()
         # Walk every cab preset_piece (with the matching tone_mappings
-        # row so we know which PSARC to re-read).
+        # row so we know which PSARC to re-read). Also include the
+        # generic "Cabinets" rs_gear rows — those came from songs whose
+        # PSARC tone had Cabinet.Type='Cabinets' but encoded the real
+        # cab in Cabinet.Key. We promote the rs_gear_type for those.
         rows = conn.execute(
             "SELECT pp.id, pp.preset_id, pp.rs_gear_type, pp.file,"
             "       pp.assigned_mode, tm.filename, tm.tone_key "
             "FROM preset_pieces pp "
             "JOIN tone_mappings tm ON tm.preset_id = pp.preset_id "
-            "WHERE pp.kind IN ('rs_ir', 'ir') "
-            "  AND pp.rs_gear_type LIKE '%Cab%'"
+            "WHERE (pp.kind IN ('rs_ir', 'ir') "
+            "       AND pp.rs_gear_type LIKE '%Cab%') "
+            "   OR pp.rs_gear_type = 'Cabinets'"
         ).fetchall()
         # Group by filename to avoid re-parsing the same PSARC N times.
         by_song: dict[str, list[tuple]] = {}
@@ -4037,7 +4041,7 @@ def setup(app, context):
             by_song.setdefault(r[5], []).append(r)
         counts = {"updated": 0, "same": 0, "no_psarc": 0,
                   "no_key": 0, "no_mic_map": 0, "skipped_manual": 0,
-                  "missing_ir": 0}
+                  "missing_ir": 0, "promoted_generic": 0}
         irs_root = _config_dir / "nam_irs"
         affected_presets: set[int] = set()
         with _lock:
@@ -4073,23 +4077,42 @@ def setup(app, context):
                     if not cabinet_key:
                         counts["no_key"] += 1
                         continue
+                    # Resolve effect_name → (base_rs_gear, suffix). Promote
+                    # the row's rs_gear_type when it was the generic
+                    # "Cabinets" placeholder so the cab tab shows it
+                    # under the real cab and per-song variant overrides
+                    # work.
+                    base_rs_gear = _cab_base_from_effect_name(cabinet_key)
                     suffix = _cab_suffix_from_effect_name(cabinet_key)
-                    if not suffix:
+                    if not base_rs_gear or not suffix:
                         counts["no_mic_map"] += 1
                         continue
-                    spec = (_load_rs_cab_mic_map().get(rs_gear) or {}).get(suffix)
+                    # The mic_map is keyed by the resolved base — use it
+                    # for the per-mic lookup (NOT the row's current
+                    # rs_gear which might be "Cabinets").
+                    spec = (_load_rs_cab_mic_map().get(base_rs_gear) or {}).get(suffix)
                     new_file = (spec or {}).get("ir_file")
                     if not new_file or not (irs_root / new_file).exists():
                         counts["missing_ir"] += 1
                         continue
-                    if new_file == cur_file:
+                    needs_promote = (rs_gear != base_rs_gear)
+                    if not needs_promote and new_file == cur_file:
                         counts["same"] += 1
                         continue
-                    conn.execute(
-                        "UPDATE preset_pieces SET file = ?, kind = 'rs_ir' "
-                        "WHERE id = ?",
-                        (new_file, pid_row),
-                    )
+                    if needs_promote:
+                        conn.execute(
+                            "UPDATE preset_pieces "
+                            "SET rs_gear_type = ?, file = ?, kind = 'rs_ir' "
+                            "WHERE id = ?",
+                            (base_rs_gear, new_file, pid_row),
+                        )
+                        counts["promoted_generic"] += 1
+                    else:
+                        conn.execute(
+                            "UPDATE preset_pieces SET file = ?, kind = 'rs_ir' "
+                            "WHERE id = ?",
+                            (new_file, pid_row),
+                        )
                     counts["updated"] += 1
                     affected_presets.add(preset_id)
             for pid in affected_presets:
