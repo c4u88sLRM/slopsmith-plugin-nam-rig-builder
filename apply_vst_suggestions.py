@@ -156,6 +156,13 @@ def main() -> int:
                     help="Scope to a single rs_gear_type (for testing)")
     ap.add_argument("--apply", action="store_true",
                     help="Actually write the changes (otherwise dry-run only)")
+    ap.add_argument("--force", action="store_true",
+                    help="Override rows marked assigned_mode='manual' (manual NAM picks). "
+                         "Never overrides assigned_mode='manual_vst' — a deliberate VST pick "
+                         "is always preserved.")
+    ap.add_argument("--include-none", action="store_true", default=True,
+                    help="Also migrate kind='none' rows (pending slots with no file). "
+                         "Default true — purely additive, no NAM is lost.")
     args = ap.parse_args()
 
     db_path = args.db or _default_db_path()
@@ -199,28 +206,37 @@ def main() -> int:
             missing.append((rs_gear, name))
             continue
         vst_path, vst_format = found
-        # Count rows that would change
+        # Build the WHERE clause once for this gear's preview + write.
+        kind_clause = "kind IN ('nam','none','')" if args.include_none else "kind = 'nam'"
+        # `manual_vst` is ALWAYS preserved; `manual` (NAM picks) is only
+        # preserved without --force.
+        mode_clause = (
+            "(assigned_mode IS NULL OR assigned_mode != 'manual_vst')"
+            if args.force else
+            "(assigned_mode IS NULL OR assigned_mode NOT IN ('manual','manual_vst'))"
+        )
+        where = f"rs_gear_type = ? AND {kind_clause} AND {mode_clause}"
         rows = conn.execute(
-            "SELECT COUNT(*) FROM preset_pieces "
-            "WHERE rs_gear_type = ? AND kind = 'nam' "
-            "  AND (assigned_mode IS NULL OR assigned_mode NOT IN ('manual','manual_vst'))",
-            (rs_gear,),
+            f"SELECT COUNT(*) FROM preset_pieces WHERE {where}", (rs_gear,)
         ).fetchone()
         candidate_rows = rows[0] if rows else 0
         if candidate_rows == 0:
             continue  # nothing to do for this gear
-        plan.append((rs_gear, str(vst_path), vst_format, name, candidate_rows))
+        plan.append((rs_gear, str(vst_path), vst_format, name, candidate_rows, where))
 
     # ── Report ──
     print()
     print(f"{'rs_gear_type':30s}  {'suggested VST':28s}  {'fmt':10s}  rows")
     print("-" * 80)
     total = 0
-    for rs_gear, vst_path, vst_format, name, n in sorted(plan):
+    for rs_gear, vst_path, vst_format, name, n, _w in sorted(plan):
         print(f"{rs_gear:30s}  {name:28s}  {vst_format:10s}  {n}")
         total += n
     print("-" * 80)
     print(f"{'TOTAL':30s}  {'':28s}  {'':10s}  {total}")
+    if args.force:
+        print("\n⚠ --force is ON: rows with assigned_mode='manual' (manual NAM picks) "
+              "are also being overridden.")
     if missing:
         print(f"\nNot installed on this machine ({len(missing)} gears skipped):")
         for rs_gear, name in sorted(missing):
@@ -244,14 +260,13 @@ def main() -> int:
     print("\nApplying…")
     updated = 0
     with conn:  # transaction
-        for rs_gear, vst_path, vst_format, _name, _n in plan:
+        for rs_gear, vst_path, vst_format, _name, _n, where in plan:
             cur = conn.execute(
-                "UPDATE preset_pieces SET "
-                "  kind = 'vst', file = NULL, "
-                "  vst_path = ?, vst_format = ?, vst_state = NULL, "
-                "  assigned_mode = 'manual_vst' "
-                "WHERE rs_gear_type = ? AND kind = 'nam' "
-                "  AND (assigned_mode IS NULL OR assigned_mode NOT IN ('manual','manual_vst'))",
+                f"UPDATE preset_pieces SET "
+                f"  kind = 'vst', file = NULL, "
+                f"  vst_path = ?, vst_format = ?, vst_state = NULL, "
+                f"  assigned_mode = 'manual_vst' "
+                f"WHERE {where}",
                 (vst_path, vst_format, rs_gear),
             )
             updated += cur.rowcount

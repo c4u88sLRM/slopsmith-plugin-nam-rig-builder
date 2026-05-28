@@ -4869,20 +4869,47 @@ def setup(app, context):
     def vst_sync_known(data: dict = Body(...)):
         """Frontend pushes the result of `getKnownPlugins()` so the Python
         side can render the dropdown without round-tripping through JS.
-        Body: `{"plugins": [{name, manufacturer, format, category, path}, ...]}`.
+        Body: `{"plugins": [{name, manufacturer, format, category, path}, ...],
+                "mode": "merge" | "replace"}`.
+
+        Default is `merge` (keyed by `path`) — partial scans that crash
+        midway (the known JUCE scanPlugins bug) no longer wipe entries
+        seeded by `seed_known_vsts.py` or contributed by previous
+        successful scans. Pass `mode: "replace"` for an explicit
+        clear-and-rescan flow.
         """
         plugins = data.get("plugins")
+        mode = (data.get("mode") or "merge").lower()
         if not isinstance(plugins, list):
             return JSONResponse({"error": "plugins must be a list"}, 400)
         if _config_dir is None:
             return JSONResponse({"error": "config_dir not initialized"}, 500)
         path = _config_dir / _KNOWN_VSTS_FILENAME
+
+        merged_by_path: dict = {}
+        if mode != "replace" and path.exists():
+            try:
+                existing = json.loads(path.read_text())
+                for p in existing.get("plugins", []) or []:
+                    if isinstance(p, dict) and p.get("path"):
+                        merged_by_path[p["path"]] = p
+            except (ValueError, OSError):
+                merged_by_path = {}
+        # Prefer the freshly-scanned entry (richer JUCE metadata) over a
+        # synthetic seeded one — by path key.
+        for p in plugins:
+            if isinstance(p, dict) and p.get("path"):
+                merged_by_path[p["path"]] = p
+        final = sorted(merged_by_path.values(),
+                       key=lambda x: (x.get("name") or "").lower())
         try:
-            path.write_text(json.dumps({"plugins": plugins,
-                                        "synced_at": int(time.time())}, indent=2))
+            path.write_text(json.dumps({"plugins": final,
+                                        "synced_at": int(time.time())},
+                                       indent=2))
         except OSError as e:
             return JSONResponse({"error": f"write failed: {e}"}, 500)
-        return {"ok": True, "count": len(plugins)}
+        return {"ok": True, "count": len(final),
+                "mode": mode, "added_from_scan": len(plugins)}
 
     # ── Amp gain variants — CRUD endpoints used by the Gear-catalog UI ──
     #

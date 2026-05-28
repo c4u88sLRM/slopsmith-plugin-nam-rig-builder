@@ -640,5 +640,19 @@
       "Treble": {"param": "Band 5 Gain", "scale": 1.0},
       "TrebleFreq": {"param": "Band 5 Frequency", "scale": 1000.0, "_hint": "kHz"}
     }
+  },
+  "Rack_StudioCompressor": {
+    "mcompressor": {
+      "Threshold": {"param": "Threshold", "scale": 1.0, "_hint": "RS Threshold is dB direct (-27.5..-0.5). Maps 1:1."},
+      "Ratio": {"param": "Ratio", "scale": 1.0, "_hint": "RS Ratio 1..4 = literal ratio. MCompressor Ratio is the same."},
+      "Attack": {"param": "Attack", "scale": 1.0, "_hint": "RS Attack 0..92 ≈ ms direct (Melda Attack is ms). Verify range — may need 0.01 scale if Melda normalizes."},
+      "Release": {"param": "Release", "scale": 1.0, "_hint": "RS Release 50..260 ms direct. MCompressor Release is ms."}
+    },
+    "khs compressor": {
+      "Threshold": {"param": "Threshold", "scale": 1.0},
+      "Ratio": {"param": "Ratio", "scale": 1.0},
+      "Attack": {"param": "Attack", "scale": 0.01, "_hint": "KHS Attack is 0-1 normalized; halve scaling if RS values exceed."},
+      "Release": {"param": "Release", "scale": 0.01}
+    }
   }
 }

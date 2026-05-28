@@ -200,6 +200,10 @@
     {"name": "Voxengo Marvel GEQ",  "manufacturer": "Voxengo",            "format": "VST3", "url": "https://www.voxengo.com/product/marvelgeq/", "free": true, "notes": "16-band — full 8/8 fidelity"},
     {"name": "kHs 3-Band EQ",       "manufacturer": "Kilohearts",         "format": "VST3", "url": "https://kilohearts.com/products/essentials", "free": true, "notes": "Lossy 8→3 fallback"}
   ],
+  "Rack_StudioCompressor": [
+    {"name": "MCompressor",         "manufacturer": "MeldaProduction",    "format": "VST3", "url": "https://www.meldaproduction.com/MFreeFXBundle", "free": true, "notes": "Threshold (dB direct), Ratio, Attack (ms), Release (ms) — RS values match MCompressor units 1:1. 40 songs use this rack."},
+    {"name": "kHs Compressor",      "manufacturer": "Kilohearts",         "format": "VST3", "url": "https://kilohearts.com/products/essentials", "free": true, "notes": "Fallback"}
+  ],
   "Rack_StudioEQ": [
     {"name": "MEqualizer",          "manufacturer": "MeldaProduction",    "format": "VST3", "url": "https://www.meldaproduction.com/MFreeFXBundle", "free": true, "notes": "6-band parametric — fits all 4 RS bands with Q + Freq from MEqualizer's own Band N Q / Band N Frequency knobs. Most-used EQ (154 songs)."},
     {"name": "TDR Nova",            "manufacturer": "Tokyo Dawn Records", "format": "VST3", "url": "https://www.tokyodawn.net/tdr-nova/", "free": true, "notes": "4-band parametric (dynamic) — direct 1:1 fit if you prefer Nova's musical voicing"},
