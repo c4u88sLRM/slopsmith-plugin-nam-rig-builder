@@ -4415,6 +4415,112 @@ def setup(app, context):
 
     # ── Song / chain inspection ───────────────────────────────────────
 
+    def _auto_fix_cab_mics_for_song(filename: str, raw_tones: list,
+                                      conn) -> int:
+        """Auto-promote generic "Cabinets" rs_gear and re-pick mic IRs
+        when a song is opened. Runs synchronously inside get_song so the
+        chain rendered to the user always reflects the corrected cab.
+
+        For each parsed tone:
+          - Read its Cabinet.Key from the PSARC (e.g. "Bass_Cab_AT810BC_57_Cone")
+          - Resolve to (base_rs_gear, mic_suffix) via the HIRC-derived
+            rs_cab_mic_map.
+          - Find the preset_piece for THIS tone whose rs_gear_type is
+            either the resolved base, the generic "Cabinets" placeholder,
+            or a stale base-form (case-insensitive).
+          - If the row's current rs_gear / file doesn't match what
+            Cabinet.Key says it should be → UPDATE.
+
+        Preserves real manual picks: rows with assigned_mode='manual'
+        AND a real (non-generic) rs_gear_type stay untouched. The
+        generic-Cabinets rows ARE force-fixed regardless of mode
+        because the UI never lets the user pick "Cabinets" deliberately
+        — it's always a parser-miss placeholder.
+
+        Returns the number of rows updated (mostly for diagnostics —
+        not surfaced to the user; the corrected state shows up in the
+        re-rendered chain).
+        """
+        if _config_dir is None or not raw_tones:
+            return 0
+        irs_root = _config_dir / "nam_irs"
+        # tone_mappings.filename → preset_id (case-insensitive on the
+        # basename to handle subdir prefixes).
+        base = filename.rsplit("/", 1)[-1]
+        tm_rows = conn.execute(
+            "SELECT tone_key, preset_id FROM tone_mappings "
+            "WHERE filename = ? OR filename = ?",
+            (filename, base),
+        ).fetchall()
+        if not tm_rows:
+            return 0
+        tone_to_preset = {tk: pid for tk, pid in tm_rows}
+
+        updated = 0
+        with _lock:
+            for raw in raw_tones:
+                tone_key = raw.get("Key") or raw.get("Name") or ""
+                preset_id = tone_to_preset.get(tone_key)
+                if preset_id is None:
+                    continue
+                cab = (raw.get("GearList") or {}).get("Cabinet") or {}
+                effect_name = (cab.get("Key") or "").strip()
+                if not effect_name:
+                    continue
+                base_rs_gear = _cab_base_from_effect_name(effect_name)
+                suffix = _cab_suffix_from_effect_name(effect_name)
+                if not base_rs_gear or not suffix:
+                    continue
+                spec = (_load_rs_cab_mic_map().get(base_rs_gear) or {}).get(suffix)
+                new_file = (spec or {}).get("ir_file")
+                if not new_file or not (irs_root / new_file).exists():
+                    continue
+                # Find the cab preset_piece for this preset. Match by
+                # category-ish criteria: rs_gear is "Cabinets", or
+                # case-insensitively equals the resolved base, or a
+                # stale variant of it.
+                base_lc = base_rs_gear.lower()
+                rows = conn.execute(
+                    "SELECT id, rs_gear_type, file, assigned_mode "
+                    "FROM preset_pieces "
+                    "WHERE preset_id = ? "
+                    "  AND (rs_gear_type = 'Cabinets' "
+                    "       OR LOWER(rs_gear_type) = ? "
+                    "       OR LOWER(rs_gear_type) LIKE ?)",
+                    (preset_id, base_lc, base_lc + "_%"),
+                ).fetchall()
+                for row_id, rs_gear, cur_file, mode in rows:
+                    is_generic = (rs_gear == "Cabinets")
+                    # Skip real manual picks. Generic-Cabinets rows are
+                    # always force-fixed (parser-miss, not deliberate).
+                    if mode == "manual" and not is_generic:
+                        continue
+                    needs_promote = (rs_gear != base_rs_gear)
+                    if not needs_promote and cur_file == new_file:
+                        continue
+                    if needs_promote:
+                        conn.execute(
+                            "UPDATE preset_pieces "
+                            "SET rs_gear_type = ?, file = ?, kind = 'rs_ir' "
+                            "WHERE id = ?",
+                            (base_rs_gear, new_file, row_id),
+                        )
+                    else:
+                        conn.execute(
+                            "UPDATE preset_pieces "
+                            "SET file = ?, kind = 'rs_ir' WHERE id = ?",
+                            (new_file, row_id),
+                        )
+                    updated += 1
+            if updated:
+                # Recompute primary IR file on every preset we touched.
+                affected = {tone_to_preset[k] for k in tone_to_preset
+                             if tone_to_preset[k] is not None}
+                for pid in affected:
+                    _recompute_preset_primaries(conn, pid)
+                conn.commit()
+        return updated
+
     @app.get("/api/plugins/rig_builder/song/{filename:path}")
     def get_song(filename: str):
         path = _resolve_song_file(filename)
@@ -4454,6 +4560,17 @@ def setup(app, context):
         # Map tone_key → existing nam_tone mapping (if any), so the UI
         # can show which tones already have a preset and which don't.
         conn = _get_conn()
+        # Self-healing cab assignment: every song open re-evaluates
+        # each cab piece against its PSARC's Cabinet.Key. Updates
+        # rows whose rs_gear_type='Cabinets' (parser-miss placeholder)
+        # or whose mic IR doesn't match what Rocksmith actually
+        # specified for the tone. Real manual picks (manual mode + real
+        # rs_gear) stay protected. Idempotent — already-correct rows
+        # are no-ops, so re-opening a fixed song doesn't churn.
+        try:
+            _auto_fix_cab_mics_for_song(filename, raw_tones, conn)
+        except Exception:
+            log.exception("auto cab mic fix failed for %s", filename)
         existing_rows = conn.execute(
             "SELECT tone_key, preset_id FROM tone_mappings WHERE filename = ?",
             (filename,),
