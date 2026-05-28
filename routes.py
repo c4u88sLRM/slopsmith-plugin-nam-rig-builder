@@ -3802,41 +3802,6 @@ def _watch_fire(name: str) -> None:
         _watcher_state["last_error"] = f"{name}: {type(e).__name__}: {e}"
 
 
-def _self_heal_cabs_for_preset(preset_id: int, conn) -> int:
-    """Resolve the preset's filename + tone_key via tone_mappings, then
-    run the cab-mic fix scoped to THAT preset only.
-
-    Called from `native_preset_full` on every playback. The caller has
-    already short-circuited via a cheap SELECT (only fires when a row
-    actually looks fixable — generic 'Cabinets' OR auto-mode with a
-    `_00.wav` file), so this PSARC parse only runs when there's work
-    to do. Idempotent: re-runs are no-ops once the row has been
-    promoted to the real cab + correct mic IR.
-    """
-    if _config_dir is None:
-        return 0
-    row = conn.execute(
-        "SELECT filename, tone_key FROM tone_mappings "
-        "WHERE preset_id = ? LIMIT 1",
-        (preset_id,),
-    ).fetchone()
-    if not row:
-        return 0
-    filename, _tone_key = row
-    path = _resolve_song_file(filename)
-    if path is None or not path.exists() or path.stat().st_size == 0:
-        return 0
-    try:
-        if path.suffix.lower() == ".sloppak":
-            raw_tones = _read_tones_from_sloppak(filename, _get_dlc_dir())
-        else:
-            raw_tones = _read_tones_from_psarc(path)
-    except Exception:
-        log.warning("self-heal: parse %s failed", filename, exc_info=True)
-        return 0
-    return _auto_fix_cab_mics_for_song_module(filename, raw_tones)
-
-
 def _auto_fix_cab_mics_for_song_module(filename: str, raw_tones: list) -> int:
     """Module-level version of the per-song cab-mic fixer (the closure
     `_auto_fix_cab_mics_for_song` inside setup() captures `conn`/`_lock`
@@ -4995,31 +4960,6 @@ def setup(app, context):
         if not prow:
             return JSONResponse({"error": "preset not found"}, 404)
         _, name, input_gain, output_gain, gate_threshold = prow
-
-        # Self-heal cab assignment on every playback. If ANY cab piece
-        # for this preset still has rs_gear='Cabinets' (generic
-        # placeholder) OR is mode='auto' with a file that doesn't yet
-        # match the PSARC's Cabinet.Key, fix it now so the playback
-        # hears the correct mic position even if the user never opened
-        # the Songs editor. The needs-fix check is cheap (one indexed
-        # SELECT); only if it indicates work do we incur the PSARC
-        # parse cost.
-        needs_cab_fix = conn.execute(
-            "SELECT 1 FROM preset_pieces "
-            "WHERE preset_id = ? AND ("
-            "  rs_gear_type = 'Cabinets' "
-            "  OR (kind IN ('rs_ir', 'ir') "
-            "      AND assigned_mode = 'auto' "
-            "      AND file LIKE '%\\_00.wav' ESCAPE '\\') "
-            ") LIMIT 1",
-            (preset_id,),
-        ).fetchone()
-        if needs_cab_fix:
-            try:
-                _self_heal_cabs_for_preset(preset_id, conn)
-            except Exception:
-                log.exception("self-heal cabs failed for preset_id=%s",
-                              preset_id)
 
         rows = conn.execute(
             "SELECT slot, kind, file, rs_gear_type, bypassed, slot_order, "
