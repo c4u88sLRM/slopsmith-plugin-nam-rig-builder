@@ -1103,5 +1103,85 @@
       "free": true,
       "notes": "Low drive + clean type for DI saturation"
     }
+  ],
+  "Rack_StereoAnalogVibe": [
+    {
+      "name": "kHs Chorus",
+      "manufacturer": "Kilohearts",
+      "format": "VST3",
+      "url": "https://kilohearts.com/products/kilohearts_essentials",
+      "free": true,
+      "notes": "Stereo analog vibrato \u2014 kHs Chorus's modulated delay covers the wobble character"
+    }
+  ],
+  "Rack_StudioChamber": [
+    {
+      "name": "kHs Reverb",
+      "manufacturer": "Kilohearts",
+      "format": "VST3",
+      "url": "https://kilohearts.com/products/kilohearts_essentials",
+      "free": true,
+      "notes": "Chamber-style reverb mapped to generic kHs Reverb"
+    }
+  ],
+  "Rack_StudioChorus": [
+    {
+      "name": "kHs Chorus",
+      "manufacturer": "Kilohearts",
+      "format": "VST3",
+      "url": "https://kilohearts.com/products/kilohearts_essentials",
+      "free": true,
+      "notes": "Multi-knob studio chorus \u2192 kHs Chorus (LoFilter/HiFilter dropped, Delay\u2192Delay, Stereo\u2192Stereo)"
+    }
+  ],
+  "Rack_StudioDelay": [
+    {
+      "name": "kHs Delay",
+      "manufacturer": "Kilohearts",
+      "format": "VST3",
+      "url": "https://kilohearts.com/products/kilohearts_essentials",
+      "free": true,
+      "notes": "Studio stereo delay \u2192 kHs Delay. RS TimeL/TimeR averaged into Time."
+    }
+  ],
+  "Rack_StudioFlanger": [
+    {
+      "name": "kHs Flanger",
+      "manufacturer": "Kilohearts",
+      "format": "VST3",
+      "url": "https://kilohearts.com/products/kilohearts_essentials",
+      "free": true,
+      "notes": "Studio flanger \u2192 kHs Flanger (Regen\u2192Feedback, Tone dropped)"
+    }
+  ],
+  "Rack_StudioPlate": [
+    {
+      "name": "kHs Reverb",
+      "manufacturer": "Kilohearts",
+      "format": "VST3",
+      "url": "https://kilohearts.com/products/kilohearts_essentials",
+      "free": true,
+      "notes": "Plate reverb mapped to kHs Reverb (no dedicated plate algo in free)"
+    }
+  ],
+  "Rack_StudioVerb": [
+    {
+      "name": "kHs Reverb",
+      "manufacturer": "Kilohearts",
+      "format": "VST3",
+      "url": "https://kilohearts.com/products/kilohearts_essentials",
+      "free": true,
+      "notes": "Generic studio reverb \u2192 kHs Reverb"
+    }
+  ],
+  "Rack_TapeEcho": [
+    {
+      "name": "kHs Delay",
+      "manufacturer": "Kilohearts",
+      "format": "VST3",
+      "url": "https://kilohearts.com/products/kilohearts_essentials",
+      "free": true,
+      "notes": "Tape echo \u2192 kHs Delay (no dedicated tape-saturation in free; the comp pre-stage covers some)"
+    }
   ]
 }

@@ -1730,5 +1730,168 @@
         "scale": 0.01
       }
     }
+  },
+  "Rack_StereoAnalogVibe": {
+    "khs chorus": {
+      "Speed": {
+        "param": "Rate",
+        "scale": 0.01
+      },
+      "Mix": {
+        "param": "Dry/Wet",
+        "scale": 0.01
+      }
+    }
+  },
+  "Rack_StudioChamber": {
+    "khs reverb": {
+      "Time": {
+        "param": "Time",
+        "scale": 0.01
+      },
+      "Tone": {
+        "param": "Damping",
+        "scale": 0.01,
+        "_hint": "RS Tone \u2248 damping/HF roll-off in kHs Reverb"
+      },
+      "Depth": {
+        "param": "Predelay",
+        "scale": 0.01,
+        "_hint": "RS Depth on a chamber maps best to predelay"
+      },
+      "Mix": {
+        "param": "Dry/Wet",
+        "scale": 0.01
+      }
+    }
+  },
+  "Rack_StudioChorus": {
+    "khs chorus": {
+      "Rate": {
+        "param": "Rate",
+        "scale": 0.01
+      },
+      "Depth": {
+        "param": "Depth",
+        "scale": 0.01
+      },
+      "Mix": {
+        "param": "Dry/Wet",
+        "scale": 0.01
+      },
+      "Delay": {
+        "param": "Delay",
+        "scale": 0.01,
+        "_hint": "Both kHs Chorus and RS use 'Delay' for the base offset"
+      },
+      "Stereo": {
+        "param": "Stereo",
+        "scale": 0.01
+      }
+    }
+  },
+  "Rack_StudioDelay": {
+    "khs delay": {
+      "TimeL": {
+        "param": "Time",
+        "scale": 0.005,
+        "_hint": "RS TimeL+TimeR are in ms (0-1000); use TimeL alone, scaled 0-500ms\u21920-1"
+      },
+      "Filter": {
+        "param": "Tone",
+        "scale": 0.01,
+        "_hint": "RS Filter on a delay is a feedback tone control"
+      },
+      "Feedback": {
+        "param": "Feedback",
+        "scale": 0.01
+      },
+      "Mix": {
+        "param": "Dry/Wet",
+        "scale": 0.01
+      }
+    }
+  },
+  "Rack_StudioFlanger": {
+    "khs flanger": {
+      "Rate": {
+        "param": "Rate",
+        "scale": 0.01
+      },
+      "Depth": {
+        "param": "Depth",
+        "scale": 0.01
+      },
+      "Regen": {
+        "param": "Feedback",
+        "scale": 0.01,
+        "_hint": "RS Regen IS feedback in kHs vocabulary"
+      },
+      "Mix": {
+        "param": "Dry/Wet",
+        "scale": 0.01
+      }
+    }
+  },
+  "Rack_StudioPlate": {
+    "khs reverb": {
+      "Time": {
+        "param": "Time",
+        "scale": 0.01
+      },
+      "Tone": {
+        "param": "Damping",
+        "scale": 0.01
+      },
+      "Depth": {
+        "param": "Predelay",
+        "scale": 0.01
+      },
+      "Mix": {
+        "param": "Dry/Wet",
+        "scale": 0.01
+      }
+    }
+  },
+  "Rack_StudioVerb": {
+    "khs reverb": {
+      "Time": {
+        "param": "Time",
+        "scale": 0.01
+      },
+      "Tone": {
+        "param": "Damping",
+        "scale": 0.01
+      },
+      "Depth": {
+        "param": "Predelay",
+        "scale": 0.01
+      },
+      "Mix": {
+        "param": "Dry/Wet",
+        "scale": 0.01
+      }
+    }
+  },
+  "Rack_TapeEcho": {
+    "khs delay": {
+      "Time": {
+        "param": "Time",
+        "scale": 0.005,
+        "_hint": "RS Time in ms"
+      },
+      "Feedback": {
+        "param": "Feedback",
+        "scale": 0.01
+      },
+      "Filter": {
+        "param": "Tone",
+        "scale": 0.01
+      },
+      "Mix": {
+        "param": "Dry/Wet",
+        "scale": 0.01
+      }
+    }
   }
 }

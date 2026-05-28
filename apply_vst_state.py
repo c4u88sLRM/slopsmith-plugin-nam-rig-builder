@@ -107,29 +107,16 @@ _VST_PARAM_RANGES: dict[str, dict[str, tuple[str, float, float]]] = {
         **{f"Frequency {i} (EQ {i})": ("log",     20.0, 20000.0) for i in range(1, 17)},
         **{f"Q {i} (EQ {i})":         ("log",      0.1,   100.0) for i in range(1, 17)},
     },
-    "mtremolo": {
-        "Depth":       ("linear", 0.0, 100.0),
-        "Rate":        ("log",    0.01, 100.0),  # Hz
-    },
-    "mflanger": {
-        "Depth":       ("linear", 0.0, 100.0),
-        "Rate":        ("log",    0.01, 100.0),
-        "Feedback":    ("linear", -100.0, 100.0),
-        "Dry/Wet":     ("linear", 0.0, 100.0),
-    },
-    "mchorus": {
-        "Depth":       ("linear", 0.0, 100.0),
-        "Rate":        ("log",    0.01, 100.0),
-        "Dry/Wet":     ("linear", 0.0, 100.0),
-    },
-    "mfreqshifter": {
-        "Shift":       ("linear", -1000.0, 1000.0),  # Hz
-        "Dry/Wet":     ("linear", 0.0, 100.0),
-    },
-    "mreverb": {
-        "Length":      ("log",    0.01, 100.0),     # s
-        "Dry/Wet":     ("linear", 0.0, 100.0),
-    },
+    # Melda effects (MTremolo, MFlanger, MChorus, MFreqShifter, MReverb) —
+    # intentionally NO entries here. Every curated rs_knob_to_vst_param.json
+    # rule for these uses `scale: 0.01` (RS 0-100 → 0-1) which already
+    # produces normalized values. Adding a display-range here would
+    # double-normalize: e.g. RS Depth=78 × 0.01 = 0.78, then linear-norm
+    # via (0..100) → 0.78/100 = 0.0078 → editor shows ≈1%. Verified bug,
+    # fixed by removing these entries. If a future curator switches to
+    # display-domain scaling (e.g. scale=1.0 for Hz direct), re-add the
+    # relevant param ranges then — but the table here MUST stay in sync
+    # with whatever the curator's scale outputs.
     # Kilohearts free Essentials — KHS plugins expose almost everything as
     # 0..100% sliders already, so most curated mappings (scale=0.01) land in
     # [0,1] without help. Only the dB/Hz params need ranges here.
