@@ -522,17 +522,18 @@
   "mtremolo": {
    "Speed": {
     "param": "Rate",
-    "scale": 0.01,
-    "_hint": "Melda LFO Rate is 0-1 normalized (~0-20 Hz)"
+    "scale": 0.09,
+    "offset": 1.0,
+    "_hint": "RS Speed 0-100 → 1-10 Hz (display Hz; range log[0.01,20] in apply_vst_state)"
    },
    "Depth": {
     "param": "Depth",
     "scale": 0.01
    },
    "Mix": {
-    "param": "Dry/Wet",
+    "param": "Depth",
     "scale": 0.01,
-    "_hint": "Some RS trems call mix 'Mix', others 'Depth' — both map here"
+    "_hint": "RS Mix on a tremolo = depth (MTremolo has no Dry/Wet param)"
    }
   }
  },
@@ -550,17 +551,18 @@
   "mtremolo": {
    "Speed": {
     "param": "Rate",
-    "scale": 0.01,
-    "_hint": "Melda LFO Rate is 0-1 normalized (~0-20 Hz)"
+    "scale": 0.09,
+    "offset": 1.0,
+    "_hint": "RS Speed 0-100 → 1-10 Hz (display Hz; range log[0.01,20] in apply_vst_state)"
    },
    "Depth": {
     "param": "Depth",
     "scale": 0.01
    },
    "Mix": {
-    "param": "Dry/Wet",
+    "param": "Depth",
     "scale": 0.01,
-    "_hint": "Some RS trems call mix 'Mix', others 'Depth' — both map here"
+    "_hint": "RS Mix on a tremolo = depth (MTremolo has no Dry/Wet param)"
    }
   }
  },
@@ -578,17 +580,18 @@
   "mtremolo": {
    "Speed": {
     "param": "Rate",
-    "scale": 0.01,
-    "_hint": "Melda LFO Rate is 0-1 normalized (~0-20 Hz)"
+    "scale": 0.09,
+    "offset": 1.0,
+    "_hint": "RS Speed 0-100 → 1-10 Hz (display Hz; range log[0.01,20] in apply_vst_state)"
    },
    "Depth": {
     "param": "Depth",
     "scale": 0.01
    },
    "Mix": {
-    "param": "Dry/Wet",
+    "param": "Depth",
     "scale": 0.01,
-    "_hint": "Some RS trems call mix 'Mix', others 'Depth' — both map here"
+    "_hint": "RS Mix on a tremolo = depth (MTremolo has no Dry/Wet param)"
    }
   }
  },
@@ -1709,17 +1712,18 @@
   "mtremolo": {
    "Speed": {
     "param": "Rate",
-    "scale": 0.01,
-    "_hint": "Melda LFO Rate is 0-1 normalized (~0-20 Hz)"
+    "scale": 0.09,
+    "offset": 1.0,
+    "_hint": "RS Speed 0-100 → 1-10 Hz (display Hz; range log[0.01,20] in apply_vst_state)"
    },
    "Depth": {
     "param": "Depth",
     "scale": 0.01
    },
    "Mix": {
-    "param": "Dry/Wet",
+    "param": "Depth",
     "scale": 0.01,
-    "_hint": "Some RS trems call mix 'Mix', others 'Depth' — both map here"
+    "_hint": "RS Mix on a tremolo = depth (MTremolo has no Dry/Wet param)"
    }
   }
  },

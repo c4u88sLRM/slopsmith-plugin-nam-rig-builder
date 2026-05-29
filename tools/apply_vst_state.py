@@ -110,7 +110,15 @@ _VST_PARAM_RANGES: dict[str, dict[str, tuple[str, float, float]]] = {
         **{f"Frequency {i} (EQ {i})": ("log",     20.0, 20000.0) for i in range(1, 17)},
         **{f"Q {i} (EQ {i})":         ("log",      0.1,   100.0) for i in range(1, 17)},
     },
-    # Melda effects (MTremolo, MFlanger, MChorus, MFreqShifter, MReverb) —
+    "mtremolo": {
+        # Rate is the ONE mtremolo param using display-domain (Hz) scaling:
+        # the curated Speed→Rate rule outputs Hz (scale 0.09, offset 1.0) and
+        # this range normalizes it. Reverse-engineered from the in-plugin
+        # readout (normalized 0.60 → 0.9564 Hz ⇒ log[0.01, 20] Hz). Depth /
+        # Dry-Wet stay scale=0.01 (already normalized) — deliberately NOT here.
+        "Rate": ("log", 0.01, 20.0),
+    },
+    # Other Melda effects (MFlanger, MChorus, MFreqShifter, MReverb) —
     # intentionally NO entries here. Every curated rs_knob_to_vst_param.json
     # rule for these uses `scale: 0.01` (RS 0-100 → 0-1) which already
     # produces normalized values. Adding a display-range here would
