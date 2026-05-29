@@ -598,15 +598,14 @@
  "Pedal_SpringReverb": {
   "khs reverb": {
    "Time": {
-    "param": "Size",
-    "scale": 0.01,
-    "_hint": "RS 'Time' on spring → KHS 'Size' (decay length is implicit in size)"
+    "param": "Decay",
+    "scale": 0.0065,
+    "_hint": "RS Time → kHs Reverb Decay (0.5-30s, log internal). scale 0.0065 → Time 0≈0.5s, 78≈4s, 100≈7s. Calibrate from readout."
    },
    "Depth": {
-    "param": "Damping",
+    "param": "Size",
     "scale": 0.01,
-    "invert": true,
-    "_hint": "RS 'Depth' = more brightness → less damping. Invert."
+    "_hint": "RS Depth → Size (50-200%). Depth 0→50%, 100→200%."
    },
    "Mix": {
     "param": "Mix",
