@@ -358,7 +358,59 @@ def _get_conn() -> sqlite3.Connection:
             _migrate_nam_storage_to_subdirs()
         except Exception:
             log.exception("nam storage migration failed — keeping flat layout")
+        # v1.3.2 double-attenuation fix. Songs persisted by older versions
+        # (batch worker, watcher, save_preset) defaulted to output_gain=0.5,
+        # which the engine then applied twice: once on `chainOutputGain`
+        # (via applyPresetGainLevels) and once inside the IR stage's own
+        # `gain` (via _state_b64 in native_preset_full). Net result was a
+        # ~−12 dB drop when a song's preset replaced the user's idle chain.
+        # Bump every untouched song preset to unity so the OUT slider is the
+        # single source of truth. Skip presets the user explicitly nudged
+        # (anything other than the legacy 0.5 default).
+        # Guarded by a sentinel row in `settings_json` of the master_pre
+        # sentinel preset so the migration only runs once per DB.
+        try:
+            _migrate_output_gain_to_unity()
+        except Exception:
+            log.exception("output_gain unity migration failed")
     return _conn
+
+
+def _migrate_output_gain_to_unity() -> None:
+    """One-shot backfill: any user-song preset still at the legacy
+    output_gain=0.5 default (set silently by older rig_builder versions
+    that piggybacked on nam_tone's −6 dB makeup) is bumped to 1.0. Sentinel
+    presets (`__rig_builder_master_*`) and anything the user nudged off
+    0.5 are left alone. Re-runs are no-ops thanks to the sentinel marker."""
+    conn = _conn
+    if conn is None:
+        return
+    marker_row = conn.execute(
+        "SELECT settings_json FROM presets WHERE name = ?",
+        ("__rig_builder_master_pre__",),
+    ).fetchone()
+    marker = json.loads(marker_row[0] or "{}") if marker_row else {}
+    if marker.get("output_gain_unity_migrated"):
+        return
+    cur = conn.execute(
+        "UPDATE presets SET output_gain = 1.0 "
+        "WHERE output_gain = 0.5 AND name NOT LIKE '__rig_builder_%'"
+    )
+    bumped = cur.rowcount
+    # Mark done — get/create the master_pre sentinel just so it has a
+    # settings_json blob to host the marker. _get_master_preset_id ensures
+    # the row exists; we set the marker even if no rows needed bumping
+    # (idempotency on a fresh install where everything is already unity).
+    pid = _get_master_preset_id("pre")
+    if pid is not None:
+        merged = {"master_role": "pre", "output_gain_unity_migrated": True}
+        conn.execute(
+            "UPDATE presets SET settings_json = ? WHERE id = ?",
+            (json.dumps(merged), pid),
+        )
+    conn.commit()
+    if bumped:
+        log.info("output_gain unity migration: %d preset(s) bumped to 1.0", bumped)
 
 
 def _load_settings() -> dict:
@@ -1612,7 +1664,15 @@ def _build_master_stages(role: str, models_dir, irs_dir,
                 "bypassed": bypassed,
                 "slot": slot_tag,
                 "rs_gear": gear,
-                "state": _state_b64({"irPath": str(ir_path), "gain": float(output_gain)}),
+                # IR stage emits at UNITY. The preset's `output_gain`
+                # already lands on the engine's `chainOutputGain` via
+                # `applyPresetGainLevels`; passing it here too caused a
+                # double attenuation (chain × IR.gain = output_gain²)
+                # noticed as a −12 dB drop when songs loaded. The IR's
+                # broadband loudness is already normalized to L2=2.4 by
+                # `normalize_irs.py` / `extract_irs.py`, so unity is the
+                # correct headroom-safe default.
+                "state": _state_b64({"irPath": str(ir_path), "gain": 1.0}),
             })
         elif kind == "vst" and vst_path:
             vp = Path(vst_path)
@@ -2283,12 +2343,23 @@ def _persist_preset_chain(
     name: str,
     pieces: list[dict],
     input_gain: float = 1.0,
-    output_gain: float = 0.5,
+    output_gain: float = 1.0,
     gate_threshold: float = -60.0,
     assigned_mode: str = "manual",
 ) -> int:
     """Insert/replace a preset + chain pieces + tone mapping. Returns
     the preset id.
+
+    `output_gain` default is unity (1.0). nam_tone historically used
+    0.5 (−6 dB), but that value gets applied TWICE in our chain — once
+    by the engine's `chainOutputGain` (via `applyPresetGainLevels` →
+    `setGain('chain', …)`) and once by the IR stage's internal `gain`
+    in `_state_b64({"gain": output_gain})`. The double attenuation
+    caused a perceived −12 dB volume drop the moment a song's preset
+    replaced the user's idle chain. Defaulting to 1.0 here + emitting
+    the IR stage at unity (see `native_preset_full` /
+    `_build_master_stages`) leaves chainOutputGain as the single point
+    of control — the OUT slider in the mixer does what it says.
 
     The "primary" amp piece (first piece with kind=nam) becomes the
     preset's `model_file`; the first IR piece becomes `ir_file`. That's
@@ -5207,7 +5278,9 @@ def setup(app, context):
         if not filename or not isinstance(pieces, list):
             return JSONResponse({"error": "filename and pieces required"}, 400)
         in_gain = float(data.get("input_gain", 1.0))
-        out_gain = float(data.get("output_gain", 0.5))
+        # 1.0 unity — see `_persist_preset_chain` docstring for the
+        # double-attenuation fix that motivated dropping the 0.5 default.
+        out_gain = float(data.get("output_gain", 1.0))
         gate = float(data.get("gate_threshold", -60.0))
         mode = data.get("assigned_mode", "manual")
         try:
@@ -5381,7 +5454,10 @@ def setup(app, context):
                     "bypassed": ir_bypassed,
                     "slot": ir_slot,
                     "rs_gear": ir_gear,
-                    "state": _state_b64({"irPath": str(ir_path), "gain": float(output_gain)}),
+                    # Unity (1.0) — see _build_master_stages: the engine's
+                    # chainOutputGain handles the preset's output_gain,
+                    # passing it here too double-attenuates the signal.
+                    "state": _state_b64({"irPath": str(ir_path), "gain": 1.0}),
                 })
             else:
                 missing.append(ir_file)
@@ -5556,7 +5632,9 @@ def setup(app, context):
                         "slot": ir_slot,
                         "rs_gear": ir_gear,
                         "tone_key": tone_key,
-                        "state": _state_b64({"irPath": str(ir_path), "gain": float(out_gain)}),
+                        # Unity gain on the IR — see native_preset_full
+                        # for the double-attenuation explainer.
+                        "state": _state_b64({"irPath": str(ir_path), "gain": 1.0}),
                     })
                 else:
                     missing.append(ir_file)
