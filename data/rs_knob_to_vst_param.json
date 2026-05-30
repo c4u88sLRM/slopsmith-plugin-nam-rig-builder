@@ -1373,20 +1373,25 @@
     "param": "Peak",
     "scale": 0.01
    },
+   "Sens": {
+    "param": "Gain",
+    "scale": 0.006,
+    "offset": 0.3,
+    "_hint": "RS Sens → sensitivity (Gain), floored so low Sens isn't inaudible"
+   },
    "Attack": {
     "param": "Attack",
-    "scale": 1.0,
-    "_hint": "RS Attack as ms → log[1,300]"
+    "scale": 0.001,
+    "_hint": "RS Attack /1000 → param (empirical: RS 128 → 0.128 ≈ 2ms, snappy)"
    },
    "Release": {
     "param": "Release",
-    "scale": 1.0,
-    "_hint": "RS Release as ms → log[5,1000]"
+    "scale": 0.001,
+    "_hint": "RS Release /1000 → param"
    },
    "_static": {
     "Range": 0.9,
     "Mix": 0.5,
-    "Gain": 0.8,
     "Boost": 0.2
    }
   },
