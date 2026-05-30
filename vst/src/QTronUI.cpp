@@ -14,11 +14,13 @@ static const char* const kQTronDesc[kParamCount] = {
     "Resonance", "Dry / wet", "Sensitivity", "Output boost",
 };
 
-// Grid placement: fractional X (0..1 of width) and row (0..2).
-static const struct { int idx; float fx; int row; } kLayout[kParamCount] = {
-    { kMode,   0.25f, 0 }, { kRange,   0.50f, 0 }, { kPeak, 0.75f, 0 },
-    { kAttack, 0.25f, 1 }, { kRelease, 0.50f, 1 }, { kGain, 0.75f, 1 },
-    { kMix,    0.37f, 2 }, { kBoost,   0.63f, 2 },
+// Visible knobs: only the ones Rocksmith drives (Mode/Peak/Gain/Attack/Release)
+// plus Mix. Range + Boost still exist as params (fixed via the preset state) but
+// have no knob. Grid: fractional X (0..1 of width) and row (0..1).
+static const int kKnobN = 6;
+static const struct { int idx; float fx; int row; } kLayout[kKnobN] = {
+    { kMode,   0.25f, 0 }, { kPeak,    0.50f, 0 }, { kGain, 0.75f, 0 },
+    { kAttack, 0.25f, 1 }, { kRelease, 0.50f, 1 }, { kMix,  0.75f, 1 },
 };
 
 class QTronUI : public UI
@@ -30,7 +32,7 @@ class QTronUI : public UI
 
     float scale()  const { return getWidth() / 340.0f; }
     float knobR()  const { return getWidth() * 0.092f; }
-    float rowY(int r) const { const float ys[3] = { 0.27f, 0.51f, 0.75f }; return getHeight() * ys[r]; }
+    float rowY(int r) const { const float ys[2] = { 0.42f, 0.76f }; return getHeight() * ys[r]; }
     void knobCenter(int k, float& cx, float& cy) const { cx = getWidth() * kLayout[k].fx; cy = rowY(kLayout[k].row); }
 
     static float angleFor(float n) { return (135.0f + n * 270.0f) * 3.14159265f / 180.0f; }
@@ -90,7 +92,7 @@ class QTronUI : public UI
 
     int knobAt(double px, double py) const {
         const float R = knobR();
-        for (int k = 0; k < kParamCount; ++k) {
+        for (int k = 0; k < kKnobN; ++k) {
             float cx, cy; knobCenter(k, cx, cy);
             const double dx = px - cx, dy = py - cy;
             if (dx * dx + dy * dy <= (R + 6.0) * (R + 6.0)) return k;
@@ -143,7 +145,7 @@ protected:
         fontSize(11*f); fillColor(Color(150, 150, 168)); text(30*f, 64*f, "ENVELOPE  FILTER  ·  AUTO-WAH", NULL);
         beginPath(); rect(28*f, 84*f, W - 56*f, 1.5f*f); fillColor(Color(80, 72, 104)); fill();
 
-        for (int k = 0; k < kParamCount; ++k) drawKnob(k);
+        for (int k = 0; k < kKnobN; ++k) drawKnob(k);
     }
 
     bool onMouse(const MouseEvent& ev) override {
