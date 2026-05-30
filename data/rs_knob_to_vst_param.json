@@ -1574,6 +1574,48 @@
   }
  },
  "Bass_Pedal_BassEQ8": {
+  "basseq8": {
+   "30": {
+    "param": "30",
+    "scale": 0.033333,
+    "offset": 0.5
+   },
+   "75": {
+    "param": "75",
+    "scale": 0.033333,
+    "offset": 0.5
+   },
+   "185": {
+    "param": "185",
+    "scale": 0.033333,
+    "offset": 0.5
+   },
+   "460": {
+    "param": "460",
+    "scale": 0.033333,
+    "offset": 0.5
+   },
+   "1100": {
+    "param": "1100",
+    "scale": 0.033333,
+    "offset": 0.5
+   },
+   "2700": {
+    "param": "2700",
+    "scale": 0.033333,
+    "offset": 0.5
+   },
+   "6800": {
+    "param": "6800",
+    "scale": 0.033333,
+    "offset": 0.5
+   },
+   "16000": {
+    "param": "16000",
+    "scale": 0.033333,
+    "offset": 0.5
+   }
+  },
   "khs 3-band eq": {
    "75": {
     "param": "Low Gain",

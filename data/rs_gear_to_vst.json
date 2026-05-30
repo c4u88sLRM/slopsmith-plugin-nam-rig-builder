@@ -630,6 +630,14 @@
  ],
  "Bass_Pedal_BassEQ8": [
   {
+   "name": "Bass EQ8",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "bundled": "vst/BassEQ8.vst3",
+   "free": true,
+   "notes": "Bundled 8-band bass graphic EQ, Boss GE-7B gyrator model, RS bands"
+  },
+  {
    "name": "MEqualizer",
    "manufacturer": "MeldaProduction",
    "format": "VST3",
