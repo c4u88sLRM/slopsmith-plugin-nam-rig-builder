@@ -552,6 +552,14 @@
  ],
  "Pedal_EQ5": [
   {
+   "name": "EQ5",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "bundled": "vst/EQ5.vst3",
+   "free": true,
+   "notes": "Bundled 5-band graphic EQ, Mesa Boogie 5-band model, RS bands"
+  },
+  {
    "name": "MEqualizer",
    "manufacturer": "MeldaProduction",
    "format": "VST3",
