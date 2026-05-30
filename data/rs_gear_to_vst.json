@@ -578,6 +578,14 @@
  ],
  "Pedal_EQ8": [
   {
+   "name": "EQ8",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "bundled": "vst/EQ8.vst3",
+   "free": true,
+   "notes": "Bundled 8-band graphic EQ clone of Rocksmith EQ8"
+  },
+  {
    "name": "MEqualizer",
    "manufacturer": "MeldaProduction",
    "format": "VST3",
