@@ -798,6 +798,14 @@
  ],
  "Pedal_AutoFilter": [
   {
+   "name": "AutoSweep",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "bundled": "vst/AutoSweep.vst3",
+   "free": true,
+   "notes": "Bundled envelope filter / auto-wah — ships with Rig Builder, no install"
+  },
+  {
    "name": "kHs Filter",
    "manufacturer": "Kilohearts",
    "format": "VST3",

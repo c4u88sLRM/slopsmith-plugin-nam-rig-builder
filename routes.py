@@ -1060,14 +1060,27 @@ def _pick_installed_primary_vst(rs_gear: str, known_lookup: dict) -> dict | None
     first installed entry (VST3-first ordering from
     _build_known_vst_lookup).
     """
-    if not rs_gear or not known_lookup:
+    if not rs_gear:
         return None
     seed = _load_vst_seed_catalog() or {}
     candidates = seed.get(rs_gear)
     if not isinstance(candidates, list):
         return None
     for cand in candidates:
-        if not isinstance(cand, dict) or not cand.get("name"):
+        if not isinstance(cand, dict):
+            continue
+        # Bundled VST shipped INSIDE this plugin (e.g. AutoSweep) — the system
+        # scan won't list it, so resolve it by plugin-relative path. Makes it
+        # the primary for every user with zero install (works even with no
+        # scan cache). Falls through to the next candidate if the file is gone.
+        bundled = cand.get("bundled")
+        if bundled:
+            bpath = _plugin_dir / bundled
+            if bpath.exists():
+                return {"vst_path": str(bpath),
+                        "vst_format": cand.get("format") or "VST3"}
+            continue
+        if not cand.get("name") or not known_lookup:
             continue
         installed = known_lookup.get(cand["name"].lower())
         if not installed:
@@ -2556,7 +2569,7 @@ def _nam_stage(path, *, bypassed, input_level=1.0, output_drive=None,
 # level. tone3000 IRs (kind 'ir') stay at unity. This is a level makeup, NOT
 # the preset output_gain (chainOutputGain still applies that once — the −12 dB
 # fix removed the DOUBLE output_gain, not deliberate makeup like this).
-_RS_IR_MAKEUP = 1.5
+_RS_IR_MAKEUP = 10.0
 
 
 def _ir_stage(ir_path, *, bypassed, gain=1.0,
