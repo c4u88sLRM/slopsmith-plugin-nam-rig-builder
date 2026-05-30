@@ -194,45 +194,51 @@ function rbApplyChainInputDrive(opts) {
 //   active amp + no cab IR     → ×0.5 (knock the raw-amp spike down)
 //   no active amp / fallback   → ×1.0 (don't change anything)
 function rbChainGainTargetFor(chainSpec) {
-    if (!Array.isArray(chainSpec)) return 1.0;
-    let hasActiveAmp = false;
-    let hasActiveCab = false;
-    let activeNamCount = 0;     // total NAM stages (amp + pedals + racks)
-    for (const stage of chainSpec) {
-        if (!stage || stage.bypassed) continue;
-        if (stage.type === 1) {
-            activeNamCount++;
-            if (stage.slot === 'amp') hasActiveAmp = true;
+    // User "Chain volume" trim (chain_makeup, default 1.0) — the ONLY level
+    // the engine respects (per-stage IR gain is ignored). Multiplies the
+    // auto-leveled base below.
+    const makeup = (typeof window.__rbChainMakeup === 'number') ? window.__rbChainMakeup : 1.0;
+    let base = 1.0;
+    if (Array.isArray(chainSpec)) {
+        let hasActiveAmp = false, hasActiveCab = false, activeNamCount = 0;
+        for (const stage of chainSpec) {
+            if (!stage || stage.bypassed) continue;
+            if (stage.type === 1) {
+                activeNamCount++;
+                if (stage.slot === 'amp') hasActiveAmp = true;
+            }
+            // type 2 = IR; ANY active IR counts as a cab (rs_ir master_pre etc.).
+            if (stage.type === 2) hasActiveCab = true;
         }
-        // type 2 = IR; we treat ANY active IR as a cab even if slot is
-        // tagged differently (rs_ir master_pre, etc.) because the
-        // attenuation profile is similar.
-        if (stage.type === 2) hasActiveCab = true;
+        // Auto makeup (dB): +6 if a cab IR is active, -6 if amp-only; +2 per
+        // extra NAM beyond the first; capped at +18. (Each NAM loses ~2-3 dB;
+        // the cab IR ~6 dB.) Only when an amp is active — otherwise leave at 1.
+        if (hasActiveAmp) {
+            let dB = (hasActiveCab ? 6 : -6) + 2 * Math.max(0, activeNamCount - 1);
+            dB = Math.max(-12, Math.min(18, dB));
+            base = Math.pow(10, dB / 20);
+        }
     }
-    // Scale the makeup gain by chain length. Background: every NAM
-    // capture was authored at unity in/out, but in practice each one
-    // introduces ~2–3 dB of cumulative loss (pedal NAMs especially —
-    // they were often captured at -3 dB headroom). The cab IR adds
-    // another ~6 dB attenuation via its `gain: 0.5` state.
-    //
-    // nam_tone's 2-stage path (1 NAM + IR) gets +6 dB (×2.0) and
-    // sounds about right. Our full-chain path with 3–5 NAMs needs
-    // proportionally more makeup or it lands noticeably quieter than
-    // a song loaded via the bundle's 2-stage flow.
-    //
-    // Formula (in dB):
-    //   base = +6 dB if a cab IR is active, -6 dB if amp-only.
-    //   + 2 dB per additional NAM beyond the first.
-    //   capped at +18 dB total so a buggy 10-stage chain can't blow up.
-    if (!hasActiveAmp) return 1.0;
-    let dB;
-    if (hasActiveCab) {
-        dB = 6 + 2 * Math.max(0, activeNamCount - 1);
-    } else {
-        dB = -6 + 2 * Math.max(0, activeNamCount - 1);
+    window.__rbChainBaseTarget = base;   // remember (pre-trim) for live makeup changes
+    return base * makeup;
+}
+
+// User cab/chain volume trim. Persists to /settings and applies LIVE via
+// setGain('chain', base × trim) — the only gain the engine honours.
+async function rbSetChainMakeup(v) {
+    const val = Math.max(0.1, Math.min(4.0, parseFloat(v) || 1.0));
+    window.__rbChainMakeup = val;
+    const cmVal = document.getElementById('rb-chain-makeup-val');
+    if (cmVal) cmVal.textContent = val.toFixed(2) + '×';
+    const audio = window.slopsmithDesktop && window.slopsmithDesktop.audio;
+    if (audio && typeof audio.setGain === 'function') {
+        const base = (typeof window.__rbChainBaseTarget === 'number') ? window.__rbChainBaseTarget : 1.0;
+        audio.setGain('chain', base * val).catch(() => {});
     }
-    dB = Math.max(-12, Math.min(18, dB));
-    return Math.pow(10, dB / 20);
+    fetch(`${RB_API}/settings`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chain_makeup: val }),
+    }).catch(() => {});
 }
 
 // Mute everything the engine can mute just long enough that the bundle's
@@ -1097,6 +1103,9 @@ const RbMegaChain = (function () {
         if (s && typeof s.nam_chain_input_drive === 'number') {
             window.__rbChainInputDrive = s.nam_chain_input_drive;
             console.log(`[rig_builder] chain input drive = ${window.__rbChainInputDrive} (read from /settings)`);
+        }
+        if (s && typeof s.chain_makeup === 'number') {
+            window.__rbChainMakeup = s.chain_makeup;
         }
     }).catch(() => {});
 
@@ -7162,6 +7171,12 @@ async function rbLoadSettings() {
     if (typeof s.nam_chain_input_drive === 'number') {
         window.__rbChainInputDrive = s.nam_chain_input_drive;
     }
+    // Chain volume trim (user cab/chain makeup). Default 1.0.
+    window.__rbChainMakeup = (typeof s.chain_makeup === 'number') ? s.chain_makeup : 1.0;
+    const cmSlider = document.getElementById('rb-chain-makeup');
+    const cmVal = document.getElementById('rb-chain-makeup-val');
+    if (cmSlider) cmSlider.value = String(window.__rbChainMakeup);
+    if (cmVal) cmVal.textContent = window.__rbChainMakeup.toFixed(2) + '×';
     // OAuth (Connect with tone3000) state.
     const oauthStatus = document.getElementById('rb-oauth-status');
     const oauthBtn = document.getElementById('rb-oauth-btn');

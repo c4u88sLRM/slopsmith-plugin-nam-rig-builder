@@ -2564,12 +2564,11 @@ def _nam_stage(path, *, bypassed, input_level=1.0, output_drive=None,
     return stage
 
 
-# Rocksmith-extracted cab IRs (kind 'rs_ir') are L2-normalized and come out
-# quieter than tone3000 IRs; apply a fixed makeup so they sit at a usable
-# level. tone3000 IRs (kind 'ir') stay at unity. This is a level makeup, NOT
-# the preset output_gain (chainOutputGain still applies that once — the −12 dB
-# fix removed the DOUBLE output_gain, not deliberate makeup like this).
-_RS_IR_MAKEUP = 10.0
+# NOTE: the native engine IGNORES the per-stage IR `gain` (confirmed — see the
+# screen.js note near rbNormalizeRsIrs). So this stays at unity / no-op; the
+# real, engine-respected cab+chain level is `setGain('chain', X)`, driven by
+# rbChainGainTargetFor + the user "Chain volume" trim (chain_makeup) in screen.js.
+_RS_IR_MAKEUP = 1.0
 
 
 def _ir_stage(ir_path, *, bypassed, gain=1.0,
@@ -5075,6 +5074,13 @@ def setup(app, context):
                 # Clamp 0.1..16. 8.0 default is already aggressive;
                 # >16 is asking for digital clipping on hot pickups.
                 allowed["nam_chain_input_drive"] = max(0.1, min(16.0, v))
+            except (TypeError, ValueError):
+                pass
+        if "chain_makeup" in data:
+            try:
+                # User cab/chain volume trim — multiplies the auto chain-gain
+                # target (setGain('chain',X), the only level the engine respects).
+                allowed["chain_makeup"] = max(0.1, min(4.0, float(data["chain_makeup"])))
             except (TypeError, ValueError):
                 pass
         if "bypass_all_cabs" in data:
