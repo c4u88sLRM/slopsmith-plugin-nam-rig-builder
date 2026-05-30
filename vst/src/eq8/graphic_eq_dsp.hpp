@@ -12,38 +12,47 @@ START_NAMESPACE_DISTRHO
 
 static inline float eqParamToDb(float v) { return (v - 0.5f) * (2.0f * EQ_DB); }
 
-struct EqBiquad {
-    float b0, b1, b2, a1, a2, x1, x2, y1, y2;
-    void reset() { x1 = x2 = y1 = y2 = 0.f; b0 = 1.f; b1 = b2 = a1 = a2 = 0.f; }
-    void setPeak(float freq, float gainDb, float Q, float fs) {
-        const float A  = powf(10.0f, gainDb / 40.0f);
+// ---- Boss GE-7 gyrator graphic-EQ model ----------------------------------
+// In the real GE-7 each band is a gyrator (op-amp + caps simulating an
+// inductor) forming a series-resonant bandpass, and all bands sum with the
+// dry signal at the summing op-amp's virtual-ground node. We model exactly
+// that: a constant-0dB-peak bandpass per band, run in PARALLEL, each scaled
+// by g = 10^(dB/20) - 1 and added to the dry. This reproduces the GE-7's two
+// signature traits — adjacent bands INTERACT (they sum, not cascade) and
+// boost/cut are ASYMMETRIC. Band frequencies are Rocksmith's (= choosing the
+// gyrator/series cap values); Q ≈ 1.4 gives the GE-7's ~1-octave bandwidth.
+struct GyratorBP {
+    float b0, b2, a1, a2, x1, x2, y1, y2;   // RBJ bandpass, constant 0 dB peak (b1 = 0)
+    void reset() { x1 = x2 = y1 = y2 = 0.f; b0 = b2 = a1 = a2 = 0.f; }
+    void set(float freq, float Q, float fs) {
         const float w0 = 6.28318530718f * freq / fs;
         const float cw = cosf(w0), sw = sinf(w0);
         const float alpha = sw / (2.0f * Q);
-        const float a0 = 1.0f + alpha / A;
-        b0 = (1.0f + alpha * A) / a0;
-        b1 = (-2.0f * cw) / a0;
-        b2 = (1.0f - alpha * A) / a0;
-        a1 = (-2.0f * cw) / a0;
-        a2 = (1.0f - alpha / A) / a0;
+        const float a0 = 1.0f + alpha;
+        b0 = alpha / a0; b2 = -alpha / a0;
+        a1 = (-2.0f * cw) / a0; a2 = (1.0f - alpha) / a0;
     }
     inline float process(float x) {
-        const float y = b0 * x + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;
+        const float y = b0 * x + b2 * x2 - a1 * y1 - a2 * y2;
         x2 = x1; x1 = x; y2 = y1; y1 = y;
         return y;
     }
 };
 
 class GraphicEqChannel {
-    EqBiquad bands[kEqBands];
-    float gainsDb[kEqBands];
+    GyratorBP bp[kEqBands];
+    float g[kEqBands];          // band contribution = 10^(dB/20) - 1
     float fs;
 public:
-    GraphicEqChannel() { fs = 48000.f; for (int i = 0; i < kEqBands; ++i) { gainsDb[i] = 0.f; bands[i].reset(); } recalc(); }
+    GraphicEqChannel() { fs = 48000.f; for (int i = 0; i < kEqBands; ++i) { g[i] = 0.f; bp[i].reset(); } recalc(); }
     void setSampleRate(float s) { fs = (s > 0.f) ? s : 48000.f; recalc(); }
-    void setGainDb(int i, float db) { gainsDb[i] = db; bands[i].setPeak(kEqFreqs[i], db, EQ_Q, fs); }
-    void recalc() { for (int i = 0; i < kEqBands; ++i) bands[i].setPeak(kEqFreqs[i], gainsDb[i], EQ_Q, fs); }
-    inline float process(float x) { for (int i = 0; i < kEqBands; ++i) x = bands[i].process(x); return x; }
+    void setGainDb(int i, float db) { g[i] = powf(10.0f, db / 20.0f) - 1.0f; }
+    void recalc() { for (int i = 0; i < kEqBands; ++i) bp[i].set(kEqFreqs[i], EQ_Q, fs); }
+    inline float process(float x) {
+        float out = x;                                      // dry path
+        for (int i = 0; i < kEqBands; ++i) out += g[i] * bp[i].process(x);   // parallel gyrator branches
+        return out;
+    }
 };
 
 class GraphicEqPlugin : public Plugin {
