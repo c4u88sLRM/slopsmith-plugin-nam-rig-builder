@@ -1153,6 +1153,11 @@
   }
  },
  "Bass_Pedal_BassDistortion": {
+  "bassdistortion": {
+   "Gain": { "param": "Gain", "scale": 0.01, "_hint": "RS Gain 0-100 → RAT Distortion (drive) 0..1." },
+   "Tone": { "param": "Tone", "scale": 0.01, "_hint": "RS Tone 0-100 → pre-clip brightness 0..1 (grit character)." },
+   "Filter": { "param": "Filter", "scale": 0.01, "_hint": "RS Filter 0-100 → RAT Filter low-pass 0..1 (dark↔bright)." }
+  },
   "khs distortion": {
    "Gain": {
     "param": "Drive",

@@ -1054,6 +1054,14 @@
  ],
  "Bass_Pedal_BassDistortion": [
   {
+   "name": "BassDistortion",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "bundled": "vst/BassDistortion.vst3",
+   "free": true,
+   "notes": "Bundled Pro Co RAT model — LM308 high-gain + hard silicon clip + the RAT passive Filter low-pass. Gain(Distortion)/Tone(pre-clip)/Filter(RAT Filter) map 1:1 to RS."
+  },
+  {
    "name": "kHs Distortion",
    "manufacturer": "Kilohearts",
    "format": "VST3",
