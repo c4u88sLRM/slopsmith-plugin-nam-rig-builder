@@ -1212,6 +1212,30 @@
    }
   }
  },
+ "Bass_Pedal_BassPhase": {
+  "bassphase": {
+   "Rate": {
+    "param": "Rate",
+    "scale": 0.01,
+    "_hint": "RS Rate 0-100 → LFO speed 0..1."
+   },
+   "Depth": {
+    "param": "Depth",
+    "scale": 0.01,
+    "_hint": "RS Depth 0-100 → sweep depth + regeneration 0..1."
+   },
+   "Mix": {
+    "param": "Mix",
+    "scale": 0.01,
+    "_hint": "RS Mix 0-100 → dry/wet notch blend 0..1."
+   },
+   "Filter": {
+    "param": "Filter",
+    "scale": 0.01,
+    "_hint": "RS Filter 0-100 → sweep centre frequency 0..1."
+   }
+  }
+ },
  "Bass_Pedal_EdenWTDI": {
   "edenwtdi": {
    "Bass": {

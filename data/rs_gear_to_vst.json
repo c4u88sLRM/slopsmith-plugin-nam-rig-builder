@@ -287,6 +287,14 @@
  ],
  "Bass_Pedal_BassPhase": [
   {
+   "name": "BassPhase",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "bundled": "vst/BassPhase.vst3",
+   "free": true,
+   "notes": "Bundled analog bass phaser — 4 swept all-pass stages with regeneration, dry/wet notch blend, and a wet-path high-pass so bass lows stay solid. Maps RS Rate/Depth/Mix/Filter."
+  },
+  {
    "name": "MPhaser",
    "manufacturer": "MeldaProduction",
    "format": "VST3",
