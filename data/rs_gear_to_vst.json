@@ -1132,6 +1132,14 @@
  ],
  "Bass_Pedal_BassFuzz": [
   {
+   "name": "BassFuzz",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "bundled": "vst/BassFuzz.vst3",
+   "free": true,
+   "notes": "Bundled EHX Bass Big Muff Pi model — 2-stage diode-clip fuzz + Big Muff tone stack + clean low-end blend. Gain/Tone/Filter map 1:1 to RS."
+  },
+  {
    "name": "kHs Distortion",
    "manufacturer": "Kilohearts",
    "format": "VST3",

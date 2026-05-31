@@ -1298,6 +1298,23 @@
   }
  },
  "Bass_Pedal_BassFuzz": {
+  "bassfuzz": {
+   "Gain": {
+    "param": "Gain",
+    "scale": 0.01,
+    "_hint": "RS Gain (sustain) 0-100 → Big Muff drive 0..1."
+   },
+   "Tone": {
+    "param": "Tone",
+    "scale": 0.01,
+    "_hint": "RS Tone 0-100 → Big Muff tone stack 0..1 (LP↔HP, mid scoop at 0.5)."
+   },
+   "Filter": {
+    "param": "Filter",
+    "scale": 0.01,
+    "_hint": "RS Filter 0-100 → clean low-end blend 0..1 (the bass-specific dry/bass mix)."
+   }
+  },
   "khs distortion": {
    "Gain": {
     "param": "Drive",
