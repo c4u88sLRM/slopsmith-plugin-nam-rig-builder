@@ -492,12 +492,38 @@
  ],
  "Bass_Pedal_BassFilterDelay": [
   {
+   "name": "BassFilterDelay",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "bundled": "vst/BassFilterDelay.vst3",
+   "free": true,
+   "notes": "Bundled Boss DM-2 analog (BBD) delay — warm repeats that darken cumulatively via a feedback-loop low-pass + gentle saturation. Maps RS Time/Feedback/Mix/Filter."
+  },
+  {
    "name": "kHs Delay",
    "manufacturer": "Kilohearts",
    "format": "VST3",
    "url": "https://kilohearts.com/products/essentials",
    "free": true,
    "notes": "Set Lowcut+Highcut narrow for filter-delay"
+  }
+ ],
+ "Bass_Pedal_BassFilterEcho": [
+  {
+   "name": "BassFilterEcho",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "bundled": "vst/BassFilterEcho.vst3",
+   "free": true,
+   "notes": "Bundled vintage tape echo — same engine as the Filter Delay but voiced like tape: darker, more saturated repeats with wow & flutter. Maps RS Time/Feedback/Mix/Filter."
+  },
+  {
+   "name": "kHs Delay",
+   "manufacturer": "Kilohearts",
+   "format": "VST3",
+   "url": "https://kilohearts.com/products/essentials",
+   "free": true,
+   "notes": "Tape-echo flavour: narrow Lowcut/Highcut + a touch of modulation"
   }
  ],
  "Pedal_SpringReverb": [

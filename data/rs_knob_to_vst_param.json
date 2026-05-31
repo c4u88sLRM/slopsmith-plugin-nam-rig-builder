@@ -1212,6 +1212,22 @@
    }
   }
  },
+ "Bass_Pedal_BassFilterDelay": {
+  "bassfilterdelay": {
+   "Time":     { "param": "Time",     "scale": 0.01, "_hint": "RS Time 0-100 → 30..700 ms." },
+   "Feedback": { "param": "Feedback", "scale": 0.01, "_hint": "RS Feedback 0-100 → regeneration 0..1." },
+   "Mix":      { "param": "Mix",      "scale": 0.01, "_hint": "RS Mix 0-100 → wet/dry 0..1." },
+   "Filter":   { "param": "Filter",   "scale": 0.01, "_hint": "RS Filter 0-100 → repeat tone 0..1 (dark↔bright)." }
+  }
+ },
+ "Bass_Pedal_BassFilterEcho": {
+  "bassfilterecho": {
+   "Time":     { "param": "Time",     "scale": 0.01, "_hint": "RS Time 0-100 → 40..700 ms." },
+   "Feedback": { "param": "Feedback", "scale": 0.01, "_hint": "RS Feedback 0-100 → regeneration 0..1." },
+   "Mix":      { "param": "Mix",      "scale": 0.01, "_hint": "RS Mix 0-100 → wet/dry 0..1." },
+   "Filter":   { "param": "Filter",   "scale": 0.01, "_hint": "RS Filter 0-100 → repeat tone 0..1 (dark↔bright)." }
+  }
+ },
  "Bass_Pedal_BassWah": {
   "basswah": {
    "Auto": {
