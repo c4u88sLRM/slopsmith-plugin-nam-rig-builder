@@ -1064,6 +1064,14 @@
  ],
  "Bass_Pedal_BassOverdrive": [
   {
+   "name": "BassOverdrive",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "bundled": "vst/BassOverdrive.vst3",
+   "free": true,
+   "notes": "Bundled Darkglass Microtubes B3K model — clean+CMOS-clip parallel paths. Blend/Gain(Drive)/Filter(Grunt)/Tone(Attack) map 1:1 to RS."
+  },
+  {
    "name": "kHs Distortion",
    "manufacturer": "Kilohearts",
    "format": "VST3",

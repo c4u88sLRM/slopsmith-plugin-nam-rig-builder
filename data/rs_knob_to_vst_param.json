@@ -978,6 +978,12 @@
   }
  },
  "Bass_Pedal_BassOverdrive": {
+  "bassoverdrive": {
+   "Blend": { "param": "Blend", "scale": 0.01, "_hint": "RS Blend 0-100 → clean/dist mix 0..1." },
+   "Gain": { "param": "Gain", "scale": 0.01, "_hint": "RS Gain 0-100 → B3K Drive 0..1." },
+   "Filter": { "param": "Filter", "scale": 0.01, "_hint": "RS Filter 0-100 → B3K Grunt 0..1 (low end into the clipper)." },
+   "Tone": { "param": "Tone", "scale": 0.01, "_hint": "RS Tone 0-100 → B3K Attack 0..1 (treble of the distortion)." }
+  },
   "khs distortion": {
    "Gain": {
     "param": "Drive",
