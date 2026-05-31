@@ -36,6 +36,17 @@
    }
   ]
  },
+ "Pedal_AcousticEmulator": [
+  {
+   "name": "AcousticSimulator",
+   "manufacturer": "Rig Builder",
+   "format": "VST3",
+   "url": "",
+   "free": true,
+   "bundled": "vst/AcousticSimulator.vst3",
+   "notes": "Bundled acoustic simulator based on the local blue-button acoustic pedal schematic, using Rocksmith's Tone, MidShift, Body, and Mid knobs."
+  }
+ ],
  "Pedal_Chorus": [
   {
    "name": "kHs Chorus",
@@ -543,12 +554,21 @@
  ],
  "Bass_Pedal_MBComp": [
   {
+   "name": "BassMultiComp",
+   "manufacturer": "Rig Builder",
+   "format": "VST3",
+   "url": "",
+   "free": true,
+   "bundled": "vst/BassMultiComp.vst3",
+   "notes": "Bundled EBS MultiComp-style multiband bass compressor based on the local schematic, using Rocksmith's Compress, Filter, and Rate knobs."
+  },
+  {
    "name": "kHs Compressor",
    "manufacturer": "Kilohearts",
    "format": "VST3",
    "url": "https://kilohearts.com/products/essentials",
    "free": true,
-   "notes": "Also single-band"
+   "notes": "Fallback: single-band compressor, loses the multiband Filter behavior."
   },
   {
    "name": "MCompressor",
@@ -797,12 +817,21 @@
  ],
  "Pedal_BobFilter": [
   {
+   "name": "BobFilter",
+   "manufacturer": "Rig Builder",
+   "format": "VST3",
+   "url": "",
+   "free": true,
+   "bundled": "vst/BobFilter.vst3",
+   "notes": "Bundled Moog/MuRF-style analog filter based on the local MF-105 schematic, using Rocksmith's Sens, Attack, Release, Mix, and Filter knobs."
+  },
+  {
    "name": "kHs Filter",
    "manufacturer": "Kilohearts",
    "format": "VST3",
    "url": "https://kilohearts.com/products/essentials",
    "free": true,
-   "notes": "Cutoff + Resonance sweep"
+   "notes": "Fallback single-filter sweep if the bundled BobFilter is unavailable"
   }
  ],
  "Pedal_AutoFilter": [
@@ -854,12 +883,21 @@
  ],
  "Pedal_CustomDrive": [
   {
+   "name": "CustomDrive",
+   "manufacturer": "Rig Builder",
+   "format": "VST3",
+   "url": "",
+   "free": true,
+   "bundled": "vst/CustomDrive.vst3",
+   "notes": "Bundled MOSFET/diode custom overdrive based on the local Custom Drive schematic, using Rocksmith's Gain, Tone, and Voice knobs."
+  },
+  {
    "name": "kHs Distortion",
    "manufacturer": "Kilohearts",
    "format": "VST3",
    "url": "https://kilohearts.com/products/essentials",
    "free": true,
-   "notes": "Tweak Drive + Type"
+   "notes": "Fallback: tweak Drive + Type when bundled CustomDrive is unavailable."
   }
  ],
  "Pedal_LineDrive": [
@@ -884,12 +922,21 @@
  ],
  "Pedal_RangeBooster": [
   {
+   "name": "RangeBooster",
+   "manufacturer": "Rig Builder",
+   "format": "VST3",
+   "url": "",
+   "free": true,
+   "bundled": "vst/RangeBooster.vst3",
+   "notes": "Bundled Rangemaster-style treble booster based on the local OC44 Range Booster schematic, using Rocksmith's Boost knob."
+  },
+  {
    "name": "kHs Distortion",
    "manufacturer": "Kilohearts",
    "format": "VST3",
    "url": "https://kilohearts.com/products/essentials",
    "free": true,
-   "notes": "Drive at minimum + add HPF in kHs 3-Band EQ for treble boost"
+   "notes": "Fallback: Drive at minimum plus high-pass EQ for a treble boost approximation."
   }
  ],
  "Pedal_Distortion": [
@@ -1012,12 +1059,21 @@
  ],
  "Pedal_OctaveUp": [
   {
+   "name": "OctaveUp",
+   "manufacturer": "Rig Builder",
+   "format": "VST3",
+   "url": "",
+   "free": true,
+   "bundled": "vst/OctaveUp.vst3",
+   "notes": "Bundled analog octave-up based on a Foxrox Octron-style rectifier path, using Rocksmith's Tone and Mix knobs."
+  },
+  {
    "name": "kHs Pitch Shifter",
    "manufacturer": "Kilohearts",
    "format": "VST3",
    "url": "https://kilohearts.com/products/essentials",
    "free": true,
-   "notes": "Pitch +12 (one octave up), Mix"
+   "notes": "Fallback: digital +12 semitone pitch shift and Mix."
   }
  ],
  "Pedal_Octavius": [

@@ -38,6 +38,28 @@
    "kHs Distortion subtype convention (user-curated, verified via rbSweepParam): the `Type` param has 6 discrete modes — Overdrive (0.0), Saturate (0.2), Foldback (0.4), Sine (0.6), Hard Clip (0.8), Quantize (1.0). Fuzz pedals → Type=0.2 (Saturate); overdrive pedals → Type=0.0 (Overdrive); distortion pedals → Type=0.8 (Hard Clip). All three pin Dynamics=1.0 so the pedal's response tracks the player's pick attack."
   ]
  },
+ "Pedal_AcousticEmulator": {
+  "acousticsimulator": {
+   "Tone": {
+    "param": "Tone",
+    "scale": 0.01
+   },
+   "MidShift": {
+    "param": "MidShift",
+    "scale": 0.0003669724770642202,
+    "offset": -0.10091743119266056,
+    "_hint": "RS MidShift is 275-3000 Hz. AcousticSimulator stores it normalized: (Hz - 275) / 2725."
+   },
+   "Body": {
+    "param": "Body",
+    "scale": 0.01
+   },
+   "Mid": {
+    "param": "Mid",
+    "scale": 0.01
+   }
+  }
+ },
  "Pedal_Chorus": {
   "khs chorus": {
    "Rate": {
@@ -846,6 +868,21 @@
   }
  },
  "Pedal_CustomDrive": {
+  "customdrive": {
+   "Gain": {
+    "param": "Gain",
+    "scale": 0.01
+   },
+   "Tone": {
+    "param": "Tone",
+    "scale": 0.01
+   },
+   "Voice": {
+    "param": "Voice",
+    "scale": 1.0,
+    "_hint": "Rocksmith Voice is a binary 0/1 switch. CustomDrive treats <0.5 as the smoother voice and >=0.5 as the tighter/brighter voice."
+   }
+  },
   "khs distortion": {
    "Gain": {
     "param": "Drive",
@@ -927,6 +964,12 @@
   }
  },
  "Pedal_RangeBooster": {
+  "rangebooster": {
+   "Boost": {
+    "param": "Boost",
+    "scale": 0.01
+   }
+  },
   "khs distortion": {
    "Gain": {
     "param": "Drive",
@@ -1315,6 +1358,23 @@
   }
  },
  "Bass_Pedal_MBComp": {
+  "bassmulticomp": {
+   "Compress": {
+    "param": "Compress",
+    "scale": 0.01
+   },
+   "Filter": {
+    "param": "Filter",
+    "scale": 0.0011235955056179776,
+    "offset": -0.12359550561797753,
+    "_hint": "RS Filter is the multiband crossover in Hz, observed 110-1000. BassMultiComp stores it normalized: (Hz - 110) / 890."
+   },
+   "Rate": {
+    "param": "Rate",
+    "scale": 0.01,
+    "_hint": "Higher RS Rate recovers faster."
+   }
+  },
   "khs compressor": {
    "Compress": {
     "param": "Threshold",
@@ -1396,6 +1456,33 @@
   }
  },
  "Pedal_BobFilter": {
+  "bobfilter": {
+   "Sens": {
+    "param": "Sens",
+    "scale": 0.01
+   },
+   "Attack": {
+    "param": "Attack",
+    "scale": 0.004016064257028112,
+    "offset": -0.004016064257028112,
+    "_hint": "RS Attack is observed 1-250 ms. BobFilter stores it normalized: (ms - 1) / 249."
+   },
+   "Release": {
+    "param": "Release",
+    "scale": 0.00101010101010101,
+    "offset": -0.0101010101010101,
+    "_hint": "RS Release is observed 10-1000 ms. BobFilter stores it normalized: (ms - 10) / 990."
+   },
+   "Mix": {
+    "param": "Mix",
+    "scale": 0.01
+   },
+   "Filter": {
+    "param": "Filter",
+    "scale": 1.0,
+    "_hint": "Rocksmith Filter is a binary 0/1 voicing switch."
+   }
+  },
   "khs filter": {
    "Cutoff": {
     "param": "Cutoff",
@@ -1725,6 +1812,16 @@
   }
  },
  "Pedal_OctaveUp": {
+  "octaveup": {
+   "Tone": {
+    "param": "Tone",
+    "scale": 0.01
+   },
+   "Mix": {
+    "param": "Mix",
+    "scale": 0.01
+   }
+  },
   "khs pitch shifter": {
    "Tone": {
     "param": "Pitch",
