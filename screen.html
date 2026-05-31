@@ -405,6 +405,20 @@
                     Use it if the guitar sits too quiet under the backing track. Applies live.
                 </p>
             </div>
+            <div class="mt-4">
+                <label class="flex items-center justify-between text-sm text-gray-300">
+                    <span>Amp drive (into NAM)</span>
+                    <span id="rb-amp-drive-val" class="text-xs text-purple-300">1.0×</span>
+                </label>
+                <input type="range" id="rb-amp-drive" min="1" max="10" step="0.1" value="1"
+                       oninput="rbSetAmpDrive(this.value)"
+                       class="w-full mt-1 accent-purple-500">
+                <p class="text-[11px] text-gray-500 mt-1 leading-snug">
+                    Extra push into the amp NAM (guitar amps only — bass auto-uses 1×).
+                    Default <strong>1× = no boost</strong> (the signal enters the model as-is).
+                    Raise it only if you want the amp to saturate more. Applies live.
+                </p>
+            </div>
         </div>
 
         <div class="bg-dark-700/50 border border-gray-800/50 rounded-xl p-5">

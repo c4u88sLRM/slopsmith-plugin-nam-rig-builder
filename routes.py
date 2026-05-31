@@ -263,13 +263,12 @@ _DEFAULT_SETTINGS = {
     # The actual drive that reaches the NAMs is the chain-input gain
     # below (set via setGain('input', X) from the frontend).
     "nam_input_drive": 1.0,
-    # Engine input gain (pre-NAM) applied via setGain('input', X) every
-    # time a chain loads. The audio engine respects this — confirmed by
-    # the user: setting it to 8.0 turns a "clean" amp NAM into a properly
-    # saturated one. Default 8.0 (≈+18 dB) matches typical NAM capture
-    # input levels (-3 dBFS test tone vs a live guitar peaking ~-18 dBFS).
-    # Lower if you hear digital clipping or harshness on hot pickups.
-    "nam_chain_input_drive": 8.0,
+    # Engine input gain (pre-NAM) applied via setGain('input', X) every time a
+    # chain loads. Default is now 1.0 = NO boost: the live signal enters the NAM
+    # as-is. The old 8.0 (≈+18 dB) over-drove most captures — both guitar and
+    # bass players reported amps sounding over-distorted. Users who WANT more
+    # amp saturation can raise it with the "Amp drive" slider in Settings.
+    "nam_chain_input_drive": 1.0,
     # When toggled, bypasses (or un-bypasses) the cabinet slot on EVERY song's
     # tones in one shot — for users who'd rather run no cab (raw amp) or their
     # own external cab sim. Stored just for the checkbox state; the actual
@@ -5220,7 +5219,7 @@ def setup(app, context):
             # Chain-input drive (engine setGain('input', X)). Read by JS
             # at every chain load — value of 8.0 = +18 dB feeds NAM amps
             # at capture-time levels so they actually saturate.
-            "nam_chain_input_drive": float(s.get("nam_chain_input_drive", 8.0)),
+            "nam_chain_input_drive": float(s.get("nam_chain_input_drive", 1.0)),
             # User "Chain volume" trim (setGain('chain') multiplier). Default 4×
             # — the guitar chain runs much quieter than the backing track.
             "chain_makeup": float(s.get("chain_makeup", 4.0)),

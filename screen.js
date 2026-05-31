@@ -159,7 +159,7 @@ function rbApplyChainInputDrive(opts) {
         drive = 1.0;
     } else {
         drive = (typeof window.__rbChainInputDrive === 'number' && window.__rbChainInputDrive > 0)
-            ? window.__rbChainInputDrive : 8.0;
+            ? window.__rbChainInputDrive : 1.0;   // default = NO pre-NAM boost (was 8×/+18 dB; over-drove the captures)
     }
     // Re-poll guard: the song-playback callers fire this ~600 ms after
     // the bundle's chain load — but `highway.getStringCount()` may not
@@ -248,6 +248,22 @@ async function rbSetChainMakeup(v) {
     fetch(`${RB_API}/settings`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chain_makeup: val }),
+    }).catch(() => {});
+}
+
+// User "Amp drive" trim — the pre-NAM input gain for GUITAR amps (bass auto-
+// uses 1×). Default 8× (≈+18 dB); lower it if amp captures sound over-driven.
+// Persists to /settings (nam_chain_input_drive) and re-applies live through
+// rbApplyChainInputDrive (which keeps the bass/guitar branch correct).
+async function rbSetAmpDrive(v) {
+    const val = Math.max(0.1, Math.min(16.0, parseFloat(v) || 8.0));
+    window.__rbChainInputDrive = val;
+    const el = document.getElementById('rb-amp-drive-val');
+    if (el) el.textContent = val.toFixed(1) + '×';
+    rbApplyChainInputDrive();   // re-applies respecting bass detection
+    fetch(`${RB_API}/settings`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nam_chain_input_drive: val }),
     }).catch(() => {});
 }
 
@@ -7212,6 +7228,11 @@ async function rbLoadSettings() {
     if (typeof s.nam_chain_input_drive === 'number') {
         window.__rbChainInputDrive = s.nam_chain_input_drive;
     }
+    const adv = (typeof s.nam_chain_input_drive === 'number') ? s.nam_chain_input_drive : 1.0;
+    const adSlider = document.getElementById('rb-amp-drive');
+    const adVal = document.getElementById('rb-amp-drive-val');
+    if (adSlider) adSlider.value = String(adv);
+    if (adVal) adVal.textContent = adv.toFixed(1) + '×';
     // Chain volume trim (user cab/chain makeup). Default 4.0.
     window.__rbChainMakeup = (typeof s.chain_makeup === 'number') ? s.chain_makeup : 4.0;
     const cmSlider = document.getElementById('rb-chain-makeup');
