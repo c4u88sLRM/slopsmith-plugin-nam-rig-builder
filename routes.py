@@ -4978,6 +4978,7 @@ def setup(app, context):
             result = subprocess.run(
                 [sys.executable, str(script), gears_psarc, str(irs_root)],
                 capture_output=True,
+                encoding="utf-8", errors="replace",
                 timeout=300,
                 text=True,
             )
@@ -5113,6 +5114,7 @@ def setup(app, context):
             result = subprocess.run(
                 [sys.executable, str(script), gears_psarc],
                 capture_output=True,
+                encoding="utf-8", errors="replace",
                 timeout=120,
                 text=True,
             )
@@ -5172,6 +5174,7 @@ def setup(app, context):
                  "--rs-map", str(rs_map_path),
                  "--out", str(assets_dir)],
                 capture_output=True,
+                encoding="utf-8", errors="replace",
                 timeout=600,
                 text=True,
                 cwd=str(_plugin_dir),

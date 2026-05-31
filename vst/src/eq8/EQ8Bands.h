@@ -6,3 +6,6 @@ static const char* const kEqNames[kEqBands] = { "50", "100", "200", "400", "800"
 #define EQ_UNIQUE_ID    d_cconst('R','E','Q','8')
 #define EQ_Q  1.4f
 #define EQ_DB 15.0f
+#define EQ_ACR 188
+#define EQ_ACG 190
+#define EQ_ACB 186
