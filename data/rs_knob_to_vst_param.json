@@ -2802,6 +2802,13 @@
   }
  },
  "Rack_StudioDelay": {
+  "studiodelay": {
+   "TimeL":    { "param": "Time L",   "scale": 0.0014286, "_hint": "RS TimeL in ms (40..360) → 0..700 ms normalized." },
+   "TimeR":    { "param": "Time R",   "scale": 0.0014286, "_hint": "RS TimeR in ms → 0..700 ms normalized." },
+   "Feedback": { "param": "Feedback", "scale": 0.01 },
+   "Filter":   { "param": "Filter",   "scale": 0.01 },
+   "Mix":      { "param": "Mix",       "scale": 0.01 }
+  },
   "khs delay": {
    "TimeL": {
     "param": "Time",
@@ -2824,6 +2831,13 @@
   }
  },
  "Rack_StudioFlanger": {
+  "studioflanger": {
+   "Rate":  { "param": "Rate",  "scale": 0.16949, "offset": -0.01695, "_hint": "RS Rate in Hz (0.3..0.6) → normalized (plugin 0.1..6 Hz)." },
+   "Depth": { "param": "Depth", "scale": 0.01 },
+   "Regen": { "param": "Regen", "scale": 0.01 },
+   "Tone":  { "param": "Tone",  "scale": 0.01 },
+   "Mix":   { "param": "Mix",   "scale": 0.01 }
+  },
   "khs flanger": {
    "Rate": {
     "param": "Rate",
@@ -2901,6 +2915,13 @@
   }
  },
  "Rack_TapeEcho": {
+  "tapeecho": {
+   "Time":     { "param": "Time",     "scale": 0.0014286, "_hint": "RS Time in ms (~110..120) → 0..700 ms normalized." },
+   "Feedback": { "param": "Feedback", "scale": 0.01 },
+   "Filter":   { "param": "Filter",   "scale": 0.01 },
+   "Stereo":   { "param": "Stereo",   "scale": 0.01 },
+   "Mix":      { "param": "Mix",       "scale": 0.01 }
+  },
   "khs delay": {
    "Time": {
     "param": "Time",

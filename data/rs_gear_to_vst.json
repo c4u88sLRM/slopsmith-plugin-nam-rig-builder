@@ -1439,6 +1439,14 @@
  ],
  "Rack_StudioDelay": [
   {
+   "name": "StudioDelay",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "bundled": "vst/StudioDelay.vst3",
+   "free": true,
+   "notes": "Bundled stereo delay with independent L/R times + Feedback + repeat Filter. Maps RS TimeL/TimeR(ms)/Feedback/Filter/Mix."
+  },
+  {
    "name": "kHs Delay",
    "manufacturer": "Kilohearts",
    "format": "VST3",
@@ -1448,6 +1456,14 @@
   }
  ],
  "Rack_StudioFlanger": [
+  {
+   "name": "StudioFlanger",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "bundled": "vst/StudioFlanger.vst3",
+   "free": true,
+   "notes": "Bundled stereo flanger — modulated short delay + Regen feedback + Tone low-pass. Maps RS Rate(Hz)/Depth/Regen/Tone/Mix."
+  },
   {
    "name": "kHs Flanger",
    "manufacturer": "Kilohearts",
@@ -1494,6 +1510,14 @@
   }
  ],
  "Rack_TapeEcho": [
+  {
+   "name": "TapeEcho",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "bundled": "vst/TapeEcho.vst3",
+   "free": true,
+   "notes": "Bundled Roland RE-201 Space Echo model — stereo tape echo, dark saturated repeats with wow & flutter + cross-feed. Maps RS Time(ms)/Feedback/Filter/Stereo/Mix."
+  },
   {
    "name": "kHs Delay",
    "manufacturer": "Kilohearts",
