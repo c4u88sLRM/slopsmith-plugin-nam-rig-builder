@@ -1317,6 +1317,14 @@
  ],
  "Bass_Pedal_EdenWTDI": [
   {
+   "name": "EdenWTDI",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "bundled": "vst/EdenWTDI.vst3",
+   "free": true,
+   "notes": "Bundled Eden WTDI model — preamp Gain drive + optical Compressor + 3-band active EQ (Bass/Mid/Treble ±15 dB) + Eden Enhance contour. The two red switches are LoShift (Bass Boost) and MidShift, modeled as toggles. Maps all 8 RS knobs."
+  },
+  {
    "name": "kHs Distortion",
    "manufacturer": "Kilohearts",
    "format": "VST3",

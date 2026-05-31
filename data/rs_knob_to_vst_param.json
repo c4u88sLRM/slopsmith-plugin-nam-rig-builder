@@ -1212,6 +1212,53 @@
    }
   }
  },
+ "Bass_Pedal_EdenWTDI": {
+  "edenwtdi": {
+   "Bass": {
+    "param": "Bass",
+    "scale": 0.033333,
+    "offset": 0.5,
+    "_hint": "RS Bass ±15 dB → low-shelf gain 0..1 (0.5 = flat)."
+   },
+   "Mid": {
+    "param": "Mid",
+    "scale": 0.033333,
+    "offset": 0.5,
+    "_hint": "RS Mid ±15 dB → mid-peak gain 0..1 (0.5 = flat)."
+   },
+   "Treble": {
+    "param": "Treble",
+    "scale": 0.033333,
+    "offset": 0.5,
+    "_hint": "RS Treble ±15 dB → high-shelf gain 0..1 (0.5 = flat)."
+   },
+   "Gain": {
+    "param": "Gain",
+    "scale": 0.033,
+    "_hint": "RS Gain (e.g. 18) → preamp drive 0..1 (clamped)."
+   },
+   "Enhance": {
+    "param": "Enhance",
+    "scale": 0.1,
+    "_hint": "RS Enhance 0-10 → contour amount 0..1."
+   },
+   "Compression": {
+    "param": "Comp",
+    "scale": 0.1,
+    "_hint": "RS Compression 0-10 → compressor amount 0..1."
+   },
+   "LoShift": {
+    "param": "Bass Boost",
+    "scale": 1.0,
+    "_hint": "RS LoShift switch 0/1 → Bass Boost toggle (drops low corner + adds bottom)."
+   },
+   "MidShift": {
+    "param": "Mid Shift",
+    "scale": 1.0,
+    "_hint": "RS MidShift switch 0/1 → Mid Shift toggle (600 Hz → 1.2 kHz)."
+   }
+  }
+ },
  "Bass_Pedal_BassDistortion": {
   "bassdistortion": {
    "Gain": {
