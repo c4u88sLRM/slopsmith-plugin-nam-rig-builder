@@ -75,15 +75,22 @@ protected:
     void onNanoDisplay() override {
         const float W = getWidth(), H = getHeight(), f = scale(), m = 10*f;
         fontFace(NANOVG_DEJAVU_SANS_TTF);
-        beginPath(); rect(0,0,W,H); fillColor(Color(20,18,16)); fill();
-        beginPath(); roundedRect(m,m,W-2*m,H-2*m,16*f); fillColor(Color(40,33,28)); fill();
-        beginPath(); roundedRect(m,m,W-2*m,H-2*m,16*f); strokeColor(Color(210,150,80)); strokeWidth(2*f); stroke();
+        beginPath(); rect(0,0,W,H); fillColor(Color(14,13,11)); fill();
+        // Fender tweed body (tan → brown), like the real Bassman
+        Paint body = linearGradient(0, m, 0, H-m, Color(206,180,120), Color(120,92,52));
+        beginPath(); roundedRect(m,m,W-2*m,H-2*m,16*f); fillPaint(body); fill();
+        beginPath(); roundedRect(m,m,W-2*m,H-2*m,16*f); strokeColor(Color(92,64,34)); strokeWidth(2*f); stroke();
         textAlign(ALIGN_LEFT | ALIGN_TOP);
-        fontSize(20*f); fillColor(Color(240,200,140)); text(22*f, 16*f, AEQ_PLUGIN_LABEL, NULL);
+        fontSize(20*f); fillColor(Color(54,36,18)); text(22*f, 14*f, AEQ_PLUGIN_LABEL, NULL);
         textAlign(ALIGN_RIGHT | ALIGN_TOP);
-        fontSize(9*f); fillColor(Color(150,135,115)); text(W-22*f, 22*f, "Bassman tone stack", NULL);
+        fontSize(9*f); fillColor(Color(82,58,34)); text(W-22*f, 20*f, "Bassman tone stack", NULL);
+        // column headers on the tweed (dark text), above the knob panel
         textAlign(ALIGN_CENTER | ALIGN_TOP);
-        for (int c = 0; c < 3; ++c) { fontSize(12*f); fillColor(Color(200,170,130)); text(colX(c), H*0.24f, kColHdr[c], NULL); }
+        for (int c = 0; c < 3; ++c) { fontSize(12*f); fillColor(Color(58,40,20)); text(colX(c), H*0.235f, kColHdr[c], NULL); }
+        // recessed control panel so the knob labels stay legible
+        const float pT = H*0.28f, pB = H*0.94f, pX = W*0.05f, pW = W*0.90f;
+        beginPath(); roundedRect(pX, pT, pW, pB-pT, 12*f); fillColor(Color(28,26,24)); fill();
+        beginPath(); roundedRect(pX, pT, pW, pB-pT, 12*f); strokeColor(Color(0,0,0,120)); strokeWidth(1.5f*f); stroke();
         for (int k = 0; k < aNumParams; ++k) drawKnob(k);
     }
     bool onMouse(const MouseEvent& ev) override {
