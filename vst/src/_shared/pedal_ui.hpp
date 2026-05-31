@@ -27,7 +27,7 @@
 #define PEDAL_W 300
 #endif
 #ifndef PEDAL_H
-#define PEDAL_H 430
+#define PEDAL_H 460
 #endif
 #ifndef PEDAL_ACR
 #define PEDAL_ACR 110
@@ -109,25 +109,25 @@ protected:
         beginPath(); roundedRect(bx, by, bw, bh, rad); fillPaint(body); fill();
         beginPath(); roundedRect(bx, by, bw, bh, rad); strokeColor(Color(245, 247, 250, 60)); strokeWidth(2*f); stroke();
         // dark control plate at the top where the knobs live
-        const float plY = by + 10*f, plH = H * 0.40f;
+        const float plY = by + 10*f, plH = H * 0.46f;
         beginPath(); roundedRect(bx + 12*f, plY, bw - 24*f, plH, 14*f); fillColor(Color(26, 27, 32, 235)); fill();
 
         fontFace(NANOVG_DEJAVU_SANS_TTF);
         // pedal name (centre body, below the plate)
         textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
         fontSize(21*f); fillColor(Color(248, 250, 252, 230));
-        text(W * 0.5f, H * 0.59f, PEDAL_TITLE, NULL);
+        text(W * 0.5f, H * 0.63f, PEDAL_TITLE, NULL);
 
         // knobs
         for (int i = 0; i < kParamCount; ++i) drawKnob(i);
 
         // LED
-        beginPath(); circle(W*0.5f, H*0.72f, 5*f); fillColor(Color(255, 70, 60)); fill();
-        beginPath(); circle(W*0.5f, H*0.72f, 9*f); strokeColor(Color(255,120,110,90)); strokeWidth(3*f); stroke();
+        beginPath(); circle(W*0.5f, H*0.75f, 5*f); fillColor(Color(255, 70, 60)); fill();
+        beginPath(); circle(W*0.5f, H*0.75f, 9*f); strokeColor(Color(255,120,110,90)); strokeWidth(3*f); stroke();
         // footswitch
-        beginPath(); circle(W*0.5f, H*0.84f, 26*f); fillColor(Color(200,205,210)); fill();
-        beginPath(); circle(W*0.5f, H*0.84f, 26*f); strokeColor(Color(120,124,130)); strokeWidth(3*f); stroke();
-        beginPath(); circle(W*0.5f, H*0.84f, 17*f); fillColor(Color(150,155,162)); fill();
+        beginPath(); circle(W*0.5f, H*0.87f, 26*f); fillColor(Color(200,205,210)); fill();
+        beginPath(); circle(W*0.5f, H*0.87f, 26*f); strokeColor(Color(120,124,130)); strokeWidth(3*f); stroke();
+        beginPath(); circle(W*0.5f, H*0.87f, 17*f); fillColor(Color(150,155,162)); fill();
     }
 
     bool onMouse(const MouseEvent& ev) override {
