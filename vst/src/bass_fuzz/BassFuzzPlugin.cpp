@@ -28,26 +28,29 @@ class BigMuff {
     // coefficients
     float cInHP, cBass, cS1, cS2, cToneLP, cToneHP, cOutDC;
     // params (derived)
-    float drive = 30.f, tone = 0.55f, dryBlend = 0.45f, makeup = 0.7f;
+    float drive = 40.f, tone = 0.55f, dryBlend = 0.45f, makeup = 0.55f;
 
-    static inline float softclip(float x) { return std::tanh(x); }
+    // HARD clip (not tanh) — the square edges + their high harmonics are the
+    // gritty, "8-bit" Big Muff character. Drive is kept moderate so the
+    // hardness adds grit to the SIGNAL without lifting the noise floor.
+    static inline float softclip(float x) { return x > 1.0f ? 1.0f : (x < -1.0f ? -1.0f : x); }
 public:
     void setSampleRate(float s) { fs = (s > 0.f) ? s : 48000.f; recalcFilters(); }
     void recalcFilters() {
         cInHP   = onePoleCoef(45.f,   fs);   // remove sub-rumble before clipping
-        cBass   = onePoleCoef(120.f,  fs);   // clean low-end tap for the blend
-        cS1     = onePoleCoef(4500.f, fs);   // interstage roll-off (smooths the fuzz)
-        cS2     = onePoleCoef(6000.f, fs);
+        cBass   = onePoleCoef(180.f,  fs);   // clean low-end tap for the blend
+        cS1     = onePoleCoef(9000.f, fs);   // light interstage roll-off — keep the gritty highs
+        cS2     = onePoleCoef(9000.f, fs);
         cToneLP = onePoleCoef(700.f,  fs);   // Big Muff tone — bass-leaning corners
         cToneHP = onePoleCoef(700.f,  fs);
         cOutDC  = onePoleCoef(18.f,   fs);   // output DC blocker
     }
     void setParams(float gain, float toneP, float filterP) {
-        // Moderate drive: high enough for a sustaining Muff fuzz, low enough
-        // that the two clip stages DON'T saturate the input noise floor (the
-        // old pow(10,…)=126× pushed -50 dB hiss up to ~ signal level → loud
-        // white noise). ~3 .. 37; gain 0.8 (RS default) → ~30.
-        drive    = 3.0f + gain * 34.0f;
+        // Moderate drive (the hard clip does the grit). High enough for a
+        // sustaining Muff fuzz, low enough that it doesn't saturate the input
+        // noise floor (the old 126× pushed -50 dB hiss up to signal level →
+        // white noise). ~3 .. 48; gain 0.8 (RS default) → ~40.
+        drive    = 3.0f + gain * 45.0f;
         tone     = toneP;
         dryBlend = filterP;
     }
@@ -60,9 +63,9 @@ public:
         // stage 1: gain + soft clip + interstage LP
         float s = softclip(drive * xin);
         zS1 += cS1 * (s - zS1); s = zS1;
-        // stage 2 — fixed modest gain (just for harmonics; re-applying the
-        // full drive here is what saturated the noise floor)
-        s = softclip(2.5f * s);
+        // stage 2 — fixed modest gain (re-squares for more grit; re-applying
+        // the full drive here is what saturated the noise floor)
+        s = softclip(2.0f * s);
         zS2 += cS2 * (s - zS2); s = zS2;
         // Big Muff tone: crossfade LP and HP (mid scoop at tone=0.5)
         zToneLP += cToneLP * (s - zToneLP);
@@ -70,8 +73,11 @@ public:
         zToneHP += cToneHP * (s - zToneHP);
         const float hi = s - zToneHP;
         float out = (1.0f - tone) * lo * 1.6f + tone * hi;
-        // blend clean bass back in (the bass-specific "Filter" knob)
-        out += bass * dryBlend * 1.3f;
+        // Blend clean low end back in — the bass-specific "Filter" knob. Made
+        // clearly audible: it ducks the fuzz a little and brings up the clean
+        // bass, so it sweeps from thin/scooped fuzz (min) to fat fuzz with
+        // solid lows (max).
+        out = out * (1.0f - 0.4f * dryBlend) + bass * dryBlend * 3.0f;
         // output DC blocker + makeup
         zOutDC += cOutDC * (out - zOutDC);
         return (out - zOutDC) * makeup;
