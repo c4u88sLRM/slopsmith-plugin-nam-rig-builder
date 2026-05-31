@@ -99,6 +99,14 @@
  ],
  "Bass_Pedal_BassChorus": [
   {
+   "name": "BassChorus",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "bundled": "vst/BassChorus.vst3",
+   "free": true,
+   "notes": "Bundled Boss CEB-3 model — BBD chorus with the bass Low Filter (keeps lows dry). Rate/Depth/LoFilter/Mix map 1:1 to RS."
+  },
+  {
    "name": "kHs Chorus",
    "manufacturer": "Kilohearts",
    "format": "VST3",

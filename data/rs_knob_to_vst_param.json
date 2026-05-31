@@ -129,6 +129,12 @@
   }
  },
  "Bass_Pedal_BassChorus": {
+  "basschorus": {
+   "Rate": { "param": "Rate", "scale": 0.01, "_hint": "RS Rate → LFO speed 0..1 (0.1..8 Hz)." },
+   "Depth": { "param": "Depth", "scale": 0.01, "_hint": "RS Depth → LFO mod depth 0..1." },
+   "LoFilter": { "param": "LoFilter", "scale": 0.01, "_hint": "RS LoFilter → wet high-pass 0..1 (keeps lows dry)." },
+   "Mix": { "param": "Mix", "scale": 0.01, "_hint": "RS Mix → dry/wet 0..1." }
+  },
   "khs chorus": {
    "Rate": {
     "param": "Rate",
