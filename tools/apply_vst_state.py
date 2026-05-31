@@ -167,6 +167,16 @@ _VST_PARAM_RANGES: dict[str, dict[str, tuple[str, float, float]]] = {
         "LoMidQ":     ("log",    0.3,     4.0),
         "HiMidQ":     ("log",    0.3,     4.0),
     },
+    "studiographiceq": {
+        # Bundled Studio Graphic EQ (API-550-style, proportional Q, no Q knob).
+        # Freq params display-Hz (kHz Mid/HiMid/Treble ×1000); ranges MUST match
+        # SGEqParams.h. Gains use scale 1/30 + offset 0.5 — no range here.
+        "BassFreq":   ("log",   40.0,   400.0),
+        "LoMidFreq":  ("log",  200.0,  2000.0),
+        "MidFreq":    ("log",  300.0,  3000.0),
+        "HiMidFreq":  ("log",  800.0,  8000.0),
+        "TrebleFreq": ("log", 2000.0, 16000.0),
+    },
     # No khs chorus entries — RS Rate maps directly via curator scale=0.01
     # (RS 0-100 → 0-1 normalized). User wants the slider POSITION to track
     # the RS Rate value (e.g. RS=4 → slider at 4%). The plugin's internal

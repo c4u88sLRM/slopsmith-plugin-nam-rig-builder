@@ -724,6 +724,14 @@
  ],
  "Rack_StudioGraphicEQ": [
   {
+   "name": "Studio Graphic EQ",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "bundled": "vst/StudioGraphicEQ.vst3",
+   "free": true,
+   "notes": "Bundled 5-band sweepable EQ, API-550 proportional-Q style"
+  },
+  {
    "name": "MEqualizer",
    "manufacturer": "MeldaProduction",
    "format": "VST3",

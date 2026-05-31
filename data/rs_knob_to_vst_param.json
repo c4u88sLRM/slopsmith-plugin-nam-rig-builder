@@ -2033,6 +2033,56 @@
   }
  },
  "Rack_StudioGraphicEQ": {
+  "studiographiceq": {
+   "Bass": {
+    "param": "Bass",
+    "scale": 0.033333,
+    "offset": 0.5
+   },
+   "BassFreq": {
+    "param": "BassFreq",
+    "scale": 1.0
+   },
+   "LoMid": {
+    "param": "LoMid",
+    "scale": 0.033333,
+    "offset": 0.5
+   },
+   "LoMidFreq": {
+    "param": "LoMidFreq",
+    "scale": 1.0
+   },
+   "Mid": {
+    "param": "Mid",
+    "scale": 0.033333,
+    "offset": 0.5
+   },
+   "MidFreq": {
+    "param": "MidFreq",
+    "scale": 1000.0,
+    "_hint": "RS kHz→Hz"
+   },
+   "HiMid": {
+    "param": "HiMid",
+    "scale": 0.033333,
+    "offset": 0.5
+   },
+   "HiMidFreq": {
+    "param": "HiMidFreq",
+    "scale": 1000.0,
+    "_hint": "RS kHz→Hz"
+   },
+   "Treble": {
+    "param": "Treble",
+    "scale": 0.033333,
+    "offset": 0.5
+   },
+   "TrebleFreq": {
+    "param": "TrebleFreq",
+    "scale": 1000.0,
+    "_hint": "RS kHz→Hz"
+   }
+  },
   "mequalizer": {
    "Bass": {
     "param": "Gain 1 (EQ 1)",
