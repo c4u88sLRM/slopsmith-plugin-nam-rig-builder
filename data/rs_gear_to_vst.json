@@ -36,6 +36,94 @@
    }
   ]
  },
+ "Amp_EN30": [
+  {
+   "name": "EN30",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "url": "",
+   "free": true,
+   "bundled": "vst/EN30.vst3",
+   "notes": "Bundled Vox AC30 Top Boost / EL84 style amp based on the local EN30 schematics, using Rocksmith's Gain, Bass, Mid, Treble, Pres, and Bright knobs."
+  }
+ ],
+ "Amp_TW22": [
+  {
+   "name": "TW22",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "url": "",
+   "free": true,
+   "bundled": "vst/TW22.vst3",
+   "notes": "Bundled Fender Super-Sonic 22 / 6V6 style amp based on the local TW22 schematic, using Rocksmith's Gain, Bass, Mid, and Treble knobs."
+  }
+ ],
+ "Amp_TW26": [
+  {
+   "name": "TW26",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "url": "",
+   "free": true,
+   "bundled": "vst/TW26.vst3",
+   "notes": "Bundled Fender 57 Deluxe / 5E3 tweed style amp based on the local TW26 schematic, using Rocksmith's Gain, Bass, Mid, Treble, and Pres knobs."
+  }
+ ],
+ "Amp_TW40": [
+  {
+   "name": "TW40",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "url": "",
+   "free": true,
+   "bundled": "vst/TW40.vst3",
+   "notes": "Bundled Fender Bassman 5F6-A / 5881 style amp based on the local TW40 schematic, using Rocksmith's Gain, Bass, Mid, Treble, and Pres knobs."
+  }
+ ],
+ "Amp_MarshallDSL100H": [
+  {
+   "name": "DSL100",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "url": "",
+   "free": true,
+   "bundled": "vst/DSL100.vst3",
+   "notes": "Bundled Marshall DSL100H / JCM2000 style amp based on the local DSL100 schematics, using Rocksmith's Gain, Bass, Mid, Treble, Pres, and Res knobs."
+  }
+ ],
+ "Amp_CA100": [
+  {
+   "name": "DualRect",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "url": "",
+   "free": true,
+   "bundled": "vst/DualRect.vst3",
+   "notes": "Bundled Mesa-Boogie Dual Rectifier Red-channel style amp based on the local Cali_100 schematic, using Rocksmith's Gain, Bass, Mid, Treble, and Pres knobs."
+  }
+ ],
+ "Amp_CA38": [
+  {
+   "name": "MarkIV",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "url": "",
+   "free": true,
+   "bundled": "vst/MarkIV.vst3",
+   "notes": "Bundled Mesa-Boogie Mark IV lead-channel style amp based on the local Mark IV schematic, using Rocksmith's Gain, Bass, Mid, and Treble knobs."
+  }
+ ],
+ "Amp_CA85": [
+  {
+   "name": "MarkIII",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "url": "",
+   "free": true,
+   "bundled": "vst/MarkIII.vst3",
+   "notes": "Bundled Mesa-Boogie Mark III R2 / crunch-mode style amp based on the local Mark III schematic, using Rocksmith's Gain, Bass, Mid, and Treble knobs."
+  }
+ ],
  "Pedal_AcousticEmulator": [
   {
    "name": "AcousticSimulator",
