@@ -406,7 +406,7 @@
       setFont(d, F.graffiti, qSize); c.fillStyle = rgb(244,150,46); c.fillText('Q', x, by);
       setFont(d, F.graffiti, tSize); c.fillStyle = rgb(152,88,208); c.fillText('TRIX', x + wq + gap, by);
       ledDot(d, W*0.5, H*0.10, true, 255,80,70);
-      footRound(d, W*0.93, H*0.88, 13);   // small footswitch in the corner, clear of the centred logo
+      footRound(d, W*0.5, H*0.89, 16);   // footswitch centred at the bottom (over the logo if needed)
     } };
 
   // ── graphic-EQ faders (mirrors graphic_eq_ui.hpp) ─────────────────────────
