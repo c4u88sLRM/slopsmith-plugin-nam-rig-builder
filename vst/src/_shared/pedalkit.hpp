@@ -23,7 +23,7 @@ START_NAMESPACE_DISTRHO
 class PedalKitUI : public UI
 {
 protected:
-    struct Ctl { int id; float cx, cy, r; int kind; float cr, cg, cb; int style; }; // kind 0=knob,1=toggle2,2=toggle3; style 0=pointer 1=boss 2=davies 3=knurled 4=chicken
+    struct Ctl { int id; float cx, cy, r; int kind; float cr, cg, cb; int style; }; // kind 0=knob,1=toggle2,2=toggle3; style 0=pointer 1=chief 2=davies 3=knurled 4=chicken
     static const int kMaxCtl = 16;
     Ctl  ctl[kMaxCtl];
     int  nctl = 0;
@@ -40,7 +40,7 @@ protected:
     Color tickClr  = Color(150, 150, 150);
     Color pointerClr = Color(214, 210, 198);
     // embedded fonts (set in ctor): condensed-caps, modern-sans, heavy-display
-    int fBebas = -1, fBarlow = -1, fAnton = -1;
+    int fBebas = -1, fBarlow = -1, fAnton = -1, fSerif = -1;
     int labelFont_ = -1;   // font used for knob labels (defaults to modern sans)
     bool knobLabels_ = true; // when false, metalKnob skips its auto label (subclass draws its own)
     void face(int id) { if (id >= 0) fontFaceId(id); else fontFace(NANOVG_DEJAVU_SANS_TTF); }
@@ -154,7 +154,7 @@ protected:
         beginPath(); moveTo(cx+R*0.18f*std::cos(a),cy+R*0.18f*std::sin(a)); lineTo(cx+R*0.86f*std::cos(a),cy+R*0.86f*std::sin(a));
         strokeColor(pointerClr); strokeWidth(3*f); stroke();
     }
-    void knobBoss(float cx, float cy, float R, float n, const Ctl&) {        // black knurled cylinder + white line
+    void knobChief(float cx, float cy, float R, float n, const Ctl&) {        // black knurled cylinder + white line
         const float f = sc();
         beginPath(); circle(cx,cy,R); fillColor(Color(22,22,24)); fill();
         strokeColor(Color(58,60,64)); strokeWidth(1.0f*f);
@@ -205,7 +205,7 @@ protected:
     void metalKnob(const Ctl& k) {
         const float f = sc(), cx = W()*k.cx, cy = H()*k.cy, R = W()*k.r, n = fValues[k.id]; (void)f;
         switch (k.style) {
-            case 1: knobBoss(cx,cy,R,n,k); break;
+            case 1: knobChief(cx,cy,R,n,k); break;
             case 2: knobDavies(cx,cy,R,n,k); break;
             case 3: knobKnurled(cx,cy,R,n,k); break;
             case 4: knobChicken(cx,cy,R,n,k); break;
@@ -261,10 +261,10 @@ protected:
         face(fid); fontSize(size*f); fillColor(txt); textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
         text(cx*W(), cy*H(), s, NULL);
     }
-    // Boss-compact style enclosure: coloured body, a darker name strip near the
+    // Chief-compact style enclosure: coloured body, a darker name strip near the
     // top, and the big rubber treadle footswitch over the lower half. The
     // subclass draws the strip text + knobs in the upper area (y ~0.17..0.40).
-    void bossPedal(int r, int g, int b) {
+    void chiefPedal(int r, int g, int b) {
         const float f = sc(), w = W(), h = H(), m = 7*f;
         beginPath(); rect(0, 0, w, h); fillColor(Color(10, 10, 12)); fill();
         Paint body = linearGradient(0, m, 0, h - m, Color(cl(r+18),cl(g+18),cl(b+18)), Color(cl(r-14),cl(g-14),cl(b-14)));
@@ -295,7 +295,7 @@ protected:
     }
     float treadleTop_ = 0.42f, treadleBot_ = 0.93f;
     // engraved text (dark, with a faint highlight) — for names on the dark treadle
-    void embossText(float cx, float cy, float size, const char* s, int fid) {
+    void emchiefText(float cx, float cy, float size, const char* s, int fid) {
         const float f = sc();
         face(fid); fontSize(size*f); textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
         fillColor(Color(255,255,255,30)); text(cx*W() + 1.3f*f, cy*H() + 1.3f*f, s, NULL); // highlight
@@ -334,6 +334,7 @@ public:
         fBebas  = createFontFromMemory("pk_bebas",  pk_bebas_ttf,  pk_bebas_ttf_len,  false);
         fBarlow = createFontFromMemory("pk_barlow", pk_barlow_ttf, pk_barlow_ttf_len, false);
         fAnton  = createFontFromMemory("pk_anton",  pk_anton_ttf,  pk_anton_ttf_len,  false);
+        fSerif  = createFontFromMemory("pk_serif",  pk_serif_ttf,  pk_serif_ttf_len,  false);
         labelFont_ = fBarlow;
         for (int i = 0; i < nparams && i < kMaxCtl; ++i) fValues[i] = defs[i];
         genWear();

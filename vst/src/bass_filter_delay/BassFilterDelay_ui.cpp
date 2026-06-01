@@ -1,5 +1,5 @@
 /* BassFilterDelay UI — copyright-free recreation of the classic analog BBD delay
- * compact it models: Boss-style enclosure, 4 knobs (RS count). No name. */
+ * compact it models: Chief-style enclosure, 4 knobs (RS count). No name. */
 #include "BassFilterDelayParams.h"
 #include "../_shared/pedalkit.hpp"
 START_NAMESPACE_DISTRHO
@@ -15,14 +15,14 @@ public:
     }
 protected:
     void drawFace() override {
-        bossPedal(156, 64, 72);                  // dusty rose / dark salmon body
+        chiefPedal(156, 64, 72);                  // dusty rose / dark salmon body
         const Color w(240,236,236);
         textSpaced(0.205f,0.135f,8.0f,w,"TIME",fBarlow, 0.2f);
         textSpaced(0.400f,0.135f,7.5f,w,"FEEDBACK",fBarlow, 0.2f);
         textSpaced(0.595f,0.135f,8.0f,w,"MIX",fBarlow, 0.2f);
         textSpaced(0.790f,0.135f,8.0f,w,"FILTER",fBarlow, 0.2f);
-        embossText(0.30f, 0.495f, 27, "BASS", fBarlow);
-        embossText(0.62f, 0.60f, 27, "DELAY", fBarlow);
+        emchiefText(0.52f, 0.495f, 30, "Bass", fSerif);
+        emchiefText(0.52f, 0.605f, 30, "Delay", fSerif);
     }
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(BassFilterDelayUI)
 };

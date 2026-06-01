@@ -1,5 +1,5 @@
 /* BassSubOctave UI — copyright-free recreation of the classic brown analog
- * octaver compact it models: Boss-style enclosure, 2 knobs (the RS count). No name. */
+ * octaver compact it models: Chief-style enclosure, 2 knobs (the RS count). No name. */
 #include "BassSubOctaveParams.h"
 #include "../_shared/pedalkit.hpp"
 START_NAMESPACE_DISTRHO
@@ -13,12 +13,12 @@ public:
     }
 protected:
     void drawFace() override {
-        bossPedal(112, 70, 66);                  // chocolate brown body
+        chiefPedal(112, 70, 66);                  // chocolate brown body
         const Color w(236,232,224);
         textSpaced(0.34f,0.12f,9,w,"MIX",fBarlow, 0.2f);
         textSpaced(0.66f,0.12f,9,w,"TONE",fBarlow, 0.2f);
-        embossText(0.30f, 0.495f, 26, "SUB", fBarlow);
-        embossText(0.60f, 0.60f, 26, "OCTAVE", fBarlow);
+        emchiefText(0.50f, 0.495f, 30, "Sub", fSerif);
+        emchiefText(0.50f, 0.605f, 30, "Octave", fSerif);
     }
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(BassSubOctaveUI)
 };

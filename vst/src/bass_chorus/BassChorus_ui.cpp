@@ -1,5 +1,5 @@
 /* BassChorus UI — copyright-free recreation of the classic teal bass-chorus
- * compact pedal it models: Boss-style enclosure (coloured body, name strip,
+ * compact pedal it models: Chief-style enclosure (coloured body, name strip,
  * big treadle footswitch), 4 knobs (the RS count) in a row. No brand/model name. */
 #include "BassChorusParams.h"
 #include "../_shared/pedalkit.hpp"
@@ -16,14 +16,14 @@ public:
     }
 protected:
     void drawFace() override {
-        bossPedal(40, 158, 150);                 // teal body
+        chiefPedal(40, 158, 150);                 // teal body
         const Color w(238,240,242);
         textSpaced(0.205f,0.135f,8.5f,w,"RATE",fBarlow, 0.2f);
         textSpaced(0.400f,0.135f,8.5f,w,"DEPTH",fBarlow, 0.2f);
         textSpaced(0.595f,0.135f,8.0f,w,"LO FILTER",fBarlow, 0.2f);
         textSpaced(0.790f,0.135f,8.5f,w,"MIX",fBarlow, 0.2f);
-        embossText(0.30f, 0.495f, 27, "BASS", fBarlow);
-        embossText(0.62f, 0.60f, 27, "CHORUS", fBarlow);
+        emchiefText(0.52f, 0.495f, 30, "Bass", fSerif);
+        emchiefText(0.52f, 0.605f, 30, "Chorus", fSerif);
     }
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(BassChorusUI)
 };
