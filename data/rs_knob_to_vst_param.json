@@ -1796,7 +1796,7 @@
   }
  },
  "Pedal_FuzzWasHe": {
-  "fuzzwashe": {
+  "bz-1": {
    "Gain": {
     "param": "Gain",
     "scale": 0.01
@@ -1833,7 +1833,7 @@
   }
  },
  "Pedal_CaptFuzzle": {
-  "captainfuzzle": {
+  "buzz-tone": {
    "Gain": {
     "param": "Gain",
     "scale": 0.01
@@ -1870,7 +1870,7 @@
   }
  },
  "Pedal_BuzzOne": {
-  "buzzone": {
+  "super-buzz": {
    "Gain": {
     "param": "Gain",
     "scale": 0.01
@@ -1878,7 +1878,7 @@
    "Tone": {
     "param": "Tone",
     "scale": 0.01,
-    "_hint": "Continuous Super-Fuzz tone-switch balance: lower is thicker/nasal, higher is brighter and more scooped."
+    "_hint": "Continuous octave-fuzz tone-switch balance: lower is thicker/nasal, higher is brighter and more scooped."
    }
   },
   "khs distortion": {
@@ -1904,7 +1904,7 @@
   }
  },
  "Pedal_BuzzToo": {
-  "buzztoo": {
+  "big buzz": {
    "Gain": {
     "param": "Gain",
     "scale": 0.01
@@ -1912,7 +1912,7 @@
    "Tone": {
     "param": "Tone",
     "scale": 0.01,
-    "_hint": "Continuous Big Muff V1 tone stack balance: lower is darker/thicker, higher is brighter and more scooped."
+    "_hint": "Continuous two-branch fuzz tone stack balance: lower is darker/thicker, higher is brighter and more scooped."
    }
   },
   "khs distortion": {

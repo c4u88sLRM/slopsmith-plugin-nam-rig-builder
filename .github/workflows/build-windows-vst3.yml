@@ -1,0 +1,99 @@
+name: Build Windows VST3 binaries
+
+# Why: the bundled effects in vst/*.vst3 are committed with macOS binaries only
+# (Contents/MacOS/<Name>). On Windows the host needs Contents/x86_64-win/<Name>.vst3
+# or it refuses to load ("engine refused to load this plugin"). This workflow
+# cross-builds every DPF plugin for Windows and injects the x86_64-win binary
+# into each committed bundle, so the bundles become cross-platform.
+#
+# Run it manually from the Actions tab (workflow_dispatch). It commits the new
+# Windows binaries back to the branch it ran on.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dpf_ref:
+        description: "DISTRHO/DPF git ref to build against"
+        default: "main"
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up MSYS2 / MinGW
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: false
+          install: >-
+            git make pkgconf
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-pkgconf
+
+      - name: Clone DPF
+        run: git clone --depth 1 --branch "${{ github.event.inputs.dpf_ref }}" https://github.com/DISTRHO/DPF.git "$GITHUB_WORKSPACE/dpf"
+
+      - name: Build every VST3 for Windows
+        run: |
+          set +e
+          DPF="$GITHUB_WORKSPACE/dpf"
+          cd "$GITHUB_WORKSPACE/vst/src"
+          fail=""
+          build() { ( cd "$1" && make -j2 DPF_PATH="$DPF" vst3 ) || fail="$fail $1"; }
+          # root Makefile builds AutoSweep (the QTron envelope filter)
+          [ -f Makefile ] && build .
+          for mk in */Makefile; do
+            d=$(dirname "$mk")
+            case "$d" in DPF|_shared) continue;; esac
+            echo "==== building $d ===="
+            build "$d"
+          done
+          echo "FAILED DIRS:$fail"
+
+      - name: Inject x86_64-win binaries into the committed bundles
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          count=0
+          # DPF writes the built bundle under each plugin dir (bin/<Name>.vst3).
+          find vst/src -type d -path '*/Contents/x86_64-win' | while read -r win; do
+            bundle=$(basename "$(dirname "$(dirname "$win")")")   # <Name>.vst3
+            if [ -d "vst/$bundle" ]; then
+              dest="vst/$bundle/Contents/x86_64-win"
+              rm -rf "$dest"; mkdir -p "$dest"
+              cp -R "$win/." "$dest/"
+              echo "injected: $bundle"
+              count=$((count+1))
+            else
+              echo "WARNING: built $bundle but no committed bundle vst/$bundle"
+            fi
+          done
+          echo "injected $count bundles"
+
+      - name: Commit the Windows binaries
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          git config user.name  "windows-vst-bot"
+          git config user.email "windows-vst-bot@users.noreply.github.com"
+          git add vst/*/Contents/x86_64-win || true
+          if git diff --cached --quiet; then
+            echo "No Windows binaries to commit (check the build log for failures)."
+          else
+            git commit -m "Add Windows (x86_64-win) VST3 binaries to bundled effects"
+            git push
+          fi
+
+      - name: Upload as artifact too
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-vst3
+          path: vst/src/**/Contents/x86_64-win/**
+          if-no-files-found: warn

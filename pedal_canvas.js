@@ -14,7 +14,7 @@
 (function () {
   'use strict';
   const API = '/api/plugins/rig_builder';
-  const FONTS = { bebas: 'PKBebas', barlow: 'PKBarlow', anton: 'PKAnton', crete: 'PKCrete' };
+  const FONTS = { bebas: 'PKBebas', barlow: 'PKBarlow', anton: 'PKAnton', crete: 'PKCrete', graffiti: 'PKGraffiti' };
   let _fontsP = null;
   function ready() {
     if (_fontsP) return _fontsP;
@@ -66,6 +66,22 @@
     c.strokeStyle=rgb(40,42,46); c.lineWidth=2*s; c.stroke();
     c.beginPath(); c.arc(cx,cy,R*0.78,0,7); c.fillStyle=rgb(150,153,159); c.fill();
     c.beginPath(); c.arc(cx-R*0.25,cy-R*0.3,R*0.34,0,7); c.fillStyle=rgb(255,255,255,0.27); c.fill(); }
+
+  // square red toggle switch (Eden Bass Boost / Mid Shift, Wah Auto, …)
+  function switchSquare(d, cx, cy, hs, on) { const c = d.ctx;
+    rr(c, cx-hs, cy-hs, hs*2, hs*2, 3); c.fillStyle = on ? rgb(208,40,36) : rgb(78,22,20); c.fill();
+    rr(c, cx-hs, cy-hs, hs*2, hs*2, 3); c.strokeStyle = rgb(20,12,10); c.lineWidth = 1.5; c.stroke();
+    if (on) { c.beginPath(); c.arc(cx, cy, hs*0.34, 0, 7); c.fillStyle = rgb(255,180,170); c.fill(); } }
+
+  // 3-position mini bat toggle (Darkglass Grunt/Attack): lever at top (val 1),
+  // middle (0.5) or bottom (0). Click cycles 0→0.5→1→0.
+  function switch3(d, cx, cy, val) { const c = d.ctx, w = 13, h = 32;
+    rr(c, cx-w/2, cy-h/2, w, h, 4); c.fillStyle = rgb(26,26,28); c.fill();
+    rr(c, cx-w/2, cy-h/2, w, h, 4); c.strokeStyle = rgb(8,8,10); c.lineWidth = 1.2; c.stroke();
+    const ly = cy + (0.5 - val) * (h - 14);
+    const g = c.createLinearGradient(cx-5, ly-6, cx+5, ly+6); g.addColorStop(0, rgb(234,236,240)); g.addColorStop(1, rgb(150,153,160));
+    rr(c, cx-5, ly-7, 10, 14, 3); c.fillStyle = g; c.fill();
+    rr(c, cx-5, ly-7, 10, 14, 3); c.strokeStyle = rgb(70,72,78); c.lineWidth = 1; c.stroke(); }
 
   function setFont(d, family, px) { d.ctx.font = `${px*d.s}px ${family}, sans-serif`; }
   function textC(d, cx, cy, family, px, col, str, align) {
@@ -153,12 +169,27 @@
     rr(c,tx,tyTop,tw,tBot-tyTop,12*s); c.fillStyle=tg; c.fill();
     rr(c,tx,tyTop,tw,12*s,12*s); c.fillStyle='rgba(255,255,255,0.086)'; c.fill();
     rr(c,tx,tyTop,tw,tBot-tyTop,12*s); c.strokeStyle='rgba(0,0,0,0.47)'; c.lineWidth=1.6*s; c.stroke();
-    const padT=tyTop+(tBot-tyTop)*0.50; rr(c,tx+12*s,padT,tw-24*s,tBot-padT-9*s,9*s); c.fillStyle=rgb(20,20,22); c.fill();
+    const padT=tyTop+(tBot-tyTop)*0.50, padBot=tBot-9*s; rr(c,tx+12*s,padT,tw-24*s,padBot-padT,9*s); c.fillStyle=rgb(20,20,22); c.fill();
+    // brand badge on the black step pad (parody of Boss's logo): same near-black
+    // as the pad, with a blacker outline so it reads as engraved. Up near the
+    // top of the pad, big, all caps.
+    chiefBadge(d, padT, padBot);
   }
-  function chiefName(d, n1, n2) { const {W,H}=d;
-    if (n2){ textC(d, 0.31*W, 0.575*H, FONTS.crete, 42, rgb(16,16,20), n1);
-             textC(d, 0.62*W, 0.685*H, FONTS.crete, 34, rgb(16,16,20), n2); }
-    else   { textC(d, 0.5*W, 0.63*H, FONTS.crete, 40, rgb(16,16,20), n1); } }
+  // Wide engraved 'CHIEF' badge across the black step pad (parody Boss logo):
+  // pad-colour fill + black outline; much wider than tall via big letter spacing.
+  function chiefBadge(d, padT, padBot) { const W = d.W;
+    outlineText(d, W*0.5, padT+(padBot-padT)*0.30, FONTS.bebas, 40, rgb(20,20,22), rgb(0,0,0), 'CHIEF', 13);
+  }
+  // n1/n2 = two-word model name (n1 left, n2 right); code = parody model number
+  // (e.g. 'CB-3'), a bit smaller, bottom-RIGHT corner. dy shifts everything down
+  // (the EQ treadle sits lower, so it passes a positive dy).
+  function chiefName(d, n1, n2, code, dy, codeDy) { const {W,H}=d; dy = dy || 0; codeDy = codeDy || 0; const dk = rgb(16,16,20);
+    if (n2){ const s2 = n2.length > 7 ? 32 : 44, sc = s2 - 12;
+             textC(d, 0.29*W, (0.50+dy)*H, FONTS.crete, 48, dk, n1);
+             textC(d, 0.62*W, (0.58+dy)*H, FONTS.crete, s2, dk, n2);
+             if (code) textC(d, 0.76*W, (0.665+dy+codeDy)*H, FONTS.barlow, sc, dk, code); }
+    else   { textC(d, 0.46*W, (0.56+dy)*H, FONTS.crete, 44, dk, n1);
+             if (code) textC(d, 0.78*W, (0.66+dy+codeDy)*H, FONTS.barlow, 30, dk, code); } }
 
   // ── pedal specs ───────────────────────────────────────────────────────────
   // each: {w,h, knobs:[{id,cx,cy,r,style,cap:[r,g,b]}], draw(d,vals)}
@@ -175,25 +206,32 @@
       boxedLabel(d,.215,.135,.115,.028,F.barlow,12.5,w,w,'GAIN');
       boxedLabel(d,.500,.135,.110,.028,F.barlow,12.5,w,w,'TONE');
       boxedLabel(d,.785,.135,.125,.028,F.barlow,12.5,w,w,'FILTER');
-      boxedLabel(d,.5,.55,.34,.075,F.anton,44,w,w,'DISTORTION');
+      boxedLabel(d,.5,.55,.255,.092,F.anton,56,w,w,'MOUSE');
       ledDot(d,d.W*.5,d.H*.71,true,210,70,58); footRound(d,d.W*.5,d.H*.83,24*d.s); } };
 
-  P.bassoverdrive = { w:300,h:490, knobs:[
-      {id:0,cx:.30,cy:.31,r:.10,style:'knurled'},{id:1,cx:.70,cy:.31,r:.10,style:'knurled'},
-      {id:2,cx:.30,cy:.62,r:.10,style:'knurled'},{id:3,cx:.70,cy:.62,r:.10,style:'knurled'}],
+  // Bass Overdrive — Darkglass Microtubes B3K look, RS params (4 knobs):
+  // Blend0 Drive1 Grunt2 Attack3. (Real B3K has Grunt/Attack as switches, but RS
+  // exposes them as continuous knobs, so we keep knobs.)
+  P.bassoverdrive = { w:300,h:490,
+    knobs:[
+      {id:0,cx:.30,cy:.285,r:.10,style:'boss'},   // BLEND
+      {id:1,cx:.70,cy:.285,r:.10,style:'boss'},   // DRIVE
+      {id:2,cx:.30,cy:.555,r:.10,style:'boss'},   // GRUNT
+      {id:3,cx:.70,cy:.555,r:.10,style:'boss'}],  // ATTACK
     ptr:rgb(238,239,242),
-    draw(d){ box(d,20,20,22); const w=rgb(235,236,239), dim=rgb(150,151,154);
-      textSpaced(d,.30*d.W,.185*d.H,F.barlow,10.5,w,'BLEND',1.2);
-      textSpaced(d,.70*d.W,.185*d.H,F.barlow,10.5,w,'TONE',1.2);
-      textSpaced(d,.30*d.W,.495*d.H,F.barlow,10.5,w,'GAIN',1.2);
-      textSpaced(d,.70*d.W,.495*d.H,F.barlow,10.5,w,'FILTER',1.2);
-      textSpaced(d,.5*d.W,.80*d.H,F.barlow,17,w,'OVERDRIVE',2.2);
-      textSpaced(d,.5*d.W,.845*d.H,F.barlow,8.5,dim,'CMOS  BASS  OVERDRIVE',1.6);
-      ledDot(d,d.W*.5,d.H*.885,true,196,72,60); footRound(d,d.W*.5,d.H*.95,17*d.s); } };
+    draw(d){ box(d,18,18,20); const w=rgb(235,236,239), dim=rgb(150,151,154);
+      textSpaced(d,.5*d.W,.10*d.H,F.bebas,24,w,'BLACKBRASS',2);           // parody brand
+      textSpaced(d,.30*d.W,.40*d.H,F.barlow,11,w,'BLEND',1.4);
+      textSpaced(d,.70*d.W,.40*d.H,F.barlow,11,w,'DRIVE',1.4);
+      textSpaced(d,.30*d.W,.67*d.H,F.barlow,11,w,'GRUNT',1.4);
+      textSpaced(d,.70*d.W,.67*d.H,F.barlow,11,w,'ATTACK',1.4);
+      textSpaced(d,.5*d.W,.76*d.H,F.barlow,13,w,'MINITUBES B3X',2);       // parody model
+      textSpaced(d,.5*d.W,.80*d.H,F.barlow,8,dim,'CMOS BASS OVERDRIVE',1.4);
+      ledDot(d,d.W*.5,d.H*.86,true,196,72,60); footRound(d,d.W*.5,d.H*.93,18*d.s); } };
 
   P.bassfuzz = { w:320,h:400, knobs:[
-      {id:0,cx:.26,cy:.205,r:.085,style:'davies'},{id:1,cx:.50,cy:.205,r:.085,style:'davies'},
-      {id:2,cx:.74,cy:.205,r:.085,style:'davies'}],
+      {id:0,cx:.26,cy:.225,r:.085,style:'davies'},{id:1,cx:.50,cy:.225,r:.085,style:'davies'},
+      {id:2,cx:.74,cy:.225,r:.085,style:'davies'}],
     ptr:rgb(236,238,238),
     draw(d){ const {ctx:c,W,H,s}=d; box(d,190,192,196);
       const fg=c.createLinearGradient(0,H*.085,0,H*.915); fg.addColorStop(0,rgb(106,188,64)); fg.addColorStop(1,rgb(74,152,34));
@@ -205,28 +243,153 @@
       setFont(d,F.barlow,7.5); c.fillStyle=rgb(22,32,16); c.textBaseline='middle';
       c.textAlign='right'; c.fillText('NORM',tx-12*s,ty);
       c.textAlign='left'; c.fillText('BASS BOOST',tx+12*s,ty-5*s); c.fillText('DRY',tx+12*s,ty+5*s);
-      outlineText(d,.5*W,.64*H,F.anton,62,rgb(242,242,244),rgb(12,14,16),'FUZZ',7);
-      textC(d,.34*W,.55*H,F.crete,29,rgb(16,20,14),'bass');
-      ledDot(d,W*.52,H*.55,true,224,60,52); footRound(d,W*.5,H*.81,21*s); } };
+      // knob labels (Gain / Tone / Filter) — dark green, like the C++ UI
+      const gl=rgb(22,32,16);
+      textC(d,.26*W,.355*H,F.barlow,11,gl,'GAIN');
+      textC(d,.50*W,.355*H,F.barlow,11,gl,'TONE');
+      textC(d,.74*W,.355*H,F.barlow,11,gl,'FILTER');
+      // 'bass' (script) sits over the 'BIG' word (left), like the real pedal
+      outlineText(d,.5*W,.675*H,F.anton,48,rgb(242,242,244),rgb(12,14,16),'BIG BUZZ',5);
+      textC(d,.30*W,.565*H,F.crete,34,rgb(16,20,14),'bass');
+      // LED at top-centre (above the knobs), clear of the FUZZ wordmark
+      ledDot(d,W*.5,H*.105,true,224,60,52); footRound(d,W*.5,H*.81,21*s); } };
 
-  function chiefSpec(w,h,col,knobIds,names,n1,n2){ return { w,h, knobs: knobIds.map(k=>({id:k.id,cx:k.cx,cy:.235,r:.072,style:'boss'})),
+  // Big Buzz — silver/red vintage fuzz face inspired by a triangle-era fuzz box.
+  // Param order: Gain0 Tone1.
+  P.bigbuzz = { w:320,h:430, knobs:[
+      {id:0,cx:.30,cy:.245,r:.092,style:'davies'},
+      {id:1,cx:.70,cy:.245,r:.092,style:'davies'}],
+    ptr:rgb(236,238,238),
+    draw(d){ const {ctx:c,W,H,s}=d; box(d,202,201,190);
+      const panelX=W*.105, panelY=H*.095, panelW=W*.79, panelH=H*.79;
+      const pg=c.createLinearGradient(0,panelY,0,panelY+panelH);
+      pg.addColorStop(0,rgb(228,226,214)); pg.addColorStop(1,rgb(178,176,164));
+      rr(c,panelX,panelY,panelW,panelH,9*s); c.fillStyle=pg; c.fill();
+      rr(c,panelX,panelY,panelW,panelH,9*s); c.strokeStyle=rgb(126,44,36); c.lineWidth=2.4*s; c.stroke();
+      c.strokeStyle=rgb(154,48,38); c.lineWidth=2.2*s;
+      c.beginPath(); c.moveTo(W*.20,H*.455); c.lineTo(W*.50,H*.555); c.lineTo(W*.80,H*.455); c.stroke();
+      c.beginPath(); c.moveTo(W*.20,H*.705); c.lineTo(W*.50,H*.610); c.lineTo(W*.80,H*.705); c.stroke();
+      textSpaced(d,.30*W,.360*H,F.barlow,10.5,rgb(78,50,42),'GAIN',1.0);
+      textSpaced(d,.70*W,.360*H,F.barlow,10.5,rgb(78,50,42),'TONE',1.0);
+      outlineText(d,.5*W,.555*H,F.anton,54,rgb(236,232,218),rgb(132,38,32),'BIG',5.2);
+      outlineText(d,.5*W,.655*H,F.anton,54,rgb(236,232,218),rgb(132,38,32),'BUZZ',4.8);
+      textSpaced(d,.5*W,.760*H,F.barlow,8.5,rgb(82,64,54),'SUSTAIN  FUZZ',1.9);
+      ledDot(d,W*.50,H*.820,true,224,62,52); footRound(d,W*.50,H*.905,20*s); } };
+
+  // Super-Buzz — copper/blue octave-fuzz face inspired by the local schematic.
+  // Param order: Gain0 Tone1.
+  P.superbuzz = { w:320,h:430, knobs:[
+      {id:0,cx:.285,cy:.245,r:.096,style:'pointer',cap:[22,24,30]},
+      {id:1,cx:.715,cy:.245,r:.096,style:'pointer',cap:[22,24,30]}],
+    tick:rgb(36,48,84), ptr:rgb(238,240,244),
+    draw(d){ const {ctx:c,W,H,s}=d;
+      c.fillStyle=rgb(10,10,12); c.fillRect(0,0,W,H);
+      const bodyX=W*.085, bodyY=H*.045, bodyW=W*.83, bodyH=H*.89;
+      const bg=c.createLinearGradient(0,bodyY,0,bodyY+bodyH);
+      bg.addColorStop(0,rgb(184,105,52)); bg.addColorStop(0.48,rgb(142,82,43)); bg.addColorStop(1,rgb(92,60,38));
+      rr(c,bodyX,bodyY,bodyW,bodyH,11*s); c.fillStyle=bg; c.fill();
+      rr(c,bodyX,bodyY,bodyW,bodyH,11*s); c.strokeStyle=rgb(58,42,34); c.lineWidth=2*s; c.stroke();
+      c.fillStyle=rgb(255,236,188,0.075);
+      for(let i=0;i<34;i++){ const x=bodyX+12*s+((i*47)%Math.floor(bodyW-24*s)); const y=bodyY+14*s+((i*83)%Math.floor(bodyH-28*s));
+        c.fillRect(x,y,1.2*s,1.2*s); }
+      screw(d,W*.50,H*.095); screw(d,W*.50,H*.180);
+      textSpaced(d,.285*W,.375*H,F.barlow,10.5,rgb(25,36,74),'GAIN',0.8);
+      textSpaced(d,.715*W,.375*H,F.barlow,10.5,rgb(25,36,74),'TONE',0.8);
+      c.save();
+      c.translate(W*.5,H*.625); c.transform(1,0,-0.16,1,0,0);
+      setFont(d,F.anton,48); c.textAlign='center'; c.textBaseline='middle'; c.lineWidth=5.0*s;
+      c.strokeStyle=rgb(224,210,148); c.fillStyle=rgb(22,58,118); c.strokeText('SUPER',0,-28*s); c.fillText('SUPER',0,-28*s);
+      setFont(d,F.anton,58); c.lineWidth=5.5*s; c.strokeText('BUZZ',0,34*s); c.fillText('BUZZ',0,34*s);
+      c.restore();
+      textSpaced(d,.50*W,.805*H,F.barlow,8.5,rgb(228,216,174),'OCTAVE  FUZZ',2.0);
+      ledDot(d,W*.50,H*.845,true,224,62,52); footRound(d,W*.50,H*.910,20*s); } };
+
+  // BZ-1 — Chief compact silicon fuzz face.
+  // Param order: Gain0 Tone1.
+  P.bz1 = { w:300,h:480, knobs:[
+      {id:0,cx:.285,cy:.210,r:.086,style:'boss'},
+      {id:1,cx:.715,cy:.210,r:.086,style:'boss'}],
+    ptr:rgb(238,240,242),
+    draw(d){ const {ctx:c,W,H,s}=d; const ink=rgb(20,22,28);
+      c.fillStyle=rgb(10,10,12); c.fillRect(0,0,W,H);
+      const bx=W*.13, by=H*.035, bw=W*.74, bh=H*.92;
+      const body=c.createLinearGradient(0,by,0,by+bh);
+      body.addColorStop(0,rgb(218,221,222)); body.addColorStop(0.52,rgb(178,184,188)); body.addColorStop(1,rgb(128,136,144));
+      rr(c,bx,by,bw,bh,9*s); c.fillStyle=body; c.fill();
+      rr(c,bx,by,bw,bh,9*s); c.strokeStyle=rgb(76,82,90); c.lineWidth=2*s; c.stroke();
+      c.fillStyle=rgb(255,255,255,0.08);
+      for(let i=0;i<30;i++){ const x=bx+8*s+((i*53)%Math.floor(bw-16*s)); const y=by+8*s+((i*79)%Math.floor(bh-16*s));
+        c.fillRect(x,y,1.1*s,1.1*s); }
+      const splitY=H*.340; c.beginPath(); c.moveTo(bx+2*s,splitY); c.lineTo(bx+bw-2*s,splitY);
+      c.strokeStyle=rgb(88,94,102); c.lineWidth=1.6*s; c.stroke();
+      ledDot(d,W*.50,H*.105,true,224,42,35);
+      textSpaced(d,.285*W,.325*H,F.barlow,10.5,ink,'GAIN',0.8);
+      textSpaced(d,.715*W,.325*H,F.barlow,10.5,ink,'TONE',0.8);
+      textC(d,.44*W,.490*H,F.barlow,51,ink,'Fuzz','center');
+      textC(d,.690*W,.548*H,F.barlow,20,ink,'BZ-1','center');
+      const padX=bx+18*s, padY=H*.650, padW=bw-36*s, padH=H*.225;
+      rr(c,padX,padY,padW,padH,7*s); c.fillStyle=rgb(22,27,29); c.fill();
+      rr(c,padX,padY,padW,padH,7*s); c.strokeStyle=rgb(9,12,13); c.lineWidth=2*s; c.stroke();
+      textC(d,.50*W,padY+padH*.34,F.anton,34,rgb(10,14,16),'CHIEF');
+      textC(d,.50*W,padY+padH*.34-1*s,F.anton,34,rgb(42,47,49,0.34),'CHIEF');
+      footRound(d,W*.50,H*.930,10*s); } };
+
+  // Buzz-Tone - gold wedge-style vintage two-knob fuzz face.
+  // Param order: Gain0 Tone1.
+  P.buzztone = { w:470,h:300, knobs:[
+      {id:0,cx:.355,cy:.285,r:.073,style:'davies'},
+      {id:1,cx:.645,cy:.285,r:.073,style:'davies'}],
+    tick:rgb(72,42,24), ptr:rgb(238,230,204),
+    draw(d){ const {ctx:c,W,H,s}=d;
+      c.fillStyle=rgb(10,10,12); c.fillRect(0,0,W,H);
+      const x0=W*.075, x1=W*.925, y0=H*.105, y1=H*.875;
+      const topInset=W*.070, botInset=W*.020;
+      const body=c.createLinearGradient(0,y0,0,y1);
+      body.addColorStop(0,rgb(188,142,68)); body.addColorStop(.48,rgb(151,102,46)); body.addColorStop(1,rgb(86,59,34));
+      c.beginPath();
+      c.moveTo(x0+topInset,y0); c.lineTo(x1-topInset,y0);
+      c.lineTo(x1-botInset,y1); c.lineTo(x0+botInset,y1); c.closePath();
+      c.fillStyle=body; c.fill();
+      c.strokeStyle=rgb(48,34,24); c.lineWidth=2.2*s; c.stroke();
+      c.save();
+      c.clip();
+      const glow=c.createLinearGradient(x0,y0,x1,y1);
+      glow.addColorStop(0,rgb(245,207,118,0.22)); glow.addColorStop(.55,rgb(255,232,150,0.035)); glow.addColorStop(1,rgb(34,24,18,0.22));
+      c.fillStyle=glow; c.fillRect(x0,y0,x1-x0,y1-y0);
+      c.strokeStyle=rgb(208,154,76,0.28); c.lineWidth=1.2*s;
+      for(let i=0;i<9;i++){ const yy=y0+(y1-y0)*(i+1)/10; c.beginPath(); c.moveTo(x0+topInset*.65,yy); c.lineTo(x1-topInset*.65,yy+2*s); c.stroke(); }
+      c.restore();
+      screw(d,W*.155,H*.170); screw(d,W*.845,H*.170); screw(d,W*.180,H*.805); screw(d,W*.820,H*.805);
+      const panelY=H*.170; c.beginPath(); c.moveTo(W*.250,panelY); c.lineTo(W*.750,panelY);
+      c.strokeStyle=rgb(70,42,26); c.lineWidth=1.4*s; c.stroke();
+      textSpaced(d,.355*W,.475*H,F.barlow,10.5,rgb(42,30,22),'GAIN',1.2);
+      textSpaced(d,.645*W,.475*H,F.barlow,10.5,rgb(42,30,22),'TONE',1.2);
+      c.save();
+      c.translate(W*.5,H*.640); c.transform(1,0,-0.10,1,0,0);
+      outlineText(d,0,0,F.anton,50,rgb(235,211,139),rgb(64,38,25),'BUZZ-TONE',4.0);
+      c.restore();
+      textSpaced(d,.50*W,.735*H,F.barlow,9,rgb(226,190,118),'GERMANIUM  FUZZ',2.3);
+      ledDot(d,W*.50,H*.800,true,224,56,45);
+      footRound(d,W*.50,H*.885,18*s); } };
+
+  function chiefSpec(w,h,col,knobIds,n1,n2,code){ return { w,h, knobs: knobIds.map(k=>({id:k.id,cx:k.cx,cy:.235,r:.072,style:'boss'})),
     ptr:rgb(238,240,242), draw(d){ chiefBody(d,col[0],col[1],col[2]); const wc=rgb(238,240,242);
       knobIds.forEach(k=> textSpaced(d,k.cx*d.W,.135*d.H,F.barlow,k.lblPx||8.5,wc,k.lbl,0.2));
-      chiefName(d,n1,n2); } }; }
+      chiefName(d,n1,n2,code); } }; }
 
   P.basschorus = chiefSpec(300,480,[40,158,150],
     [{id:0,cx:.205,lbl:'RATE'},{id:1,cx:.40,lbl:'DEPTH'},{id:2,cx:.595,lbl:'LO FILTER',lblPx:8},{id:3,cx:.79,lbl:'MIX'}],
-    'Bass','Chorus');
+    'Bass','Chorus','CB-3');
   P.basssuboctave = { w:300,h:480, knobs:[{id:0,cx:.34,cy:.235,r:.088,style:'boss'},{id:1,cx:.66,cy:.235,r:.088,style:'boss'}],
     ptr:rgb(236,232,224), draw(d){ chiefBody(d,112,70,66); const w=rgb(236,232,224);
       textSpaced(d,.34*d.W,.12*d.H,F.barlow,9,w,'MIX',0.2); textSpaced(d,.66*d.W,.12*d.H,F.barlow,9,w,'TONE',0.2);
-      chiefName(d,'Sub','Octave'); } };
+      chiefName(d,'Bass','Suboctave','SO-2'); } };
   P.bassfilterdelay = chiefSpec(300,480,[156,64,72],
     [{id:0,cx:.205,lbl:'TIME'},{id:1,cx:.40,lbl:'FEEDBACK',lblPx:7.5},{id:2,cx:.595,lbl:'MIX'},{id:3,cx:.79,lbl:'FILTER',lblPx:8}],
-    'Bass','Delay');
+    'Bass','Delay','DL-3');
   P.bassflanger = chiefSpec(300,480,[96,80,134],
     [{id:0,cx:.205,lbl:'RATE'},{id:1,cx:.40,lbl:'DEPTH'},{id:2,cx:.595,lbl:'FILTER',lblPx:8},{id:3,cx:.79,lbl:'MIX'}],
-    'Bass','Flanger');
+    'Bass','Flanger','FL-3');
 
   function boxSpec(w,h,col,knobs,wordmark,sub,accent,wfont){ return { w,h,
     knobs: knobs.map(k=>({id:k.id,cx:k.cx,cy:.27,r:.082,style:'pointer',cap:k.cap||[40,40,44]})),
@@ -252,12 +415,135 @@
       {id:1,cx:.50,cy:.42,r:.072,style:'pointer',cap:[70,72,78]}],
     tick:rgb(96,98,104), ptr:rgb(30,32,36),
     draw(d){ box(d,150,152,158); const dk=rgb(40,42,46);
-      textC(d,.30*d.W,(.26+0.105*1.45+0.012)*d.H,F.barlow,11,dk,'COMPRESS');
-      textC(d,.70*d.W,(.26+0.105*1.45+0.012)*d.H,F.barlow,11,dk,'RATE');
-      textC(d,.50*d.W,(.42+0.072*1.45+0.012)*d.H,F.barlow,11,dk,'FILTER');
+      textC(d,.30*d.W,(.26+0.105*1.32+0.008)*d.H,F.barlow,11,dk,'COMPRESS');
+      textC(d,.70*d.W,(.26+0.105*1.32+0.008)*d.H,F.barlow,11,dk,'RATE');
+      textC(d,.50*d.W,(.42+0.072*1.32+0.008)*d.H,F.barlow,11,dk,'FILTER');
       textC(d,.5*d.W,.63*d.H,F.anton,46,rgb(36,38,42),'COMP');
       textC(d,.5*d.W,.71*d.H,F.barlow,10,rgb(80,82,88),'MULTI  COMPRESSOR');
       ledDot(d,d.W*.5,d.H*.79,true,210,70,58); footRound(d,d.W*.5,d.H*.88,23*d.s); } };
+
+  // Dyna Compress — Dyna Comp-style optical compressor. MXR-inspired look
+  // (red box + cursive logo) recreated, not branded. Param order: Comp0 Attack1 Release2.
+  P.dynamicscompression = { w:300, h:460, knobs:[
+      {id:0,cx:.25,cy:.235,r:.080,style:'davies',cap:[26,26,28]},
+      {id:1,cx:.50,cy:.235,r:.080,style:'davies',cap:[26,26,28]},
+      {id:2,cx:.75,cy:.235,r:.080,style:'davies',cap:[26,26,28]}],
+    tick:rgb(122,30,28), ptr:rgb(242,236,224),
+    draw(d){ const {W,H,s}=d; box(d,172,48,44); const cream=rgb(242,236,224);
+      const ly=(.235+0.080*1.45+0.014)*H;
+      textSpaced(d,.25*W,ly,F.barlow,10,cream,'COMP',0.6);
+      textSpaced(d,.50*W,ly,F.barlow,10,cream,'ATTACK',0.6);
+      textSpaced(d,.75*W,ly,F.barlow,9,cream,'RELEASE',0.4);
+      // Cursive logo, staggered down-right like the original's script.
+      textC(d,.46*W,.565*H,F.crete,44,cream,'Dyna');
+      textC(d,.56*W,.665*H,F.crete,40,cream,'Compress');
+      ledDot(d,W*.5,H*.775,true,224,60,50);
+      footRound(d,W*.5,H*.885,23*s); } };
+
+  // Eden WTDI — landscape gold-panel bass preamp (mirrors eden_wtdi/EdenWtdi_ui.cpp).
+  // Param order: Gain0 Enhance1 Comp2 Master3 Bass4 Mid5 Treble6 BassBoost7 MidShift8.
+  P.edenwtdi = { w:560, h:360,
+    knobs:[
+      {id:4,cx:.190,cy:.300,r:.058,style:'boss'}, {id:5,cx:.500,cy:.300,r:.058,style:'boss'}, {id:6,cx:.810,cy:.300,r:.058,style:'boss'},
+      {id:0,cx:.160,cy:.660,r:.058,style:'boss'}, {id:1,cx:.385,cy:.660,r:.058,style:'boss'},
+      {id:2,cx:.610,cy:.660,r:.058,style:'boss'}, {id:3,cx:.835,cy:.660,r:.058,style:'boss'}],
+    switches:[ {id:7,cx:.345,cy:.330,hs:.024}, {id:8,cx:.655,cy:.330,hs:.024} ],
+    ptr:rgb(238,240,244),
+    draw(d){ const {ctx:c,W,H}=d; const dark=rgb(40,28,12);
+      c.fillStyle=rgb(12,12,14); c.fillRect(0,0,W,H);
+      rr(c,10,8,W-20,H-16,14); c.fillStyle=rgb(24,22,20); c.fill();
+      const px=18,py=16,pw=W-36,ph=(H-16)*0.80;
+      const g=c.createLinearGradient(0,py,0,py+ph); g.addColorStop(0,rgb(214,178,96)); g.addColorStop(1,rgb(168,132,60));
+      rr(c,px,py,pw,ph,8); c.fillStyle=g; c.fill();
+      rr(c,px,py,pw,ph,8); c.strokeStyle=rgb(120,92,40); c.lineWidth=1.5; c.stroke();
+      // red logo box top-left (neutral mark, no brand) + title top-right
+      rr(c,px+8,py+8,56,30,4); c.strokeStyle=rgb(180,30,28); c.lineWidth=2; c.stroke();
+      textC(d,px+36,py+23,F.anton,17,rgb(180,30,28),'DI');
+      textC(d,px+pw-10,py+14,F.bebas,17,dark,'PREAMP','right');
+      textC(d,px+pw-10,py+30,F.barlow,9,rgb(70,52,28),'Bass Guitar Pre Amplifier','right');
+      // knob labels (drawn here; 'boss' knobs don't self-label)
+      const R=.058*W+13;
+      const lab=(cx,cy,t)=>textC(d,cx*W,cy*H+R,F.barlow,11,dark,t);
+      lab(.190,.300,'BASS'); lab(.500,.300,'MID'); lab(.810,.300,'TREBLE');
+      lab(.160,.660,'GAIN'); lab(.385,.660,'ENHANCE'); lab(.610,.660,'COMP'); lab(.835,.660,'MASTER');
+      // switch labels (two lines, below the squares)
+      const sl=(cx,a,b)=>{ const y=.330*H+.024*W+9; textC(d,cx*W,y,F.barlow,8,dark,a); textC(d,cx*W,y+9,F.barlow,8,dark,b); };
+      sl(.345,'BASS','BOOST'); sl(.655,'MID','SHIFT');
+      ledDot(d,px+pw*0.5,py+14,true,230,60,50);
+      footRound(d,W*0.5,H*0.90,17); } };
+
+  // Bass Wah — Cry-Baby-style brass treadle (mirrors bass_wah/BassWah_ui.cpp).
+  // Param order: Auto0 Pedal1 Sens2 Speed3. Treadle tilt follows Pedal.
+  P.basswah = { w:300, h:460,
+    knobs:[ {id:1,cx:.375,cy:.835,r:.072,style:'boss'}, {id:2,cx:.610,cy:.835,r:.072,style:'boss'}, {id:3,cx:.845,cy:.835,r:.072,style:'boss'} ],
+    switches:[ {id:0,cx:.135,cy:.835,hs:.045} ],
+    ptr:rgb(238,240,244),
+    draw(d,values){ const {ctx:c,W,H}=d;
+      c.fillStyle=rgb(12,11,9); c.fillRect(0,0,W,H);
+      const bx=10,by=8,bw=W-20,bh=H-16;
+      const brass=c.createLinearGradient(bx,by,bx+bw,by+bh); brass.addColorStop(0,rgb(150,120,70)); brass.addColorStop(1,rgb(96,74,42));
+      rr(c,bx,by,bw,bh,16); c.fillStyle=brass; c.fill();
+      rr(c,bx,by,bw,bh,16); c.strokeStyle=rgb(60,46,24); c.lineWidth=2; c.stroke();
+      // chrome-framed black ribbed rocker treadle
+      const tx=bx+26,ty=by+18,tw=bw-52,th=bh*0.60;
+      rr(c,tx-6,ty-6,tw+12,th+12,12); const chrome=c.createLinearGradient(0,ty-6,0,ty+th+6); chrome.addColorStop(0,rgb(225,228,232)); chrome.addColorStop(1,rgb(120,124,130)); c.fillStyle=chrome; c.fill();
+      rr(c,tx,ty,tw,th,9); c.fillStyle=rgb(24,24,26); c.fill();
+      const pedal=(values&&values[1]!=null)?values[1]:0.25, tilt=(pedal-0.5)*0.16;
+      c.strokeStyle=rgb(60,62,66); c.lineWidth=2;
+      for(let i=1;i<16;i++){ const yy=ty+th*i/16, dx=(yy-(ty+th*0.5))*tilt; c.beginPath(); c.moveTo(tx+6+dx,yy); c.lineTo(tx+tw-6+dx,yy); c.stroke(); }
+      textC(d,tx+tw*0.5,ty+th*0.5,F.bebas,20,rgb(150,120,70),'BASS WAH');
+      const on=(values&&values[0]!=null)?values[0]>0.5:true;
+      ledDot(d,W*0.5,by+bh*0.66,on,255,70,60);
+      // control panel + labels (Auto square drawn by drawSpec)
+      const py0=by+bh*0.70, pH=bh*0.28; rr(c,bx+10,py0,bw-20,pH,10); c.fillStyle=rgb(26,24,22); c.fill();
+      textC(d,.135*W,.835*H+.045*W+10,F.barlow,10,rgb(225,210,175),'Auto');
+      const R=.072*W+12;
+      textC(d,.375*W,.835*H+R,F.barlow,11,rgb(225,210,175),'PEDAL');
+      textC(d,.610*W,.835*H+R,F.barlow,11,rgb(225,210,175),'SENS');
+      textC(d,.845*W,.835*H+R,F.barlow,11,rgb(225,210,175),'SPEED'); } };
+
+  // Bass Auto Filter — AutoSweep / QTron envelope filter. EHX Q-Tron+ look: black
+  // landscape box, a row of 6 knobs, big two-colour graffiti 'Q-TRIX' logo (parody;
+  // Q orange + -TRIX purple). RS params (6 knobs): FilterType0 Res4 Sens6 Attack1
+  // Release2 Mix5.
+  P.autosweep = { w:560, h:340,
+    knobs:[
+      {id:0,cx:.105,cy:.26,r:.052,style:'boss',select:3},  // MODE (FilterType: LP/BP/HP selector)
+      {id:4,cx:.262,cy:.26,r:.052,style:'boss'},  // PEAK  (Res)
+      {id:6,cx:.419,cy:.26,r:.052,style:'boss'},  // GAIN  (Sens)
+      {id:1,cx:.576,cy:.26,r:.052,style:'boss'},  // ATTACK
+      {id:2,cx:.733,cy:.26,r:.052,style:'boss'},  // RELEASE
+      {id:5,cx:.890,cy:.26,r:.052,style:'boss'}], // MIX
+    ptr:rgb(238,240,244),
+    draw(d){ const {ctx:c,W,H}=d; const w=rgb(228,230,236), m=7;
+      // black body, NO screws, with a very subtle metallic rim (Big-Muff-style frame)
+      c.fillStyle=rgb(8,8,10); c.fillRect(0,0,W,H);
+      const bg=c.createLinearGradient(0,m,0,H-m); bg.addColorStop(0,rgb(44,44,48)); bg.addColorStop(1,rgb(20,20,24));
+      rr(c,m,m,W-2*m,H-2*m,14); c.fillStyle=bg; c.fill();
+      const mb=c.createLinearGradient(0,m,0,H-m); mb.addColorStop(0,rgb(178,180,186)); mb.addColorStop(0.5,rgb(108,110,116)); mb.addColorStop(1,rgb(72,74,80));
+      rr(c,m,m,W-2*m,H-2*m,14); c.strokeStyle=mb; c.lineWidth=2.5; c.stroke();
+      const names=['MODE','PEAK','GAIN','ATTACK','RELEASE','MIX'], cxs=[.105,.262,.419,.576,.733,.890];
+      cxs.forEach((cx,i)=> textC(d, cx*W, .26*H + .052*W + 12, F.barlow, 11, w, names[i]));
+      // MODE is a 3-way selector: mark LP / BP / HP at the knob's detent angles
+      const mkx=.105*W, mky=.26*H, mr=.052*W+13;
+      setFont(d, F.barlow, 10.5); c.fillStyle=rgb(206,208,214); c.textAlign='center'; c.textBaseline='middle';
+      [['LP',0],['BP',0.5],['HP',1]].forEach(p=>{ const a=(135+p[1]*270)*Math.PI/180;
+        c.fillText(p[0], mkx+mr*Math.cos(a), mky+mr*Math.sin(a)); });
+      // two-colour graffiti logo: big 'Q' orange + slightly smaller 'TRIX' purple,
+      // no hyphen, scaled to fill most of the bottom width (capped so it fits).
+      c.textAlign='left'; c.textBaseline='alphabetic';
+      setFont(d, F.graffiti, 100); const refQ = c.measureText('Q').width;
+      setFont(d, F.graffiti, 72);  const refT = c.measureText('TRIX').width;
+      const qSize = Math.min(190, 100 * (0.92*W) / (refQ + refT)), tSize = qSize * 0.72;
+      setFont(d, F.graffiti, qSize); const wq = c.measureText('Q').width;
+      setFont(d, F.graffiti, tSize); const wt = c.measureText('TRIX').width;
+      const gap = qSize * 0.04, by = .83*H;          // baseline very low: letters span ~labels → ~bottom
+      let x = .5*W - (wq + gap + wt) / 2;
+      setFont(d, F.graffiti, qSize); c.fillStyle = rgb(244,150,46); c.fillText('Q', x, by);
+      setFont(d, F.graffiti, tSize); c.fillStyle = rgb(152,88,208); c.fillText('TRIX', x + wq + gap, by);
+      ledDot(d, W*0.5, H*0.10, true, 255,80,70);
+      footRound(d, W*0.5, H*0.89, 16);   // footswitch centred at the bottom (over the logo if needed)
+    } };
 
   // ── graphic-EQ faders (mirrors graphic_eq_ui.hpp) ─────────────────────────
   // Geometry in spec-units (W=spec.w, H=spec.h). Boss = portrait/tall,
@@ -332,23 +618,23 @@
       rr(c, tx, tyTop, tw, tBot - tyTop, 12); c.fillStyle = tre; c.fill();
       rr(c, tx, tyTop, tw, 10, 12); c.fillStyle = 'rgba(255,255,255,0.08)'; c.fill();
       rr(c, tx, tyTop, tw, tBot - tyTop, 12); c.strokeStyle = 'rgba(0,0,0,0.47)'; c.lineWidth = 1.6; c.stroke();
-      const padT = tyTop + (tBot - tyTop) * 0.50; rr(c, tx + 12, padT, tw - 24, tBot - padT - 9, 9); c.fillStyle = rgb(20, 20, 22); c.fill();
-      if (spec.name1 && spec.name2) { textC(d, W * 0.30, H * 0.575, F.crete, 42, rgb(16, 16, 20), spec.name1); textC(d, W * 0.61, H * 0.675, F.crete, 34, rgb(16, 16, 20), spec.name2); }
-      else textC(d, W * 0.5, H * 0.625, F.crete, 40, rgb(16, 16, 20), spec.label);
+      const padT = tyTop + (tBot - tyTop) * 0.50, padBot = tBot - 9; rr(c, tx + 12, padT, tw - 24, padBot - padT, 9); c.fillStyle = rgb(20, 20, 22); c.fill();
+      chiefName(d, spec.name1 || spec.label, spec.name2, spec.code, 0.075, -0.04);  // dy down (names), codeDy up (code)
+      chiefBadge(d, padT, padBot);                                            // CHIEF badge on the pad
     }
   }
   function eqSpec(o) {
     const lum = 0.299 * o.col[0] + 0.587 * o.col[1] + 0.114 * o.col[2];
     const spec = { w: o.w, h: o.h, mesa: o.style === 1, bands: o.bands, db: o.db, col: o.col,
-      label: o.label || '', name1: o.name1, name2: o.name2,
+      label: o.label || '', name1: o.name1, name2: o.name2, code: o.code,
       textCol: lum > 140 ? rgb(34, 34, 38) : rgb(232, 234, 240),
       eq: true, knobs: [], ptr: rgb(0, 0, 0), tick: rgb(0, 0, 0) };
     spec.draw = (d, values) => eqDraw(d, spec, values);
     return spec;
   }
-  P.eq8     = eqSpec({ w: 320, h: 500, style: 0, db: 15, col: [188, 190, 186], label: 'Equalizer',
+  P.eq8     = eqSpec({ w: 320, h: 500, style: 0, db: 15, col: [188, 190, 186], label: 'Equalizer', code: 'GE-8',
                        bands: ['50', '100', '200', '400', '800', '1600', '3200', '6400'] });
-  P.basseq8 = eqSpec({ w: 320, h: 500, style: 0, db: 15, col: [210, 206, 194], name1: 'Bass', name2: 'Equalizer',
+  P.basseq8 = eqSpec({ w: 320, h: 500, style: 0, db: 15, col: [210, 206, 194], name1: 'Bass', name2: 'Equalizer', code: 'GEB-8',
                        bands: ['30', '75', '185', '460', '1100', '2700', '6800', '16000'] });
   P.eq5     = eqSpec({ w: 440, h: 300, style: 1, db: 15, col: [30, 30, 33], label: '5-BAND GRAPHIC',
                        bands: ['63', '250', '750', '2200', '5700'] });
@@ -394,6 +680,14 @@
            (k.cap || [40, 40, 44])[0], (k.cap || [40, 40, 44])[1], (k.cap || [40, 40, 44])[2],
            spec.tick, spec.ptr);
     });
+    (spec.switches || []).forEach(s => {
+      const on = (values && values[s.id] != null) ? values[s.id] > 0.5 : false;
+      switchSquare(d, s.cx * d.W, s.cy * d.H, s.hs * d.W, on);
+    });
+    (spec.sw3 || []).forEach(s => {
+      const v = (values && values[s.id] != null) ? values[s.id] : 0.5;
+      switch3(d, s.cx * d.W, s.cy * d.H, v);
+    });
   }
   function render(canvas, stem, values) {
     const spec = P[stem]; if (!spec) return false;
@@ -421,8 +715,37 @@
       if (spec.eq) { const i = hitFader(p.x, p.y); if (i < 0) return; drag = i;
         const v = G.yToVal(p.y); values[i] = v; drawSpec(canvas, spec, values);
         if (opts.onChange) opts.onChange(i, v); e.preventDefault(); return; }
-      const k = hitKnob(p.x, p.y); if (k < 0) return; drag = k; lastY = e.clientY;
-      dv = (values[spec.knobs[k].id] != null) ? values[spec.knobs[k].id] : 0.5; e.preventDefault();
+      // Switches: a click toggles 0↔1 (no drag).
+      for (const s of (spec.switches || [])) {
+        const hs = s.hs * spec.w + 5;
+        if (Math.abs(p.x - s.cx * spec.w) <= hs && Math.abs(p.y - s.cy * spec.h) <= hs) {
+          const nv = (values[s.id] > 0.5) ? 0 : 1; values[s.id] = nv;
+          drawSpec(canvas, spec, values); if (opts.onChange) opts.onChange(s.id, nv);
+          e.preventDefault(); return;
+        }
+      }
+      // 3-way toggles: a click cycles 0→0.5→1→0.
+      for (const s of (spec.sw3 || [])) {
+        if (Math.abs(p.x - s.cx * spec.w) <= 10 && Math.abs(p.y - s.cy * spec.h) <= 20) {
+          const cur = (values[s.id] != null) ? values[s.id] : 0.5;
+          const nv = cur < 0.25 ? 0.5 : cur < 0.75 ? 1 : 0; values[s.id] = nv;
+          drawSpec(canvas, spec, values); if (opts.onChange) opts.onChange(s.id, nv);
+          e.preventDefault(); return;
+        }
+      }
+      const k = hitKnob(p.x, p.y); if (k < 0) return;
+      const kn = spec.knobs[k];
+      // Selector knob (e.g. MODE): a click steps through `select` discrete
+      // positions (0 … 1) instead of dragging continuously.
+      if (kn.select) {
+        const n = kn.select, step = 1 / (n - 1);
+        const cur = (values[kn.id] != null) ? values[kn.id] : 0;
+        const nv = ((Math.round(cur / step) + 1) % n) * step;
+        values[kn.id] = nv; drawSpec(canvas, spec, values);
+        if (opts.onChange) opts.onChange(kn.id, nv); e.preventDefault(); return;
+      }
+      drag = k; lastY = e.clientY;
+      dv = (values[kn.id] != null) ? values[kn.id] : 0.5; e.preventDefault();
     });
     window.addEventListener('mousemove', e => {
       if (drag < 0) return;

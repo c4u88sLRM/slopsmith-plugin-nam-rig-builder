@@ -2884,7 +2884,7 @@ async function rbToneEditVst(toneIdx, pIdx) {
         await api.startAudio().catch(() => {});
         const slotId = await api.loadVST(vstPath);
         if (slotId == null || slotId < 0) {
-            editor.innerHTML = `<div class="text-xs text-red-400">engine refused to load this plugin</div>`;
+            editor.innerHTML = `<div class="text-xs text-red-400">${rbEsc(rbVstRefusedMsg())}</div>`;
             return;
         }
         rbState._vstEditorSlot = slotId;
@@ -2954,6 +2954,17 @@ async function rbToneEditVst(toneIdx, pIdx) {
     }
 }
 
+function rbIsWindows() { return /win/i.test((navigator.platform || navigator.userAgent || '')); }
+// Message for a failed VST load. The bundled effects currently ship macOS-only
+// VST3 binaries, so on Windows the engine can't load them — say so clearly
+// instead of the cryptic "engine refused to load this plugin".
+function rbVstRefusedMsg() {
+    return 'engine refused to load this plugin'
+        + (rbIsWindows()
+            ? ' — heads up: the bundled effects only ship a macOS build right now, so they can\'t load on Windows yet (a Windows build is on the way).'
+            : '');
+}
+
 // Normalize a VST path → canvas spec key (lowercased basename, no separators).
 function rbCanvasStem(piece) {
     const p = rbEffVstPath(piece);
@@ -2963,6 +2974,18 @@ function rbCanvasStem(piece) {
 // True if we have an in-app canvas recreation of this piece's plugin UI.
 function rbHasCanvasUI(piece) {
     return !!(window.RBPedalCanvas && window.RBPedalCanvas.has(rbCanvasStem(piece)));
+}
+
+// Display width for the inline canvas. Portrait stomps read fine at 240px;
+// LANDSCAPE pedals (e.g. Eden WTDI 560×360) get squashed too short at 240, so
+// their lettering becomes unreadable — give them more width. max-width:100% in
+// the markup keeps it from overflowing a narrow panel.
+function rbCanvasDisplayWidth(stem) {
+    const sp = window.RBPedalCanvas && window.RBPedalCanvas.specs && window.RBPedalCanvas.specs[stem];
+    if (!sp || sp.w <= sp.h * 1.15) return 240;          // portrait
+    // Landscape: scale width with the aspect (wider pedals get more width so
+    // their lettering stays legible), capped so it can't overflow the panel.
+    return Math.max(360, Math.min(440, Math.round(sp.w / sp.h * 256)));
 }
 
 // Build the {key: value} map the canvas reads, keyed BOTH by numeric paramId
@@ -3009,7 +3032,7 @@ function rbToneRenderInlineVstParams(toneIdx, pIdx) {
                 </div>
             </div>
             <div class="flex justify-center">
-                <canvas id="rb-tone-vst-canvas-${toneIdx}-${pIdx}" style="width:240px;cursor:ns-resize;touch-action:none"></canvas>
+                <canvas id="rb-tone-vst-canvas-${toneIdx}-${pIdx}" style="width:${rbCanvasDisplayWidth(stem)}px;max-width:100%;cursor:ns-resize;touch-action:none"></canvas>
             </div>
             <div class="text-[10px] text-gray-500 text-center mt-1">Drag a knob up/down to adjust</div>`;
         const canvas = document.getElementById(`rb-tone-vst-canvas-${toneIdx}-${pIdx}`);
@@ -3675,7 +3698,7 @@ async function rbMasterEditVst(role, idx) {
         await api.startAudio().catch(() => {});
         const slotId = await api.loadVST(vstPath);
         if (slotId == null || slotId < 0) {
-            editor.innerHTML = `<div class="text-xs text-red-400">engine refused to load this plugin</div>`;
+            editor.innerHTML = `<div class="text-xs text-red-400">${rbEsc(rbVstRefusedMsg())}</div>`;
             return;
         }
         rbState._vstEditorSlot = slotId;
@@ -3742,7 +3765,7 @@ function rbMasterRenderInlineVstParams(role, idx) {
                 </div>
             </div>
             <div class="flex justify-center">
-                <canvas id="rb-master-${role}-canvas-${idx}" style="width:240px;cursor:ns-resize;touch-action:none"></canvas>
+                <canvas id="rb-master-${role}-canvas-${idx}" style="width:${rbCanvasDisplayWidth(stem)}px;max-width:100%;cursor:ns-resize;touch-action:none"></canvas>
             </div>
             <div class="text-[10px] text-gray-500 text-center mt-1">Drag a knob up/down to adjust</div>`;
         const canvas = document.getElementById(`rb-master-${role}-canvas-${idx}`);
@@ -5277,7 +5300,7 @@ async function rbLoadAndEditVst(toneIdx, pIdx) {
         await rbTeardownVstEditor(api);
         await api.startAudio().catch(() => {});
         const slotId = await api.loadVST(path);
-        if (slotId == null || slotId < 0) throw new Error('engine refused to load this plugin');
+        if (slotId == null || slotId < 0) throw new Error(rbVstRefusedMsg());
         rbState._vstEditorSlot = slotId;
         // Render the inline params editor (HTML sliders driving setParameter
         // in real time). This is THE workaround for the blurry-native-editor
@@ -7250,7 +7273,7 @@ async function rbCatalogLoadAndEdit(panelId) {
         await rbTeardownVstEditor(api);
         await api.startAudio().catch(() => {});
         const slotId = await api.loadVST(path);
-        if (slotId == null || slotId < 0) throw new Error('engine refused to load this plugin');
+        if (slotId == null || slotId < 0) throw new Error(rbVstRefusedMsg());
         rbState._vstEditorSlot = slotId;
         if (api.openPluginEditor) {
             await api.openPluginEditor(slotId).catch((e) => console.warn('openPluginEditor:', e));
@@ -7417,7 +7440,7 @@ async function rbCatalogEditInline(safeId, vstPath, vstFormat, rsGear, stem) {
         if (api.clearChain) await api.clearChain().catch(() => {});
         await api.startAudio().catch(() => {});
         const slotId = await api.loadVST(vstPath);
-        if (slotId == null || slotId < 0) throw new Error('engine refused to load this plugin');
+        if (slotId == null || slotId < 0) throw new Error(rbVstRefusedMsg());
         rbState._vstEditorSlot = slotId;
         // Apply the (gear, vst) `_static` defaults (subtype pins) if any.
         if (rsGear) {
@@ -7447,7 +7470,7 @@ async function rbCatalogEditInline(safeId, vstPath, vstFormat, rsGear, stem) {
                         title="Close inline editor" class="text-[10px] text-gray-400 hover:text-gray-200 px-1">✕</button>
             </div>
             <div class="flex justify-center">
-                <canvas id="rb-cat-canvas-${safeId}" style="width:240px;cursor:ns-resize;touch-action:none"></canvas>
+                <canvas id="rb-cat-canvas-${safeId}" style="width:${rbCanvasDisplayWidth(stem)}px;max-width:100%;cursor:ns-resize;touch-action:none"></canvas>
             </div>
             <div class="text-[10px] text-gray-500 text-center mt-1">Drag a knob up/down · then 📚 Library → Assign to save</div>`;
         const canvas = document.getElementById(`rb-cat-canvas-${safeId}`);
