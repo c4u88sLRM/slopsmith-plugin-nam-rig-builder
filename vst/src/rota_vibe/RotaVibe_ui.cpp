@@ -7,5 +7,5 @@
 #define RACK_ACR 205
 #define RACK_ACG 135
 #define RACK_ACB 120
-#define RACK_KNOBS { {0.135f,0.50f,0.026f}, {0.262f,0.50f,0.026f}, {0.388f,0.50f,0.026f}, {0.515f,0.50f,0.026f} }
+#define RACK_KNOBS { {0.155f,0.48f,0.024f}, {0.265f,0.48f,0.024f}, {0.375f,0.48f,0.024f}, {0.485f,0.48f,0.024f} }
 #include "../_shared/rack_ui.hpp"
