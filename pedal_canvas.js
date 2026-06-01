@@ -388,20 +388,26 @@
       rr(c,m,m,W-2*m,H-2*m,14); c.strokeStyle=mb; c.lineWidth=2.5; c.stroke();
       const names=['MODE','PEAK','GAIN','ATTACK','RELEASE','MIX'], cxs=[.105,.262,.419,.576,.733,.890];
       cxs.forEach((cx,i)=> textC(d, cx*W, .26*H + .052*W + 12, F.barlow, 11, w, names[i]));
+      // MODE is a 3-way selector: mark LP / BP / HP at the knob's detent angles
+      const mkx=.105*W, mky=.26*H, mr=.052*W+10;
+      setFont(d, F.barlow, 8); c.fillStyle=rgb(200,202,208); c.textAlign='center'; c.textBaseline='middle';
+      [['LP',0],['BP',0.5],['HP',1]].forEach(p=>{ const a=(135+p[1]*270)*Math.PI/180;
+        c.fillText(p[0], mkx+mr*Math.cos(a), mky+mr*Math.sin(a)); });
       // two-colour graffiti logo: big 'Q' orange + slightly smaller 'TRIX' purple,
       // no hyphen, scaled to fill most of the bottom width (capped so it fits).
       c.textAlign='left'; c.textBaseline='alphabetic';
       setFont(d, F.graffiti, 100); const refQ = c.measureText('Q').width;
       setFont(d, F.graffiti, 72);  const refT = c.measureText('TRIX').width;
-      const qSize = Math.min(168, 100 * (0.90*W) / (refQ + refT)), tSize = qSize * 0.72;
+      const qSize = Math.min(190, 100 * (0.92*W) / (refQ + refT)), tSize = qSize * 0.72;
       setFont(d, F.graffiti, qSize); const wq = c.measureText('Q').width;
       setFont(d, F.graffiti, tSize); const wt = c.measureText('TRIX').width;
-      const gap = qSize * 0.04, by = .78*H;          // baseline low: letters reach from ~labels to ~bottom
+      const gap = qSize * 0.04, by = .83*H;          // baseline very low: letters span ~labels → ~bottom
       let x = .5*W - (wq + gap + wt) / 2;
       setFont(d, F.graffiti, qSize); c.fillStyle = rgb(244,150,46); c.fillText('Q', x, by);
       setFont(d, F.graffiti, tSize); c.fillStyle = rgb(152,88,208); c.fillText('TRIX', x + wq + gap, by);
       ledDot(d, W*0.5, H*0.10, true, 255,80,70);
-      footRound(d, W*0.5, H*0.945, 13); } };
+      // footswitch removed — the big low logo owns the bottom of the pedal
+    } };
 
   // ── graphic-EQ faders (mirrors graphic_eq_ui.hpp) ─────────────────────────
   // Geometry in spec-units (W=spec.w, H=spec.h). Boss = portrait/tall,
