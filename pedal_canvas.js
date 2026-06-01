@@ -397,19 +397,24 @@
       {id:1,cx:.50,cy:.255,r:.088,style:'boss'},  // FILTER
       {id:2,cx:.78,cy:.255,r:.088,style:'boss'}], // RATE
     ptr:rgb(236,238,242),
-    draw(d){ const {ctx:c,W,H}=d; box(d,18,18,20); const w=rgb(236,240,248);
+    draw(d){ const {ctx:c,W,H}=d; const w=rgb(236,240,248), m=8;
+      // black body, NO screws
+      c.fillStyle=rgb(8,8,10); c.fillRect(0,0,W,H);
+      const bg=c.createLinearGradient(0,m,0,H-m); bg.addColorStop(0,rgb(34,34,38)); bg.addColorStop(1,rgb(14,14,16));
+      rr(c,m,m,W-2*m,H-2*m,14); c.fillStyle=bg; c.fill();
+      rr(c,m,m,W-2*m,H-2*m,14); c.strokeStyle='rgba(0,0,0,0.5)'; c.lineWidth=2; c.stroke();
       const R=.088*W+12;
       textC(d,.22*W,.255*H+R,F.barlow,11,w,'COMPRESS');
       textC(d,.50*W,.255*H+R,F.barlow,11,w,'FILTER');
       textC(d,.78*W,.255*H+R,F.barlow,11,w,'RATE');
-      // stylised 'MultiComp': big C … P hugging a stacked MULTI/OM (reads C-OM-P)
-      textC(d,.50*W,.465*H,F.barlow,17,w,'MULTI');
-      textC(d,.38*W,.520*H,F.anton,66,w,'C');
-      textC(d,.50*W,.545*H,F.anton,42,w,'OM');
-      textC(d,.62*W,.520*H,F.anton,66,w,'P');
+      // stylised 'MultiComp': big C … P flanking a stacked MULTI/OM (reads C-OM-P)
+      textC(d,.50*W,.495*H,F.barlow,19,w,'MULTI');
+      textC(d,.31*W,.530*H,F.anton,78,w,'C');
+      textC(d,.50*W,.580*H,F.anton,48,w,'OM');
+      textC(d,.69*W,.530*H,F.anton,78,w,'P');
       // blue accent lines at the bottom — thick + short (behind EBX + footswitch)
-      c.strokeStyle='rgba(46,124,228,0.9)'; c.lineWidth=4.5;
-      for(let i=0;i<7;i++){ const y=(.60+i*0.05)*H; c.beginPath(); c.moveTo(W*0.18,y); c.lineTo(W*0.82,y); c.stroke(); }
+      c.strokeStyle='rgba(46,124,228,0.92)'; c.lineWidth=8;
+      for(let i=0;i<6;i++){ const y=(.66+i*0.05)*H; c.beginPath(); c.moveTo(W*0.18,y); c.lineTo(W*0.82,y); c.stroke(); }
       textC(d,.50*W,.685*H,F.anton,26,w,'EBX');
       footRound(d,W*0.5,H*0.84,22); } };
 
