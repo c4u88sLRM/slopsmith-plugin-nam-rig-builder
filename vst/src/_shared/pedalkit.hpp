@@ -275,8 +275,7 @@ protected:
         fillColor(Color(20,20,22)); fill();
         beginPath(); roundedRect(m+11*f, h*0.10f, w-2*m-22*f, h*0.235f, 6*f);
         strokeColor(Color(0,0,0,120)); strokeWidth(1.2f*f); stroke();
-        // two hex screws at the top corners + status LED top-centre
-        screw(m+15*f, m+15*f); screw(w-m-15*f, m+15*f);
+        // status LED top-centre (no top screws — chief compacts have none up top)
         ledDot(w*0.5f, h*0.072f, 4.5f*f, true, 224, 70, 58);
         // big treadle (the raised footswitch pad) — the BODY colour (slightly
         // darker), shown raised via a border + front-lip highlight. The subclass
@@ -288,18 +287,17 @@ protected:
         beginPath(); roundedRect(tx, tyTop, tw, 12*f, 12*f); fillColor(Color(255,255,255,22)); fill();   // raised front lip
         beginPath(); roundedRect(tx, tyTop, tw, tBot - tyTop, 12*f); strokeColor(Color(0,0,0,120)); strokeWidth(1.6f*f); stroke();
         // lower half = BLACK step pad, inset so the body-colour border shows around it
-        const float padTop = h*0.665f, padX = tx + 12*f, padW = tw - 24*f, padBot = tBot - 9*f;
+        const float padTop = h*0.705f, padX = tx + 12*f, padW = tw - 24*f, padBot = tBot - 9*f;
         beginPath(); roundedRect(padX, padTop, padW, padBot - padTop, 10*f); fillColor(Color(20,20,22)); fill();
         beginPath(); roundedRect(padX, padTop, padW, padBot - padTop, 10*f); strokeColor(Color(0,0,0,90)); strokeWidth(1*f); stroke();
         treadleTop_ = tyTop / h; treadleBot_ = tBot / h;
     }
     float treadleTop_ = 0.42f, treadleBot_ = 0.93f;
-    // engraved text (dark, with a faint highlight) — for names on the dark treadle
+    // flat dark name text (no white halo) — for the pedal name on the treadle
     void embossText(float cx, float cy, float size, const char* s, int fid) {
         const float f = sc();
         face(fid); fontSize(size*f); textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
-        fillColor(Color(255,255,255,30)); text(cx*W() + 1.3f*f, cy*H() + 1.3f*f, s, NULL); // highlight
-        fillColor(Color(12,12,14));       text(cx*W(),          cy*H(),          s, NULL); // engrave
+        fillColor(Color(14,16,22)); text(cx*W(), cy*H(), s, NULL);
     }
     void title(const char* s, Color c, float cy, float size, int fid) {
         face(fid); textAlign(ALIGN_CENTER | ALIGN_MIDDLE); fontSize(size * sc()); fillColor(c);
