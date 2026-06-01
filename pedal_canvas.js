@@ -206,10 +206,8 @@
   }
   // Wide engraved 'CHIEF' badge across the black step pad (parody Boss logo):
   // pad-colour fill + black outline; much wider than tall via big letter spacing.
-  function chiefBadge(d, padT, padBot, lum) { const W = d.W;
-    const dark = (lum != null && lum < 90);   // dark body → light CHIEF (like BOSS on black)
-    outlineText(d, W*0.5, padT+(padBot-padT)*0.30, FONTS.bebas, 40,
-      dark ? rgb(222,224,228) : rgb(20,20,22), dark ? rgb(8,8,10) : rgb(0,0,0), 'CHIEF', 13);
+  function chiefBadge(d, padT, padBot) { const W = d.W;   // engraved CHIEF on the black step pad (same on every chief pedal)
+    outlineText(d, W*0.5, padT+(padBot-padT)*0.30, FONTS.bebas, 40, rgb(20,20,22), rgb(0,0,0), 'CHIEF', 13);
   }
 
   // ── Ibanez Tonelok-style body (parallels chiefBody): silver enclosure, jack
@@ -614,7 +612,7 @@
   // (black body + GREEN knob plate), 'Space'/'Echo' + RE-3. RS: Time/Feedback/Mix/Filter.
   P.bassfilterecho = chiefSpec(300,480,[26,26,30],
     [{id:0,cx:.205,lbl:'TIME'},{id:1,cx:.40,lbl:'FEEDBACK',lblPx:7.5},{id:2,cx:.595,lbl:'MIX'},{id:3,cx:.79,lbl:'FILTER',lblPx:8}],
-    'Space','Echo','RE-3',[70,126,68]);
+    'Space','Echo','SE-3',[70,126,68]);
   P.bassenbig = boxSpec(320,470,[58,64,72],
     [{id:0,cx:.20,lbl:'RATE'},{id:1,cx:.40,lbl:'DEPTH'},{id:2,cx:.60,lbl:'MIX'},{id:3,cx:.80,lbl:'FILTER'}],
     'ENBIGGEN','MOD  FILTER',[110,210,224]);
