@@ -996,7 +996,7 @@
       let x = .5*W - (wq + gap + wt) / 2;
       setFont(d, F.graffiti, qSize); c.fillStyle = rgb(244,150,46); c.fillText('Q', x, by);
       setFont(d, F.graffiti, tSize); c.fillStyle = rgb(152,88,208); c.fillText('TRIX', x + wq + gap, by);
-      textC(d, W*0.90, H*0.44, F.crete, 14, rgb(206,208,214), 'quimical-harmony', 'right');  // brand: above TRIX, below the knobs, right
+      textC(d, W*0.90, H*0.47, F.crete, 14, rgb(206,208,214), 'quimical-harmony', 'right');  // brand: above TRIX, below the knobs, right
       ledDot(d, W*0.5, H*0.10, true, 255,80,70);
       footRound(d, W*0.5, H*0.89, 16);   // footswitch centred at the bottom (over the logo if needed)
     } };
