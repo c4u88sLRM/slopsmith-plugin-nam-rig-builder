@@ -407,12 +407,12 @@
       textC(d,.22*W,.255*H+R,F.barlow,11,w,'COMPRESS');
       textC(d,.50*W,.255*H+R,F.barlow,11,w,'FILTER');
       textC(d,.78*W,.255*H+R,F.barlow,11,w,'RATE');
-      // stylised 'MultiComp': wide — big C … P; MULTI (up top) + OM both
+      // stylised 'MultiComp': wide + bold — big C … P; MULTI (up top) + OM,
       // letter-spaced to fill the gap between C and P
-      textSpaced(d,.50*W,.460*H,F.barlow,19,w,'MULTI',18);
-      textC(d,.24*W,.530*H,F.anton,78,w,'C');
-      textSpaced(d,.50*W,.555*H,F.anton,48,w,'OM',54);
-      textC(d,.76*W,.530*H,F.anton,78,w,'P');
+      textSpaced(d,.50*W,.445*H,F.barlow,22,w,'MULTI',14);
+      textC(d,.22*W,.515*H,F.anton,92,w,'C');
+      textSpaced(d,.50*W,.540*H,F.anton,70,w,'OM',30);
+      textC(d,.78*W,.515*H,F.anton,92,w,'P');
       // blue accent lines at the bottom — thick + short (behind EBX + footswitch)
       c.strokeStyle='rgba(46,124,228,0.92)'; c.lineWidth=8;
       for(let i=0;i<7;i++){ const y=(.63+i*0.05)*H; c.beginPath(); c.moveTo(W*0.18,y); c.lineTo(W*0.82,y); c.stroke(); }
