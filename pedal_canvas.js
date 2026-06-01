@@ -387,22 +387,31 @@
   P.bassenbig = boxSpec(320,470,[58,64,72],
     [{id:0,cx:.20,lbl:'RATE'},{id:1,cx:.40,lbl:'DEPTH'},{id:2,cx:.60,lbl:'MIX'},{id:3,cx:.80,lbl:'FILTER'}],
     'ENBIGGEN','MOD  FILTER',[110,210,224]);
-  // Bass MultiComp — EBS MultiComp (Blue Label) look: blue enclosure, EBX logo
-  // + 'MultiComp', RS params (3 knobs): Compress0 Filter1 Rate2.
+  // Bass MultiComp — EBS MultiComp (Blue Label): BLACK body with blue accent
+  // lines across the bottom; stylised 'MultiComp' logo (big C…P flanking a
+  // stacked MULTI/OM) under the knobs, EBX above the footswitch, blue lines
+  // running behind EBX + footswitch. RS params (3 knobs): Compress0 Filter1 Rate2.
   P.bassmulticomp = { w:300,h:470,
     knobs:[
-      {id:0,cx:.22,cy:.355,r:.092,style:'boss'},  // COMPRESS
-      {id:1,cx:.50,cy:.355,r:.092,style:'boss'},  // FILTER
-      {id:2,cx:.78,cy:.355,r:.092,style:'boss'}], // RATE
+      {id:0,cx:.22,cy:.255,r:.088,style:'boss'},  // COMPRESS
+      {id:1,cx:.50,cy:.255,r:.088,style:'boss'},  // FILTER
+      {id:2,cx:.78,cy:.255,r:.088,style:'boss'}], // RATE
     ptr:rgb(236,238,242),
-    draw(d){ const {ctx:c,W,H}=d; box(d,34,74,146); const w=rgb(234,240,250);
-      textC(d,W*0.5,H*0.105,F.anton,32,w,'EBX');
-      textC(d,W*0.5,H*0.165,F.barlow,14,rgb(186,206,236),'MultiComp');
-      const R=.092*W+13;
-      textC(d,.22*W,.355*H+R,F.barlow,11,w,'COMPRESS');
-      textC(d,.50*W,.355*H+R,F.barlow,11,w,'FILTER');
-      textC(d,.78*W,.355*H+R,F.barlow,11,w,'RATE');
-      ledDot(d,W*0.5,H*0.60,true,224,60,52); footRound(d,W*0.5,H*0.80,23); } };
+    draw(d){ const {ctx:c,W,H}=d; box(d,18,18,20); const w=rgb(236,240,248);
+      const R=.088*W+12;
+      textC(d,.22*W,.255*H+R,F.barlow,11,w,'COMPRESS');
+      textC(d,.50*W,.255*H+R,F.barlow,11,w,'FILTER');
+      textC(d,.78*W,.255*H+R,F.barlow,11,w,'RATE');
+      // stylised 'MultiComp': big C … P, MULTI over OM in the middle (reads C-OM-P)
+      textC(d,.50*W,.475*H,F.barlow,13,w,'MULTI');
+      textC(d,.30*W,.515*H,F.anton,52,w,'C');
+      textC(d,.50*W,.540*H,F.anton,32,w,'OM');
+      textC(d,.70*W,.515*H,F.anton,52,w,'P');
+      // blue accent lines from the bottom up to where the logo ends (behind EBX + footswitch)
+      c.strokeStyle='rgba(46,124,228,0.9)'; c.lineWidth=2.5;
+      for(let i=0;i<7;i++){ const y=(.60+i*0.05)*H; c.beginPath(); c.moveTo(W*0.10,y); c.lineTo(W*0.90,y); c.stroke(); }
+      textC(d,.50*W,.685*H,F.anton,26,w,'EBX');
+      footRound(d,W*0.5,H*0.84,22); } };
 
   // Dyna Compress — Dyna Comp-style optical compressor. MXR-inspired look
   // (red box + cursive logo) recreated, not branded. Param order: Comp0 Attack1 Release2.
