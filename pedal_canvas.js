@@ -372,7 +372,7 @@
   // Release2 Mix5.
   P.autosweep = { w:560, h:340,
     knobs:[
-      {id:0,cx:.105,cy:.26,r:.052,style:'boss'},  // MODE  (FilterType)
+      {id:0,cx:.105,cy:.26,r:.052,style:'boss',select:3},  // MODE (FilterType: LP/BP/HP selector)
       {id:4,cx:.262,cy:.26,r:.052,style:'boss'},  // PEAK  (Res)
       {id:6,cx:.419,cy:.26,r:.052,style:'boss'},  // GAIN  (Sens)
       {id:1,cx:.576,cy:.26,r:.052,style:'boss'},  // ATTACK
@@ -389,8 +389,8 @@
       const names=['MODE','PEAK','GAIN','ATTACK','RELEASE','MIX'], cxs=[.105,.262,.419,.576,.733,.890];
       cxs.forEach((cx,i)=> textC(d, cx*W, .26*H + .052*W + 12, F.barlow, 11, w, names[i]));
       // MODE is a 3-way selector: mark LP / BP / HP at the knob's detent angles
-      const mkx=.105*W, mky=.26*H, mr=.052*W+10;
-      setFont(d, F.barlow, 8); c.fillStyle=rgb(200,202,208); c.textAlign='center'; c.textBaseline='middle';
+      const mkx=.105*W, mky=.26*H, mr=.052*W+13;
+      setFont(d, F.barlow, 10.5); c.fillStyle=rgb(206,208,214); c.textAlign='center'; c.textBaseline='middle';
       [['LP',0],['BP',0.5],['HP',1]].forEach(p=>{ const a=(135+p[1]*270)*Math.PI/180;
         c.fillText(p[0], mkx+mr*Math.cos(a), mky+mr*Math.sin(a)); });
       // two-colour graffiti logo: big 'Q' orange + slightly smaller 'TRIX' purple,
@@ -406,7 +406,7 @@
       setFont(d, F.graffiti, qSize); c.fillStyle = rgb(244,150,46); c.fillText('Q', x, by);
       setFont(d, F.graffiti, tSize); c.fillStyle = rgb(152,88,208); c.fillText('TRIX', x + wq + gap, by);
       ledDot(d, W*0.5, H*0.10, true, 255,80,70);
-      // footswitch removed — the big low logo owns the bottom of the pedal
+      footRound(d, W*0.93, H*0.88, 13);   // small footswitch in the corner, clear of the centred logo
     } };
 
   // ── graphic-EQ faders (mirrors graphic_eq_ui.hpp) ─────────────────────────
@@ -597,8 +597,19 @@
           e.preventDefault(); return;
         }
       }
-      const k = hitKnob(p.x, p.y); if (k < 0) return; drag = k; lastY = e.clientY;
-      dv = (values[spec.knobs[k].id] != null) ? values[spec.knobs[k].id] : 0.5; e.preventDefault();
+      const k = hitKnob(p.x, p.y); if (k < 0) return;
+      const kn = spec.knobs[k];
+      // Selector knob (e.g. MODE): a click steps through `select` discrete
+      // positions (0 … 1) instead of dragging continuously.
+      if (kn.select) {
+        const n = kn.select, step = 1 / (n - 1);
+        const cur = (values[kn.id] != null) ? values[kn.id] : 0;
+        const nv = ((Math.round(cur / step) + 1) % n) * step;
+        values[kn.id] = nv; drawSpec(canvas, spec, values);
+        if (opts.onChange) opts.onChange(kn.id, nv); e.preventDefault(); return;
+      }
+      drag = k; lastY = e.clientY;
+      dv = (values[kn.id] != null) ? values[kn.id] : 0.5; e.preventDefault();
     });
     window.addEventListener('mousemove', e => {
       if (drag < 0) return;
