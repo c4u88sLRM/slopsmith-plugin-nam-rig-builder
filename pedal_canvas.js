@@ -387,18 +387,22 @@
   P.bassenbig = boxSpec(320,470,[58,64,72],
     [{id:0,cx:.20,lbl:'RATE'},{id:1,cx:.40,lbl:'DEPTH'},{id:2,cx:.60,lbl:'MIX'},{id:3,cx:.80,lbl:'FILTER'}],
     'ENBIGGEN','MOD  FILTER',[110,210,224]);
-  P.bassmulticomp = { w:320,h:470, knobs:[
-      {id:0,cx:.30,cy:.26,r:.105,style:'pointer',cap:[70,72,78]},
-      {id:2,cx:.70,cy:.26,r:.105,style:'pointer',cap:[70,72,78]},
-      {id:1,cx:.50,cy:.42,r:.072,style:'pointer',cap:[70,72,78]}],
-    tick:rgb(96,98,104), ptr:rgb(30,32,36),
-    draw(d){ box(d,150,152,158); const dk=rgb(40,42,46);
-      textC(d,.30*d.W,(.26+0.105*1.32+0.008)*d.H,F.barlow,11,dk,'COMPRESS');
-      textC(d,.70*d.W,(.26+0.105*1.32+0.008)*d.H,F.barlow,11,dk,'RATE');
-      textC(d,.50*d.W,(.42+0.072*1.32+0.008)*d.H,F.barlow,11,dk,'FILTER');
-      textC(d,.5*d.W,.63*d.H,F.anton,46,rgb(36,38,42),'COMP');
-      textC(d,.5*d.W,.71*d.H,F.barlow,10,rgb(80,82,88),'MULTI  COMPRESSOR');
-      ledDot(d,d.W*.5,d.H*.79,true,210,70,58); footRound(d,d.W*.5,d.H*.88,23*d.s); } };
+  // Bass MultiComp — EBS MultiComp (Blue Label) look: blue enclosure, EBX logo
+  // + 'MultiComp', RS params (3 knobs): Compress0 Filter1 Rate2.
+  P.bassmulticomp = { w:300,h:470,
+    knobs:[
+      {id:0,cx:.22,cy:.355,r:.092,style:'boss'},  // COMPRESS
+      {id:1,cx:.50,cy:.355,r:.092,style:'boss'},  // FILTER
+      {id:2,cx:.78,cy:.355,r:.092,style:'boss'}], // RATE
+    ptr:rgb(236,238,242),
+    draw(d){ const {ctx:c,W,H}=d; box(d,34,74,146); const w=rgb(234,240,250);
+      textC(d,W*0.5,H*0.105,F.anton,32,w,'EBX');
+      textC(d,W*0.5,H*0.165,F.barlow,14,rgb(186,206,236),'MultiComp');
+      const R=.092*W+13;
+      textC(d,.22*W,.355*H+R,F.barlow,11,w,'COMPRESS');
+      textC(d,.50*W,.355*H+R,F.barlow,11,w,'FILTER');
+      textC(d,.78*W,.355*H+R,F.barlow,11,w,'RATE');
+      ledDot(d,W*0.5,H*0.60,true,224,60,52); footRound(d,W*0.5,H*0.80,23); } };
 
   // Dyna Compress — Dyna Comp-style optical compressor. MXR-inspired look
   // (red box + cursive logo) recreated, not branded. Param order: Comp0 Attack1 Release2.
