@@ -393,15 +393,15 @@
       c.textAlign='left'; c.textBaseline='alphabetic';
       setFont(d, F.graffiti, 100); const refQ = c.measureText('Q').width;
       setFont(d, F.graffiti, 72);  const refT = c.measureText('TRIX').width;
-      const qSize = Math.min(134, 100 * (0.82*W) / (refQ + refT)), tSize = qSize * 0.72;
+      const qSize = Math.min(168, 100 * (0.90*W) / (refQ + refT)), tSize = qSize * 0.72;
       setFont(d, F.graffiti, qSize); const wq = c.measureText('Q').width;
       setFont(d, F.graffiti, tSize); const wt = c.measureText('TRIX').width;
-      const gap = qSize * 0.04, by = .68*H;
+      const gap = qSize * 0.04, by = .78*H;          // baseline low: letters reach from ~labels to ~bottom
       let x = .5*W - (wq + gap + wt) / 2;
       setFont(d, F.graffiti, qSize); c.fillStyle = rgb(244,150,46); c.fillText('Q', x, by);
       setFont(d, F.graffiti, tSize); c.fillStyle = rgb(152,88,208); c.fillText('TRIX', x + wq + gap, by);
       ledDot(d, W*0.5, H*0.10, true, 255,80,70);
-      footRound(d, W*0.5, H*0.85, 18); } };
+      footRound(d, W*0.5, H*0.945, 13); } };
 
   // ── graphic-EQ faders (mirrors graphic_eq_ui.hpp) ─────────────────────────
   // Geometry in spec-units (W=spec.w, H=spec.h). Boss = portrait/tall,
