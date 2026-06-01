@@ -1455,13 +1455,13 @@
  ],
  "Pedal_FuzzWasHe": [
   {
-   "name": "FuzzWasHe",
+   "name": "BZ-1",
    "manufacturer": "Rig Builder",
    "format": "VST3",
    "url": "",
    "free": true,
-   "bundled": "vst/FuzzWasHe.vst3",
-   "notes": "Bundled two-knob silicon FZ-3 style fuzz based on the local Fuzz Was He schematic."
+   "bundled": "vst/BZ-1.vst3",
+   "notes": "Bundled two-knob Chief-style silicon fuzz based on the local schematic."
   },
   {
    "name": "kHs Distortion",
@@ -1469,18 +1469,18 @@
    "format": "VST3",
    "url": "https://kilohearts.com/products/essentials",
    "free": true,
-   "notes": "Fallback: generic fuzz character when bundled FuzzWasHe is unavailable."
+   "notes": "Fallback: generic fuzz character when bundled BZ-1 is unavailable."
   }
  ],
  "Pedal_CaptFuzzle": [
   {
-   "name": "CaptainFuzzle",
+   "name": "Buzz-Tone",
    "manufacturer": "Rig Builder",
    "format": "VST3",
    "url": "",
    "free": true,
-   "bundled": "vst/CaptainFuzzle.vst3",
-   "notes": "Bundled two-knob low-headroom germanium fuzz based on the local Captain Fuzzle schematic."
+   "bundled": "vst/Buzz-Tone.vst3",
+   "notes": "Bundled two-knob low-headroom germanium fuzz inspired by a vintage fuzz-tone circuit."
   },
   {
    "name": "kHs Distortion",
@@ -1488,18 +1488,18 @@
    "format": "VST3",
    "url": "https://kilohearts.com/products/essentials",
    "free": true,
-   "notes": "Fallback: generic fuzz character when bundled CaptainFuzzle is unavailable."
+   "notes": "Fallback: generic fuzz character when bundled Buzz-Tone is unavailable."
   }
  ],
  "Pedal_BuzzOne": [
   {
-   "name": "BuzzOne",
+   "name": "Super-Buzz",
    "manufacturer": "Rig Builder",
    "format": "VST3",
    "url": "",
    "free": true,
-   "bundled": "vst/BuzzOne.vst3",
-   "notes": "Bundled Univox Super-Fuzz style octave fuzz based on the local Buzz 1 schematic, using Rocksmith's Gain and Tone knobs."
+   "bundled": "vst/Super-Buzz.vst3",
+   "notes": "Bundled octave fuzz based on the local schematic, using Rocksmith's Gain and Tone knobs."
   },
   {
    "name": "kHs Distortion",
@@ -1512,13 +1512,13 @@
  ],
  "Pedal_BuzzToo": [
   {
-   "name": "BuzzToo",
+   "name": "Big Buzz",
    "manufacturer": "Rig Builder",
    "format": "VST3",
    "url": "",
    "free": true,
-   "bundled": "vst/BuzzToo.vst3",
-   "notes": "Bundled Big Muff V1 style fuzz based on the local Buzz 2 schematic, using Rocksmith's Gain and Tone knobs."
+   "bundled": "vst/Big Buzz.vst3",
+   "notes": "Bundled triangle-era four-transistor fuzz based on the local schematic, using Rocksmith's Gain and Tone knobs."
   },
   {
    "name": "kHs Distortion",
@@ -1526,7 +1526,7 @@
    "format": "VST3",
    "url": "https://kilohearts.com/products/essentials",
    "free": true,
-   "notes": "Variant of BuzzOne"
+   "notes": "Variant of Super-Buzz"
   }
  ],
  "Bass_Pedal_BassFuzz": [

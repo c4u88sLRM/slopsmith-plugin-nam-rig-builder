@@ -254,6 +254,124 @@
       // LED at top-centre (above the knobs), clear of the FUZZ wordmark
       ledDot(d,W*.5,H*.105,true,224,60,52); footRound(d,W*.5,H*.81,21*s); } };
 
+  // Big Buzz — silver/red vintage fuzz face inspired by a triangle-era fuzz box.
+  // Param order: Gain0 Tone1.
+  P.bigbuzz = { w:320,h:430, knobs:[
+      {id:0,cx:.30,cy:.245,r:.092,style:'davies'},
+      {id:1,cx:.70,cy:.245,r:.092,style:'davies'}],
+    ptr:rgb(236,238,238),
+    draw(d){ const {ctx:c,W,H,s}=d; box(d,202,201,190);
+      const panelX=W*.105, panelY=H*.095, panelW=W*.79, panelH=H*.79;
+      const pg=c.createLinearGradient(0,panelY,0,panelY+panelH);
+      pg.addColorStop(0,rgb(228,226,214)); pg.addColorStop(1,rgb(178,176,164));
+      rr(c,panelX,panelY,panelW,panelH,9*s); c.fillStyle=pg; c.fill();
+      rr(c,panelX,panelY,panelW,panelH,9*s); c.strokeStyle=rgb(126,44,36); c.lineWidth=2.4*s; c.stroke();
+      c.strokeStyle=rgb(154,48,38); c.lineWidth=2.2*s;
+      c.beginPath(); c.moveTo(W*.20,H*.455); c.lineTo(W*.50,H*.555); c.lineTo(W*.80,H*.455); c.stroke();
+      c.beginPath(); c.moveTo(W*.20,H*.705); c.lineTo(W*.50,H*.610); c.lineTo(W*.80,H*.705); c.stroke();
+      textSpaced(d,.30*W,.360*H,F.barlow,10.5,rgb(78,50,42),'GAIN',1.0);
+      textSpaced(d,.70*W,.360*H,F.barlow,10.5,rgb(78,50,42),'TONE',1.0);
+      outlineText(d,.5*W,.555*H,F.anton,54,rgb(236,232,218),rgb(132,38,32),'BIG',5.2);
+      outlineText(d,.5*W,.655*H,F.anton,54,rgb(236,232,218),rgb(132,38,32),'BUZZ',4.8);
+      textSpaced(d,.5*W,.760*H,F.barlow,8.5,rgb(82,64,54),'SUSTAIN  FUZZ',1.9);
+      ledDot(d,W*.50,H*.820,true,224,62,52); footRound(d,W*.50,H*.905,20*s); } };
+
+  // Super-Buzz — copper/blue octave-fuzz face inspired by the local schematic.
+  // Param order: Gain0 Tone1.
+  P.superbuzz = { w:320,h:430, knobs:[
+      {id:0,cx:.285,cy:.245,r:.096,style:'pointer',cap:[22,24,30]},
+      {id:1,cx:.715,cy:.245,r:.096,style:'pointer',cap:[22,24,30]}],
+    tick:rgb(36,48,84), ptr:rgb(238,240,244),
+    draw(d){ const {ctx:c,W,H,s}=d;
+      c.fillStyle=rgb(10,10,12); c.fillRect(0,0,W,H);
+      const bodyX=W*.085, bodyY=H*.045, bodyW=W*.83, bodyH=H*.89;
+      const bg=c.createLinearGradient(0,bodyY,0,bodyY+bodyH);
+      bg.addColorStop(0,rgb(184,105,52)); bg.addColorStop(0.48,rgb(142,82,43)); bg.addColorStop(1,rgb(92,60,38));
+      rr(c,bodyX,bodyY,bodyW,bodyH,11*s); c.fillStyle=bg; c.fill();
+      rr(c,bodyX,bodyY,bodyW,bodyH,11*s); c.strokeStyle=rgb(58,42,34); c.lineWidth=2*s; c.stroke();
+      c.fillStyle=rgb(255,236,188,0.075);
+      for(let i=0;i<34;i++){ const x=bodyX+12*s+((i*47)%Math.floor(bodyW-24*s)); const y=bodyY+14*s+((i*83)%Math.floor(bodyH-28*s));
+        c.fillRect(x,y,1.2*s,1.2*s); }
+      screw(d,W*.50,H*.095); screw(d,W*.50,H*.180);
+      textSpaced(d,.285*W,.375*H,F.barlow,10.5,rgb(25,36,74),'GAIN',0.8);
+      textSpaced(d,.715*W,.375*H,F.barlow,10.5,rgb(25,36,74),'TONE',0.8);
+      c.save();
+      c.translate(W*.5,H*.625); c.transform(1,0,-0.16,1,0,0);
+      setFont(d,F.anton,48); c.textAlign='center'; c.textBaseline='middle'; c.lineWidth=5.0*s;
+      c.strokeStyle=rgb(224,210,148); c.fillStyle=rgb(22,58,118); c.strokeText('SUPER',0,-28*s); c.fillText('SUPER',0,-28*s);
+      setFont(d,F.anton,58); c.lineWidth=5.5*s; c.strokeText('BUZZ',0,34*s); c.fillText('BUZZ',0,34*s);
+      c.restore();
+      textSpaced(d,.50*W,.805*H,F.barlow,8.5,rgb(228,216,174),'OCTAVE  FUZZ',2.0);
+      ledDot(d,W*.50,H*.845,true,224,62,52); footRound(d,W*.50,H*.910,20*s); } };
+
+  // BZ-1 — Chief compact silicon fuzz face.
+  // Param order: Gain0 Tone1.
+  P.bz1 = { w:300,h:480, knobs:[
+      {id:0,cx:.285,cy:.210,r:.086,style:'boss'},
+      {id:1,cx:.715,cy:.210,r:.086,style:'boss'}],
+    ptr:rgb(238,240,242),
+    draw(d){ const {ctx:c,W,H,s}=d; const ink=rgb(20,22,28);
+      c.fillStyle=rgb(10,10,12); c.fillRect(0,0,W,H);
+      const bx=W*.13, by=H*.035, bw=W*.74, bh=H*.92;
+      const body=c.createLinearGradient(0,by,0,by+bh);
+      body.addColorStop(0,rgb(218,221,222)); body.addColorStop(0.52,rgb(178,184,188)); body.addColorStop(1,rgb(128,136,144));
+      rr(c,bx,by,bw,bh,9*s); c.fillStyle=body; c.fill();
+      rr(c,bx,by,bw,bh,9*s); c.strokeStyle=rgb(76,82,90); c.lineWidth=2*s; c.stroke();
+      c.fillStyle=rgb(255,255,255,0.08);
+      for(let i=0;i<30;i++){ const x=bx+8*s+((i*53)%Math.floor(bw-16*s)); const y=by+8*s+((i*79)%Math.floor(bh-16*s));
+        c.fillRect(x,y,1.1*s,1.1*s); }
+      const splitY=H*.340; c.beginPath(); c.moveTo(bx+2*s,splitY); c.lineTo(bx+bw-2*s,splitY);
+      c.strokeStyle=rgb(88,94,102); c.lineWidth=1.6*s; c.stroke();
+      ledDot(d,W*.50,H*.105,true,224,42,35);
+      textSpaced(d,.285*W,.325*H,F.barlow,10.5,ink,'GAIN',0.8);
+      textSpaced(d,.715*W,.325*H,F.barlow,10.5,ink,'TONE',0.8);
+      textC(d,.44*W,.490*H,F.barlow,51,ink,'Fuzz','center');
+      textC(d,.690*W,.548*H,F.barlow,20,ink,'BZ-1','center');
+      const padX=bx+18*s, padY=H*.650, padW=bw-36*s, padH=H*.225;
+      rr(c,padX,padY,padW,padH,7*s); c.fillStyle=rgb(22,27,29); c.fill();
+      rr(c,padX,padY,padW,padH,7*s); c.strokeStyle=rgb(9,12,13); c.lineWidth=2*s; c.stroke();
+      textC(d,.50*W,padY+padH*.34,F.anton,34,rgb(10,14,16),'CHIEF');
+      textC(d,.50*W,padY+padH*.34-1*s,F.anton,34,rgb(42,47,49,0.34),'CHIEF');
+      footRound(d,W*.50,H*.930,10*s); } };
+
+  // Buzz-Tone - gold wedge-style vintage two-knob fuzz face.
+  // Param order: Gain0 Tone1.
+  P.buzztone = { w:470,h:300, knobs:[
+      {id:0,cx:.355,cy:.285,r:.073,style:'davies'},
+      {id:1,cx:.645,cy:.285,r:.073,style:'davies'}],
+    tick:rgb(72,42,24), ptr:rgb(238,230,204),
+    draw(d){ const {ctx:c,W,H,s}=d;
+      c.fillStyle=rgb(10,10,12); c.fillRect(0,0,W,H);
+      const x0=W*.075, x1=W*.925, y0=H*.105, y1=H*.875;
+      const topInset=W*.070, botInset=W*.020;
+      const body=c.createLinearGradient(0,y0,0,y1);
+      body.addColorStop(0,rgb(188,142,68)); body.addColorStop(.48,rgb(151,102,46)); body.addColorStop(1,rgb(86,59,34));
+      c.beginPath();
+      c.moveTo(x0+topInset,y0); c.lineTo(x1-topInset,y0);
+      c.lineTo(x1-botInset,y1); c.lineTo(x0+botInset,y1); c.closePath();
+      c.fillStyle=body; c.fill();
+      c.strokeStyle=rgb(48,34,24); c.lineWidth=2.2*s; c.stroke();
+      c.save();
+      c.clip();
+      const glow=c.createLinearGradient(x0,y0,x1,y1);
+      glow.addColorStop(0,rgb(245,207,118,0.22)); glow.addColorStop(.55,rgb(255,232,150,0.035)); glow.addColorStop(1,rgb(34,24,18,0.22));
+      c.fillStyle=glow; c.fillRect(x0,y0,x1-x0,y1-y0);
+      c.strokeStyle=rgb(208,154,76,0.28); c.lineWidth=1.2*s;
+      for(let i=0;i<9;i++){ const yy=y0+(y1-y0)*(i+1)/10; c.beginPath(); c.moveTo(x0+topInset*.65,yy); c.lineTo(x1-topInset*.65,yy+2*s); c.stroke(); }
+      c.restore();
+      screw(d,W*.155,H*.170); screw(d,W*.845,H*.170); screw(d,W*.180,H*.805); screw(d,W*.820,H*.805);
+      const panelY=H*.170; c.beginPath(); c.moveTo(W*.250,panelY); c.lineTo(W*.750,panelY);
+      c.strokeStyle=rgb(70,42,26); c.lineWidth=1.4*s; c.stroke();
+      textSpaced(d,.355*W,.475*H,F.barlow,10.5,rgb(42,30,22),'GAIN',1.2);
+      textSpaced(d,.645*W,.475*H,F.barlow,10.5,rgb(42,30,22),'TONE',1.2);
+      c.save();
+      c.translate(W*.5,H*.640); c.transform(1,0,-0.10,1,0,0);
+      outlineText(d,0,0,F.anton,50,rgb(235,211,139),rgb(64,38,25),'BUZZ-TONE',4.0);
+      c.restore();
+      textSpaced(d,.50*W,.735*H,F.barlow,9,rgb(226,190,118),'GERMANIUM  FUZZ',2.3);
+      ledDot(d,W*.50,H*.800,true,224,56,45);
+      footRound(d,W*.50,H*.885,18*s); } };
+
   function chiefSpec(w,h,col,knobIds,n1,n2,code){ return { w,h, knobs: knobIds.map(k=>({id:k.id,cx:k.cx,cy:.235,r:.072,style:'boss'})),
     ptr:rgb(238,240,242), draw(d){ chiefBody(d,col[0],col[1],col[2]); const wc=rgb(238,240,242);
       knobIds.forEach(k=> textSpaced(d,k.cx*d.W,.135*d.H,F.barlow,k.lblPx||8.5,wc,k.lbl,0.2));
@@ -303,6 +421,24 @@
       textC(d,.5*d.W,.63*d.H,F.anton,46,rgb(36,38,42),'COMP');
       textC(d,.5*d.W,.71*d.H,F.barlow,10,rgb(80,82,88),'MULTI  COMPRESSOR');
       ledDot(d,d.W*.5,d.H*.79,true,210,70,58); footRound(d,d.W*.5,d.H*.88,23*d.s); } };
+
+  // Dyna Compress — Dyna Comp-style optical compressor. MXR-inspired look
+  // (red box + cursive logo) recreated, not branded. Param order: Comp0 Attack1 Release2.
+  P.dynamicscompression = { w:300, h:460, knobs:[
+      {id:0,cx:.25,cy:.235,r:.080,style:'davies',cap:[26,26,28]},
+      {id:1,cx:.50,cy:.235,r:.080,style:'davies',cap:[26,26,28]},
+      {id:2,cx:.75,cy:.235,r:.080,style:'davies',cap:[26,26,28]}],
+    tick:rgb(122,30,28), ptr:rgb(242,236,224),
+    draw(d){ const {W,H,s}=d; box(d,172,48,44); const cream=rgb(242,236,224);
+      const ly=(.235+0.080*1.45+0.014)*H;
+      textSpaced(d,.25*W,ly,F.barlow,10,cream,'COMP',0.6);
+      textSpaced(d,.50*W,ly,F.barlow,10,cream,'ATTACK',0.6);
+      textSpaced(d,.75*W,ly,F.barlow,9,cream,'RELEASE',0.4);
+      // Cursive logo, staggered down-right like the original's script.
+      textC(d,.46*W,.565*H,F.crete,44,cream,'Dyna');
+      textC(d,.56*W,.665*H,F.crete,40,cream,'Compress');
+      ledDot(d,W*.5,H*.775,true,224,60,50);
+      footRound(d,W*.5,H*.885,23*s); } };
 
   // Eden WTDI — landscape gold-panel bass preamp (mirrors eden_wtdi/EdenWtdi_ui.cpp).
   // Param order: Gain0 Enhance1 Comp2 Master3 Bass4 Mid5 Treble6 BassBoost7 MidShift8.
