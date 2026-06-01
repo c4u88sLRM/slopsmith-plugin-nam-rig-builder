@@ -1,0 +1,447 @@
+/*
+ * pedal_canvas.js — in-app HTML5 canvas recreations of the bundled pedal VST
+ * UIs (so the app can show & edit the pedal inline, no native window, and use
+ * the rendered face as the gear "photo"). Mirrors the C++ pedalkit look:
+ * box / chief (Boss-compact) / fuzz bodies, the knob styles, embedded fonts.
+ *
+ * API (global RBPedalCanvas):
+ *   ready()                         -> Promise (fonts loaded)
+ *   has(stem)                       -> bool (stem = lowercased .vst3 basename)
+ *   attach(canvasEl, stem, opts)    -> renders + (if opts.interactive) wires drag
+ *        opts = { values:{paramId:0..1}, onChange:(id,val)=>{}, interactive:false }
+ *   dataURL(stem, values)           -> PNG data URL of the face (for <img> photos)
+ */
+(function () {
+  'use strict';
+  const API = '/api/plugins/rig_builder';
+  const FONTS = { bebas: 'PKBebas', barlow: 'PKBarlow', anton: 'PKAnton', crete: 'PKCrete' };
+  let _fontsP = null;
+  function ready() {
+    if (_fontsP) return _fontsP;
+    _fontsP = Promise.all(Object.keys(FONTS).map(k => {
+      try {
+        const ff = new FontFace(FONTS[k], `url(${API}/asset/font/${k})`);
+        return ff.load().then(f => { document.fonts.add(f); }).catch(() => {});
+      } catch (_) { return Promise.resolve(); }
+    }));
+    return _fontsP;
+  }
+
+  // ── helpers ────────────────────────────────────────────────────────────
+  const A0 = 135, ASPAN = 270;            // knob sweep (deg)
+  const ang = v => (A0 + v * ASPAN) * Math.PI / 180;
+  const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+  const rgb = (r, g, b, a) => a == null ? `rgb(${r|0},${g|0},${b|0})` : `rgba(${r|0},${g|0},${b|0},${a})`;
+  function rr(ctx, x, y, w, h, r) { r = Math.min(r, w/2, h/2); ctx.beginPath();
+    ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+
+  // primitives operate in a {ctx, W, H, s} drawing context (s = scale = W/baseW)
+  function screw(d, cx, cy) { const s = d.s, c = d.ctx, r = 6*s;
+    const g = c.createRadialGradient(cx-r*0.3, cy-r*0.3, r*0.15, cx, cy, r*1.2);
+    g.addColorStop(0, rgb(214,216,220)); g.addColorStop(1, rgb(120,122,128));
+    c.beginPath(); c.arc(cx,cy,r,0,7); c.fillStyle=g; c.fill();
+    c.strokeStyle=rgb(64,66,72); c.lineWidth=s; c.stroke();
+    c.beginPath(); c.moveTo(cx-r*0.55,cy-r*0.3); c.lineTo(cx+r*0.55,cy+r*0.3);
+    c.strokeStyle=rgb(70,72,78); c.lineWidth=1.4*s; c.stroke(); }
+
+  function box(d, r, g, b) { const {ctx:c, W, H, s} = d; const m=8*s;
+    c.fillStyle=rgb(10,10,12); c.fillRect(0,0,W,H);
+    const grad=c.createLinearGradient(0,m,0,H-m);
+    grad.addColorStop(0,rgb(clamp(r+22,0,255),clamp(g+22,0,255),clamp(b+22,0,255)));
+    grad.addColorStop(1,rgb(clamp(r-18,0,255),clamp(g-18,0,255),clamp(b-18,0,255)));
+    rr(c,m,m,W-2*m,H-2*m,14*s); c.fillStyle=grad; c.fill();
+    rr(c,m,m,W-2*m,H-2*m,14*s); c.strokeStyle='rgba(0,0,0,0.47)'; c.lineWidth=2*s; c.stroke();
+    const o=22*s; screw(d,m+o,m+o); screw(d,W-m-o,m+o); screw(d,m+o,H-m-o); screw(d,W-m-o,H-m-o); }
+
+  function ledDot(d, cx, cy, on, r, g, b) { const c=d.ctx, s=d.s, R=4.6*s;
+    if (on){ c.beginPath(); c.arc(cx,cy,R*2,0,7); c.fillStyle=rgb(r,g,b,0.24); c.fill(); }
+    c.beginPath(); c.arc(cx,cy,R,0,7); c.fillStyle=on?rgb(r,g,b):rgb(60,30,28); c.fill();
+    c.beginPath(); c.arc(cx-R*0.3,cy-R*0.3,R*0.35,0,7); c.fillStyle=rgb(255,255,255,on?0.6:0.16); c.fill(); }
+
+  function footRound(d, cx, cy, R) { const c=d.ctx, s=d.s;
+    const g=c.createRadialGradient(cx,cy,R*0.4,cx,cy,R*1.15);
+    g.addColorStop(0,rgb(176,178,184)); g.addColorStop(1,rgb(96,98,104));
+    c.beginPath(); c.arc(cx,cy,R*1.12,0,7); c.fillStyle=g; c.fill();
+    c.strokeStyle=rgb(40,42,46); c.lineWidth=2*s; c.stroke();
+    c.beginPath(); c.arc(cx,cy,R*0.78,0,7); c.fillStyle=rgb(150,153,159); c.fill();
+    c.beginPath(); c.arc(cx-R*0.25,cy-R*0.3,R*0.34,0,7); c.fillStyle=rgb(255,255,255,0.27); c.fill(); }
+
+  function setFont(d, family, px) { d.ctx.font = `${px*d.s}px ${family}, sans-serif`; }
+  function textC(d, cx, cy, family, px, col, str, align) {
+    const c=d.ctx; setFont(d,family,px); c.fillStyle=col; c.textAlign=align||'center'; c.textBaseline='middle';
+    c.fillText(str, cx, cy); }
+  function textSpaced(d, cx, cy, family, px, col, str, sp) {
+    const c=d.ctx; setFont(d,family,px); c.fillStyle=col; c.textBaseline='middle';
+    sp*=d.s; const ws=[...str].map(ch=>c.measureText(ch).width+sp); const tot=ws.reduce((a,b)=>a+b,0)-sp;
+    let x=cx-tot/2; c.textAlign='left'; for(let i=0;i<str.length;i++){ c.fillText(str[i],x,cy); x+=ws[i]; } }
+  function outlineText(d, cx, cy, family, px, fill, out, str, sp) {
+    const c=d.ctx; setFont(d,family,px); c.textBaseline='middle'; const o=1.8*d.s;
+    sp=(sp||0)*d.s; const ws=[...str].map(ch=>c.measureText(ch).width+sp); const tot=ws.reduce((a,b)=>a+b,0)-sp;
+    const draw=(color,ox,oy)=>{ let x=cx-tot/2+ox; c.fillStyle=color; c.textAlign='left';
+      for(let i=0;i<str.length;i++){ c.fillText(str[i],x,cy+oy); x+=ws[i]; } };
+    for(const dx of [-o,0,o]) for(const dy of [-o,0,o]) if(dx||dy) draw(out,dx,dy);
+    draw(fill,0,0); }
+  function boxedLabel(d, cx, cy, hw, hh, family, px, line, txt, str) {
+    const {ctx:c,W,H,s}=d; rr(c, (cx-hw)*W,(cy-hh)*H, 2*hw*W, 2*hh*H, 3*s);
+    c.strokeStyle=line; c.lineWidth=1.6*s; c.stroke(); textC(d, cx*W, cy*H, family, px, txt, str); }
+
+  // ── knob styles ──────────────────────────────────────────────────────────
+  function knob(d, cx, cy, R, val, style, capR, capG, capB, tickCol, ptrCol) {
+    const c=d.ctx, s=d.s, a=ang(val);
+    ptrCol = ptrCol || rgb(214,210,198); tickCol = tickCol || rgb(150,150,150);
+    if (style==='boss') {
+      c.beginPath(); c.arc(cx,cy,R,0,7); c.fillStyle=rgb(22,22,24); c.fill();
+      c.strokeStyle=rgb(58,60,64); c.lineWidth=s;
+      for(let i=0;i<36;i++){ const t=i/36*Math.PI*2; c.beginPath();
+        c.moveTo(cx+R*0.80*Math.cos(t),cy+R*0.80*Math.sin(t)); c.lineTo(cx+R*0.99*Math.cos(t),cy+R*0.99*Math.sin(t)); c.stroke(); }
+      const g=c.createRadialGradient(cx-R*0.3,cy-R*0.4,R*0.1,cx,cy,R*0.85);
+      g.addColorStop(0,rgb(52,53,58)); g.addColorStop(1,rgb(22,22,25));
+      c.beginPath(); c.arc(cx,cy,R*0.74,0,7); c.fillStyle=g; c.fill();
+      c.beginPath(); c.moveTo(cx,cy); c.lineTo(cx+R*0.92*Math.cos(a),cy+R*0.92*Math.sin(a));
+      c.strokeStyle=ptrCol; c.lineWidth=2.6*s; c.stroke();
+      c.beginPath(); c.arc(cx+R*0.84*Math.cos(a),cy+R*0.84*Math.sin(a),2*s,0,7); c.fillStyle=ptrCol; c.fill();
+      return;
+    }
+    if (style==='davies') {
+      c.beginPath(); c.arc(cx,cy,R*1.30,0,7); c.fillStyle=rgb(14,14,16); c.fill();
+      const g=c.createRadialGradient(cx-R*0.4,cy-R*0.5,R*0.1,cx,cy,R*1.15);
+      g.addColorStop(0,rgb(50,50,54)); g.addColorStop(1,rgb(18,18,20));
+      c.beginPath(); c.arc(cx,cy,R,0,7); c.fillStyle=g; c.fill();
+      c.strokeStyle=rgb(6,6,8); c.lineWidth=1.5*s; c.stroke();
+      c.beginPath(); c.moveTo(cx,cy); c.lineTo(cx+R*1.2*Math.cos(a),cy+R*1.2*Math.sin(a));
+      c.strokeStyle=ptrCol; c.lineWidth=3.4*s; c.stroke(); return;
+    }
+    if (style==='knurled') {
+      const g=c.createRadialGradient(cx-R*0.4,cy-R*0.5,R*0.1,cx,cy,R*1.2);
+      g.addColorStop(0,rgb(98,100,106)); g.addColorStop(1,rgb(38,39,43));
+      c.beginPath(); c.arc(cx,cy,R,0,7); c.fillStyle=g; c.fill();
+      c.strokeStyle=rgb(150,152,158,0.47); c.lineWidth=0.8*s;
+      for(let i=0;i<48;i++){ const t=i/48*Math.PI*2; c.beginPath();
+        c.moveTo(cx+R*0.86*Math.cos(t),cy+R*0.86*Math.sin(t)); c.lineTo(cx+R*0.99*Math.cos(t),cy+R*0.99*Math.sin(t)); c.stroke(); }
+      c.strokeStyle=rgb(10,10,12); c.lineWidth=1.4*s; c.beginPath(); c.arc(cx,cy,R,0,7); c.stroke();
+      c.beginPath(); c.moveTo(cx+R*0.15*Math.cos(a),cy+R*0.15*Math.sin(a)); c.lineTo(cx+R*0.9*Math.cos(a),cy+R*0.9*Math.sin(a));
+      c.strokeStyle=rgb(22,22,24); c.lineWidth=2.6*s; c.stroke(); return;
+    }
+    // pointer + tick fan (default)
+    c.beginPath(); c.arc(cx,cy,R*1.16,0,7); c.fillStyle=rgb(16,16,18); c.fill();
+    c.strokeStyle=tickCol; c.lineWidth=1.4*s;
+    for(let t=0;t<=10;t++){ const aa=ang(t/10); c.beginPath();
+      c.moveTo(cx+R*1.22*Math.cos(aa),cy+R*1.22*Math.sin(aa)); c.lineTo(cx+R*1.36*Math.cos(aa),cy+R*1.36*Math.sin(aa)); c.stroke(); }
+    const g=c.createRadialGradient(cx-R*0.4,cy-R*0.5,R*0.1,cx,cy,R*1.3);
+    g.addColorStop(0,rgb(clamp(capR+45,0,255),clamp(capG+45,0,255),clamp(capB+45,0,255)));
+    g.addColorStop(1,rgb(capR*0.45,capG*0.45,capB*0.45));
+    c.beginPath(); c.arc(cx,cy,R,0,7); c.fillStyle=g; c.fill();
+    c.strokeStyle=rgb(8,8,10); c.lineWidth=1.5*s; c.stroke();
+    c.beginPath(); c.moveTo(cx+R*0.18*Math.cos(a),cy+R*0.18*Math.sin(a)); c.lineTo(cx+R*0.86*Math.cos(a),cy+R*0.86*Math.sin(a));
+    c.strokeStyle=ptrCol; c.lineWidth=3*s; c.stroke();
+  }
+
+  // chief (Boss-compact) body: coloured body, black knob plate, treadle w/ name
+  function chiefBody(d, r, g, b) { const {ctx:c,W,H,s}=d, m=7*s, cl=v=>clamp(v,0,255);
+    c.fillStyle=rgb(10,10,12); c.fillRect(0,0,W,H);
+    const grad=c.createLinearGradient(0,m,0,H-m); grad.addColorStop(0,rgb(cl(r+18),cl(g+18),cl(b+18))); grad.addColorStop(1,rgb(cl(r-14),cl(g-14),cl(b-14)));
+    rr(c,m,m,W-2*m,H-2*m,12*s); c.fillStyle=grad; c.fill();
+    rr(c,m,m,W-2*m,H-2*m,12*s); c.strokeStyle='rgba(0,0,0,0.47)'; c.lineWidth=2*s; c.stroke();
+    // black knob plate
+    rr(c,m+11*s,H*0.10,W-2*m-22*s,H*0.235,6*s); c.fillStyle=rgb(20,20,22); c.fill();
+    rr(c,m+11*s,H*0.10,W-2*m-22*s,H*0.235,6*s); c.strokeStyle='rgba(0,0,0,0.47)'; c.lineWidth=1.2*s; c.stroke();
+    ledDot(d, W*0.5, H*0.072, true, 224,70,58);
+    // treadle (body colour) + black step pad (lower half)
+    const tx=m+4*s, tw=W-2*m-8*s, tyTop=H*0.42, tBot=H-m-6*s;
+    const tg=c.createLinearGradient(0,tyTop,0,tBot); tg.addColorStop(0,rgb(cl(r-2),cl(g-2),cl(b-2))); tg.addColorStop(1,rgb(cl(r-16),cl(g-16),cl(b-16)));
+    rr(c,tx,tyTop,tw,tBot-tyTop,12*s); c.fillStyle=tg; c.fill();
+    rr(c,tx,tyTop,tw,12*s,12*s); c.fillStyle='rgba(255,255,255,0.086)'; c.fill();
+    rr(c,tx,tyTop,tw,tBot-tyTop,12*s); c.strokeStyle='rgba(0,0,0,0.47)'; c.lineWidth=1.6*s; c.stroke();
+    const padT=tyTop+(tBot-tyTop)*0.50; rr(c,tx+12*s,padT,tw-24*s,tBot-padT-9*s,9*s); c.fillStyle=rgb(20,20,22); c.fill();
+  }
+  function chiefName(d, n1, n2) { const {W,H}=d;
+    if (n2){ textC(d, 0.31*W, 0.575*H, FONTS.crete, 42, rgb(16,16,20), n1);
+             textC(d, 0.62*W, 0.685*H, FONTS.crete, 34, rgb(16,16,20), n2); }
+    else   { textC(d, 0.5*W, 0.63*H, FONTS.crete, 40, rgb(16,16,20), n1); } }
+
+  // ── pedal specs ───────────────────────────────────────────────────────────
+  // each: {w,h, knobs:[{id,cx,cy,r,style,cap:[r,g,b]}], draw(d,vals)}
+  const F = FONTS;
+  const P = {};
+  function defKnobs(arr){ return arr; }
+
+  P.bassdistortion = { w:320,h:500, knobs:[
+      {id:0,cx:.215,cy:.305,r:.105,style:'pointer',cap:[26,26,28]},
+      {id:1,cx:.500,cy:.305,r:.105,style:'pointer',cap:[26,26,28]},
+      {id:2,cx:.785,cy:.305,r:.105,style:'pointer',cap:[26,26,28]}],
+    tick:rgb(232,233,236), ptr:rgb(240,241,244),
+    draw(d){ box(d,18,18,20); const w=rgb(238,239,242);
+      boxedLabel(d,.215,.135,.115,.028,F.barlow,12.5,w,w,'GAIN');
+      boxedLabel(d,.500,.135,.110,.028,F.barlow,12.5,w,w,'TONE');
+      boxedLabel(d,.785,.135,.125,.028,F.barlow,12.5,w,w,'FILTER');
+      boxedLabel(d,.5,.55,.34,.075,F.anton,44,w,w,'DISTORTION');
+      ledDot(d,d.W*.5,d.H*.71,true,210,70,58); footRound(d,d.W*.5,d.H*.83,24*d.s); } };
+
+  P.bassoverdrive = { w:300,h:490, knobs:[
+      {id:0,cx:.30,cy:.31,r:.10,style:'knurled'},{id:1,cx:.70,cy:.31,r:.10,style:'knurled'},
+      {id:2,cx:.30,cy:.62,r:.10,style:'knurled'},{id:3,cx:.70,cy:.62,r:.10,style:'knurled'}],
+    ptr:rgb(238,239,242),
+    draw(d){ box(d,20,20,22); const w=rgb(235,236,239), dim=rgb(150,151,154);
+      textSpaced(d,.30*d.W,.185*d.H,F.barlow,10.5,w,'BLEND',1.2);
+      textSpaced(d,.70*d.W,.185*d.H,F.barlow,10.5,w,'TONE',1.2);
+      textSpaced(d,.30*d.W,.495*d.H,F.barlow,10.5,w,'GAIN',1.2);
+      textSpaced(d,.70*d.W,.495*d.H,F.barlow,10.5,w,'FILTER',1.2);
+      textSpaced(d,.5*d.W,.80*d.H,F.barlow,17,w,'OVERDRIVE',2.2);
+      textSpaced(d,.5*d.W,.845*d.H,F.barlow,8.5,dim,'CMOS  BASS  OVERDRIVE',1.6);
+      ledDot(d,d.W*.5,d.H*.885,true,196,72,60); footRound(d,d.W*.5,d.H*.95,17*d.s); } };
+
+  P.bassfuzz = { w:320,h:400, knobs:[
+      {id:0,cx:.26,cy:.205,r:.085,style:'davies'},{id:1,cx:.50,cy:.205,r:.085,style:'davies'},
+      {id:2,cx:.74,cy:.205,r:.085,style:'davies'}],
+    ptr:rgb(236,238,238),
+    draw(d){ const {ctx:c,W,H,s}=d; box(d,190,192,196);
+      const fg=c.createLinearGradient(0,H*.085,0,H*.915); fg.addColorStop(0,rgb(106,188,64)); fg.addColorStop(1,rgb(74,152,34));
+      rr(c,W*.105,H*.085,W*.79,H*.83,10*s); c.fillStyle=fg; c.fill();
+      rr(c,W*.105,H*.085,W*.79,H*.83,10*s); c.strokeStyle='rgba(0,0,0,0.27)'; c.lineWidth=1.5*s; c.stroke();
+      // mode toggle (static)
+      const tx=W*.40, ty=H*.42; rr(c,tx-9*s,ty-6*s,18*s,12*s,3*s); c.fillStyle=rgb(24,24,26); c.fill();
+      rr(c,tx-4*s,ty-7*s,8*s,9*s,2*s); c.fillStyle=rgb(220,222,226); c.fill();
+      setFont(d,F.barlow,7.5); c.fillStyle=rgb(22,32,16); c.textBaseline='middle';
+      c.textAlign='right'; c.fillText('NORM',tx-12*s,ty);
+      c.textAlign='left'; c.fillText('BASS BOOST',tx+12*s,ty-5*s); c.fillText('DRY',tx+12*s,ty+5*s);
+      outlineText(d,.5*W,.64*H,F.anton,62,rgb(242,242,244),rgb(12,14,16),'FUZZ',7);
+      textC(d,.34*W,.55*H,F.crete,29,rgb(16,20,14),'bass');
+      ledDot(d,W*.52,H*.55,true,224,60,52); footRound(d,W*.5,H*.81,21*s); } };
+
+  function chiefSpec(w,h,col,knobIds,names,n1,n2){ return { w,h, knobs: knobIds.map(k=>({id:k.id,cx:k.cx,cy:.235,r:.072,style:'boss'})),
+    ptr:rgb(238,240,242), draw(d){ chiefBody(d,col[0],col[1],col[2]); const wc=rgb(238,240,242);
+      knobIds.forEach(k=> textSpaced(d,k.cx*d.W,.135*d.H,F.barlow,k.lblPx||8.5,wc,k.lbl,0.2));
+      chiefName(d,n1,n2); } }; }
+
+  P.basschorus = chiefSpec(300,480,[40,158,150],
+    [{id:0,cx:.205,lbl:'RATE'},{id:1,cx:.40,lbl:'DEPTH'},{id:2,cx:.595,lbl:'LO FILTER',lblPx:8},{id:3,cx:.79,lbl:'MIX'}],
+    'Bass','Chorus');
+  P.basssuboctave = { w:300,h:480, knobs:[{id:0,cx:.34,cy:.235,r:.088,style:'boss'},{id:1,cx:.66,cy:.235,r:.088,style:'boss'}],
+    ptr:rgb(236,232,224), draw(d){ chiefBody(d,112,70,66); const w=rgb(236,232,224);
+      textSpaced(d,.34*d.W,.12*d.H,F.barlow,9,w,'MIX',0.2); textSpaced(d,.66*d.W,.12*d.H,F.barlow,9,w,'TONE',0.2);
+      chiefName(d,'Sub','Octave'); } };
+  P.bassfilterdelay = chiefSpec(300,480,[156,64,72],
+    [{id:0,cx:.205,lbl:'TIME'},{id:1,cx:.40,lbl:'FEEDBACK',lblPx:7.5},{id:2,cx:.595,lbl:'MIX'},{id:3,cx:.79,lbl:'FILTER',lblPx:8}],
+    'Bass','Delay');
+  P.bassflanger = chiefSpec(300,480,[96,80,134],
+    [{id:0,cx:.205,lbl:'RATE'},{id:1,cx:.40,lbl:'DEPTH'},{id:2,cx:.595,lbl:'FILTER',lblPx:8},{id:3,cx:.79,lbl:'MIX'}],
+    'Bass','Flanger');
+
+  function boxSpec(w,h,col,knobs,wordmark,sub,accent,wfont){ return { w,h,
+    knobs: knobs.map(k=>({id:k.id,cx:k.cx,cy:.27,r:.082,style:'pointer',cap:k.cap||[40,40,44]})),
+    tick: accent? rgb(accent[0]*0.6,accent[1]*0.6,accent[2]*0.6): rgb(150,150,150),
+    draw(d){ box(d,col[0],col[1],col[2]); const lc=accent?rgb(accent[0],accent[1],accent[2]):rgb(238,238,240);
+      knobs.forEach(k=> textC(d,k.cx*d.W,(.27+0.082*1.45+0.012)*d.H,F.barlow,11,lc,k.lbl));
+      textC(d,.5*d.W,.60*d.H,wfont||F.bebas,44,lc,wordmark);
+      if(sub) textC(d,.5*d.W,.68*d.H,F.barlow,10,rgb(170,170,176),sub);
+      ledDot(d,d.W*.5,d.H*.77,true,210,70,58); footRound(d,d.W*.5,d.H*.88,23*d.s); } }; }
+
+  P.bassphase = boxSpec(320,470,[124,92,68],
+    [{id:0,cx:.20,lbl:'RATE'},{id:1,cx:.40,lbl:'DEPTH'},{id:2,cx:.60,lbl:'MIX'},{id:3,cx:.80,lbl:'FILTER'}],
+    'PHASE','BASS  PHASER',[244,236,220]);
+  P.bassfilterecho = boxSpec(320,470,[96,58,42],
+    [{id:0,cx:.20,lbl:'TIME'},{id:1,cx:.40,lbl:'FEEDBACK'},{id:2,cx:.60,lbl:'MIX'},{id:3,cx:.80,lbl:'FILTER'}],
+    'ECHO','TAPE  ECHO',[212,176,104]);
+  P.bassenbig = boxSpec(320,470,[58,64,72],
+    [{id:0,cx:.20,lbl:'RATE'},{id:1,cx:.40,lbl:'DEPTH'},{id:2,cx:.60,lbl:'MIX'},{id:3,cx:.80,lbl:'FILTER'}],
+    'ENBIGGEN','MOD  FILTER',[110,210,224]);
+  P.bassmulticomp = { w:320,h:470, knobs:[
+      {id:0,cx:.30,cy:.26,r:.105,style:'pointer',cap:[70,72,78]},
+      {id:2,cx:.70,cy:.26,r:.105,style:'pointer',cap:[70,72,78]},
+      {id:1,cx:.50,cy:.42,r:.072,style:'pointer',cap:[70,72,78]}],
+    tick:rgb(96,98,104), ptr:rgb(30,32,36),
+    draw(d){ box(d,150,152,158); const dk=rgb(40,42,46);
+      textC(d,.30*d.W,(.26+0.105*1.45+0.012)*d.H,F.barlow,11,dk,'COMPRESS');
+      textC(d,.70*d.W,(.26+0.105*1.45+0.012)*d.H,F.barlow,11,dk,'RATE');
+      textC(d,.50*d.W,(.42+0.072*1.45+0.012)*d.H,F.barlow,11,dk,'FILTER');
+      textC(d,.5*d.W,.63*d.H,F.anton,46,rgb(36,38,42),'COMP');
+      textC(d,.5*d.W,.71*d.H,F.barlow,10,rgb(80,82,88),'MULTI  COMPRESSOR');
+      ledDot(d,d.W*.5,d.H*.79,true,210,70,58); footRound(d,d.W*.5,d.H*.88,23*d.s); } };
+
+  // ── graphic-EQ faders (mirrors graphic_eq_ui.hpp) ─────────────────────────
+  // Geometry in spec-units (W=spec.w, H=spec.h). Boss = portrait/tall,
+  // Mesa = landscape/wide. Param id == band index.
+  function eqGeom(spec) {
+    const W = spec.w, H = spec.h, mesa = spec.mesa, n = spec.bands.length;
+    const plateX = (mesa ? 0.100 : 0.085) * W, plateW = (mesa ? 0.800 : 0.830) * W;
+    const plateY = (mesa ? 0.170 : 0.135) * H, plateH = (mesa ? 0.440 : 0.305) * H;
+    const faderL = plateX + 0.085 * W, faderW = plateW - 0.105 * W, colW = faderW / n;
+    const tT = plateY + (mesa ? 0.095 : 0.072) * H, tB = plateY + plateH - (mesa ? 0.055 : 0.038) * H;
+    return { W, H, mesa, n, plateX, plateW, plateY, plateH, faderL, faderW, colW, tT, tB,
+      colX: i => faderL + (i + 0.5) * colW,
+      valToY: v => tT + (1 - v) * (tB - tT),
+      yToVal: y => clamp(1 - (y - tT) / (tB - tT), 0, 1) };
+  }
+  function eqDraw(d, spec, values) {
+    const c = d.ctx, W = spec.w, H = spec.h, m = 7, mesa = spec.mesa, G = eqGeom(spec);
+    const R = spec.col[0], Gc = spec.col[1], B = spec.col[2], cl = v => clamp(v, 0, 255);
+    c.fillStyle = rgb(10, 10, 12); c.fillRect(0, 0, W, H);
+    const grad = c.createLinearGradient(0, m, 0, H - m);
+    grad.addColorStop(0, rgb(cl(R + 16), cl(Gc + 16), cl(B + 16)));
+    grad.addColorStop(1, rgb(cl(R - 12), cl(Gc - 12), cl(B - 12)));
+    rr(c, m, m, W - 2 * m, H - 2 * m, 12); c.fillStyle = grad; c.fill();
+    rr(c, m, m, W - 2 * m, H - 2 * m, 12); c.strokeStyle = 'rgba(0,0,0,0.47)'; c.lineWidth = 2; c.stroke();
+    const tc = spec.textCol;
+    setFont(d, F.barlow, 10.5); c.fillStyle = tc; c.textAlign = 'left'; c.textBaseline = 'middle';
+    c.fillText('GRAPHIC  EQUALIZER', W * 0.10, H * 0.075);
+    ledDot(d, W * 0.90, H * 0.075, true, 224, 70, 58);
+    // plate
+    rr(c, G.plateX, G.plateY, G.plateW, G.plateH, 7); c.fillStyle = mesa ? rgb(15, 15, 17) : rgb(20, 20, 22); c.fill();
+    rr(c, G.plateX, G.plateY, G.plateW, G.plateH, 7); c.strokeStyle = mesa ? 'rgba(78,80,86,0.59)' : 'rgba(0,0,0,0.55)'; c.lineWidth = 1.4; c.stroke();
+    const tT = G.tT, tB = G.tB, midY = (tT + tB) / 2;
+    setFont(d, F.barlow, 8); c.textAlign = 'right'; c.textBaseline = 'middle'; c.fillStyle = mesa ? rgb(180, 182, 188) : rgb(160, 162, 170);
+    c.fillText('+' + spec.db, G.faderL - W * 0.045, tT);
+    c.fillText('0', G.faderL - W * 0.045, midY);
+    c.fillText('-' + spec.db, G.faderL - W * 0.045, tB);
+    if (!mesa) for (let s = 0; s <= 4; s++) { const yy = tT + (tB - tT) * s / 4;
+      c.beginPath(); c.moveTo(G.faderL - W * 0.04, yy); c.lineTo(G.faderL + G.faderW, yy);
+      c.strokeStyle = 'rgba(255,255,255,0.16)'; c.lineWidth = 1; c.stroke(); }
+    for (let i = 0; i < G.n; i++) {
+      // Resolve by band index OR by the band's frequency name ("50","100",…)
+      // — the engine names EQ params by frequency, so the saved/restored
+      // values may be keyed either way.
+      let v = 0.5;
+      if (values) { if (values[i] != null) v = values[i]; else if (values[spec.bands[i]] != null) v = values[spec.bands[i]]; }
+      const cx = G.colX(i), hy = G.valToY(v);
+      setFont(d, F.barlow, 8); c.textAlign = 'center'; c.textBaseline = 'top';
+      c.fillStyle = mesa ? rgb(200, 202, 208) : rgb(182, 184, 192);
+      c.fillText(spec.bands[i], cx, G.plateY + 4); c.textBaseline = 'middle';
+      if (mesa) {
+        rr(c, cx - 3.5, tT, 7, tB - tT, 3.5); c.fillStyle = rgb(226, 227, 231); c.fill();
+        rr(c, cx - 11, hy - 7, 22, 14, 3); c.fillStyle = rgb(22, 22, 24); c.fill();
+        rr(c, cx - 11, hy - 7, 22, 14, 3); c.strokeStyle = 'rgba(0,0,0,0.67)'; c.lineWidth = 1; c.stroke();
+        c.fillStyle = rgb(150, 152, 158); c.fillRect(cx - 9, hy - 0.9, 18, 1.8);
+      } else {
+        rr(c, cx - 2, tT, 4, tB - tT, 2); c.fillStyle = rgb(46, 48, 56); c.fill();
+        const cp = c.createLinearGradient(0, hy - 6, 0, hy + 6); cp.addColorStop(0, rgb(236, 238, 242)); cp.addColorStop(1, rgb(150, 153, 160));
+        rr(c, cx - 10, hy - 6, 20, 12, 2.5); c.fillStyle = cp; c.fill();
+        rr(c, cx - 10, hy - 6, 20, 12, 2.5); c.strokeStyle = rgb(70, 72, 78); c.lineWidth = 1; c.stroke();
+        c.fillStyle = rgb(60, 62, 68); c.fillRect(cx - 8, hy - 0.7, 16, 1.4);
+      }
+    }
+    if (mesa) {
+      rr(c, W * 0.30, H * 0.66, W * 0.40, H * 0.135, 5); c.fillStyle = rgb(236, 237, 240); c.fill();
+      textC(d, W * 0.5, H * 0.727, F.crete, 22, rgb(20, 20, 24), spec.label);
+      c.beginPath(); c.arc(W * 0.5, H * 0.905, 15, 0, 7); c.fillStyle = rgb(150, 153, 159); c.fill();
+      c.strokeStyle = rgb(90, 92, 98); c.lineWidth = 2; c.stroke();
+    } else {
+      const tx = m + 4, tw = W - 2 * m - 8, tyTop = H * 0.49, tBot = H - m - 6;
+      const tre = c.createLinearGradient(0, tyTop, 0, tBot);
+      tre.addColorStop(0, rgb(cl(R - 2), cl(Gc - 2), cl(B - 2))); tre.addColorStop(1, rgb(cl(R - 14), cl(Gc - 14), cl(B - 14)));
+      rr(c, tx, tyTop, tw, tBot - tyTop, 12); c.fillStyle = tre; c.fill();
+      rr(c, tx, tyTop, tw, 10, 12); c.fillStyle = 'rgba(255,255,255,0.08)'; c.fill();
+      rr(c, tx, tyTop, tw, tBot - tyTop, 12); c.strokeStyle = 'rgba(0,0,0,0.47)'; c.lineWidth = 1.6; c.stroke();
+      const padT = tyTop + (tBot - tyTop) * 0.50; rr(c, tx + 12, padT, tw - 24, tBot - padT - 9, 9); c.fillStyle = rgb(20, 20, 22); c.fill();
+      if (spec.name1 && spec.name2) { textC(d, W * 0.30, H * 0.575, F.crete, 42, rgb(16, 16, 20), spec.name1); textC(d, W * 0.61, H * 0.675, F.crete, 34, rgb(16, 16, 20), spec.name2); }
+      else textC(d, W * 0.5, H * 0.625, F.crete, 40, rgb(16, 16, 20), spec.label);
+    }
+  }
+  function eqSpec(o) {
+    const lum = 0.299 * o.col[0] + 0.587 * o.col[1] + 0.114 * o.col[2];
+    const spec = { w: o.w, h: o.h, mesa: o.style === 1, bands: o.bands, db: o.db, col: o.col,
+      label: o.label || '', name1: o.name1, name2: o.name2,
+      textCol: lum > 140 ? rgb(34, 34, 38) : rgb(232, 234, 240),
+      eq: true, knobs: [], ptr: rgb(0, 0, 0), tick: rgb(0, 0, 0) };
+    spec.draw = (d, values) => eqDraw(d, spec, values);
+    return spec;
+  }
+  P.eq8     = eqSpec({ w: 320, h: 500, style: 0, db: 15, col: [188, 190, 186], label: 'Equalizer',
+                       bands: ['50', '100', '200', '400', '800', '1600', '3200', '6400'] });
+  P.basseq8 = eqSpec({ w: 320, h: 500, style: 0, db: 15, col: [210, 206, 194], name1: 'Bass', name2: 'Equalizer',
+                       bands: ['30', '75', '185', '460', '1100', '2700', '6800', '16000'] });
+  P.eq5     = eqSpec({ w: 440, h: 300, style: 1, db: 15, col: [30, 30, 33], label: '5-BAND GRAPHIC',
+                       bands: ['63', '250', '750', '2200', '5700'] });
+
+  // ── generic fallback: any VST without a hand-built spec gets a clean knob
+  //    grid built from its live parameter metadata (so nothing opens in a
+  //    native window). params = [{id|paramId|index, name, value}, …]. ──────────
+  function buildGeneric(stem, params) {
+    const ps = (params || []).filter(p => p && (p.id ?? p.paramId ?? p.index) != null).slice(0, 12);
+    const n = ps.length; if (!n) return null;
+    const cols = n <= 4 ? n : (n <= 6 ? 3 : 4), rows = Math.ceil(n / cols);
+    const cellW = 96, cellH = 124, padTop = 56, padBot = 22;
+    const w = cols * cellW, h = padTop + rows * cellH + padBot, rPx = Math.min(cellW, cellH) * 0.27;
+    const knobs = ps.map((p, i) => {
+      const cc = i % cols, rw = Math.floor(i / cols);
+      const cxPx = (cc + 0.5) * cellW, cyPx = padTop + rw * cellH + cellH * 0.40;
+      return { id: p.id ?? p.paramId ?? p.index, cxPx, cyPx, rPx,
+        cx: cxPx / w, cy: cyPx / h, r: rPx / w, style: 'pointer', cap: [66, 68, 74],
+        label: (p.name || p.label || ('P' + (i + 1))) };
+    });
+    return { w, h, knobs, generic: true, ptr: rgb(226, 227, 231), tick: rgb(118, 120, 126),
+      draw(d) { box(d, 42, 44, 50);
+        textC(d, d.W * 0.5, 32, F.bebas, 24, rgb(228, 229, 233), (stem || 'plugin').toUpperCase());
+        knobs.forEach(k => { let lbl = k.label; if (lbl.length > 12) lbl = lbl.slice(0, 11) + '…';
+          textC(d, k.cxPx, k.cyPx + k.rPx * 1.5 + 13, F.barlow, 10.5, rgb(202, 204, 210), lbl); }); } };
+  }
+
+  // ── render / attach ────────────────────────────────────────────────────
+  function makeCtx(canvas, spec) {
+    const dpr = window.devicePixelRatio || 1;
+    const cssW = canvas.clientWidth || spec.w, cssH = cssW * spec.h / spec.w;
+    canvas.style.height = cssH + 'px';
+    canvas.width = Math.round(cssW*dpr); canvas.height = Math.round(cssH*dpr);
+    const ctx = canvas.getContext('2d'); ctx.setTransform(dpr*cssW/spec.w,0,0,dpr*cssH/spec.h,0,0);
+    return { ctx, W: spec.w, H: spec.h, s: 1 };
+  }
+  function drawSpec(canvas, spec, values) {
+    const d = makeCtx(canvas, spec);
+    spec.draw(d, values || {});         // EQ faders are drawn inside spec.draw
+    (spec.knobs || []).forEach(k => {
+      const v = (values && values[k.id] != null) ? values[k.id] : 0.5;
+      knob(d, k.cx * d.W, k.cy * d.H, k.r * d.W, v, k.style,
+           (k.cap || [40, 40, 44])[0], (k.cap || [40, 40, 44])[1], (k.cap || [40, 40, 44])[2],
+           spec.tick, spec.ptr);
+    });
+  }
+  function render(canvas, stem, values) {
+    const spec = P[stem]; if (!spec) return false;
+    drawSpec(canvas, spec, values); return true;
+  }
+  function attach(canvas, stem, opts) {
+    opts = opts || {};
+    const spec = P[stem] || (opts.params ? buildGeneric(stem, opts.params) : null);
+    if (!spec) return false;
+    const values = opts.values || {};
+    drawSpec(canvas, spec, values);
+    if (!opts.interactive) return true;
+    const G = spec.eq ? eqGeom(spec) : null;
+    let drag = -1, lastY = 0, dv = 0;
+    const toSpec = (clientX, clientY) => { const rect = canvas.getBoundingClientRect();
+      const sx = spec.w / canvas.clientWidth, sy = spec.h / (canvas.clientHeight || 1);
+      return { x: (clientX - rect.left) * sx, y: (clientY - rect.top) * sy }; };
+    const hitKnob = (x, y) => { for (let i = 0; i < (spec.knobs || []).length; i++) {
+      const k = spec.knobs[i], dx = x - k.cx * spec.w, dy = y - k.cy * spec.h, R = k.r * spec.w * 1.25 + 6;
+      if (dx * dx + dy * dy <= R * R) return i; } return -1; };
+    const hitFader = (x, y) => { if (y < G.plateY - 8 || y > G.plateY + G.plateH + 8) return -1;
+      const i = Math.floor((x - G.faderL) / G.colW); return (i >= 0 && i < G.n) ? i : -1; };
+    canvas.addEventListener('mousedown', e => {
+      const p = toSpec(e.clientX, e.clientY);
+      if (spec.eq) { const i = hitFader(p.x, p.y); if (i < 0) return; drag = i;
+        const v = G.yToVal(p.y); values[i] = v; drawSpec(canvas, spec, values);
+        if (opts.onChange) opts.onChange(i, v); e.preventDefault(); return; }
+      const k = hitKnob(p.x, p.y); if (k < 0) return; drag = k; lastY = e.clientY;
+      dv = (values[spec.knobs[k].id] != null) ? values[spec.knobs[k].id] : 0.5; e.preventDefault();
+    });
+    window.addEventListener('mousemove', e => {
+      if (drag < 0) return;
+      if (spec.eq) { const p = toSpec(e.clientX, e.clientY); const v = G.yToVal(p.y);
+        values[drag] = v; drawSpec(canvas, spec, values); if (opts.onChange) opts.onChange(drag, v); return; }
+      const dy = lastY - e.clientY; lastY = e.clientY; dv = clamp(dv + dy / 170, 0, 1);
+      const id = spec.knobs[drag].id; values[id] = dv;
+      drawSpec(canvas, spec, values); if (opts.onChange) opts.onChange(id, dv);
+    });
+    window.addEventListener('mouseup', () => { drag = -1; });
+    return true;
+  }
+  function dataURL(stem, values) {
+    const spec = P[stem]; if (!spec) return null;
+    const cv = document.createElement('canvas'); cv.style.width = '220px';
+    Object.defineProperty(cv, 'clientWidth', { value: 220, configurable: true });
+    drawSpec(cv, spec, values || {});
+    try { return cv.toDataURL('image/png'); } catch (_) { return null; }
+  }
+
+  window.RBPedalCanvas = { ready, has: s => !!P[s], attach, render, dataURL, specs: P };
+})();

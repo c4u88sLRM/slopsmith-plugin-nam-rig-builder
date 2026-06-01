@@ -7694,6 +7694,44 @@ def setup(app, context):
             headers["ETag"] = etag
         return Response(content=data, media_type="image/png", headers=headers)
 
+    @app.get("/api/plugins/rig_builder/asset/font/{name}")
+    def asset_font(name: str):
+        """Serve a bundled OFL font (TTF) for the in-app canvas pedal UIs.
+
+        The web UI (`pedal_canvas.js`) recreates each bundled pedal's face on a
+        <canvas>, matching the C++ VST look — so it needs the same fonts the
+        plugins embed (Bebas Neue / Barlow / Anton / Crete Round). They live in
+        `assets/fonts/`. Only a fixed allow-list is served (no path traversal).
+        """
+        allow = {"bebas", "barlow", "anton", "crete"}
+        key = (name or "").split(".")[0].lower()
+        if key not in allow:
+            return JSONResponse({"error": "unknown font"}, 404)
+        path = _plugin_dir / "assets" / "fonts" / f"{key}.ttf"
+        if not path.exists():
+            return JSONResponse({"error": "missing"}, 404)
+        try:
+            data = path.read_bytes()
+        except OSError as e:
+            return JSONResponse({"error": str(e)}, 500)
+        return Response(content=data, media_type="font/ttf",
+                        headers={"Cache-Control": "public, max-age=604800"})
+
+    @app.get("/api/plugins/rig_builder/asset/pedal_canvas.js")
+    def asset_pedal_canvas():
+        """Serve pedal_canvas.js — the in-app canvas recreations of the bundled
+        pedal UIs. plugin.json only loads screen.js, so screen.js injects this
+        as a <script>. Served from the plugin root."""
+        path = _plugin_dir / "pedal_canvas.js"
+        if not path.exists():
+            return JSONResponse({"error": "missing"}, 404)
+        try:
+            data = path.read_bytes()
+        except OSError as e:
+            return JSONResponse({"error": str(e)}, 500)
+        return Response(content=data, media_type="application/javascript",
+                        headers={"Cache-Control": "no-cache"})
+
     @app.post("/api/plugins/rig_builder/piece_variant_override")
     def piece_variant_override(data: dict = Body(...)):
         """Force a specific variant on ONE preset's gear piece.

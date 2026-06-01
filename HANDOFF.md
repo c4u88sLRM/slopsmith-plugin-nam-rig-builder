@@ -1,5 +1,17 @@
 # Rig Builder — handoff doc
 
+> **Released: v2.0.0 (2026-06-01)** — 100 copyright-free bundled VST3 effects
+> (pedals + racks) under `vst/`, plus in-app HTML-canvas pedal UIs
+> (`pedal_canvas.js` / `window.RBPedalCanvas`). Pressing **Edit** renders the
+> pedal face inline (draggable controls → `setParameter`) instead of opening a
+> native plugin window; gear photos show the rendered face for bundled-VST
+> gears. Fonts served at `…/asset/font/{name}`, the JS at `…/asset/pedal_canvas.js`.
+> Engine prepends "Buffer Size"/"Sample Rate" to every param list →
+> `rbFilterVstParams` drops them and `rbBuildCanvasModel` maps LOGICAL→REAL
+> param ids (fixes off-by-two controls). Edit auto-applies the RS knob mapping
+> when a tone has no captured state. Amps stay on their chosen NAM (not in
+> `rs_gear_to_vst.json`); amp VSTs are on the separate `feat/amps-vst` branch.
+
 > **Released: v1.2.0 (2026-05-27)** — amp gain variants, library Manage tab,
 > chain preloader (instant tone switching, now default), and loudness/audio
 > fixes. Closed issues #12 (tone-change spike), #13 (master chain not applying),

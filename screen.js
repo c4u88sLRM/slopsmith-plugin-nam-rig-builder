@@ -9,6 +9,16 @@
     if (window[HOOK_KEY]) return;
     window[HOOK_KEY] = true;
 
+    // Load pedal_canvas.js (in-app canvas recreations of the bundled pedal UIs).
+    // plugin.json only loads screen.js, so we inject it here and warm the fonts.
+    if (!document.getElementById('rb-pedal-canvas-js')) {
+        const sc = document.createElement('script');
+        sc.id = 'rb-pedal-canvas-js';
+        sc.src = '/api/plugins/rig_builder/asset/pedal_canvas.js';
+        sc.onload = () => { try { window.RBPedalCanvas && window.RBPedalCanvas.ready(); } catch (_) {} };
+        document.head.appendChild(sc);
+    }
+
     const origShowScreen = window.showScreen;
     if (typeof origShowScreen === 'function') {
         window.showScreen = function (id) {
@@ -2370,6 +2380,15 @@ function rbRenderPieceCard(p, toneIdx, pIdx, isSelected, total) {
     // escaping bugs.
     const imgUrl = `${RB_API}/gear_photo/${encodeURIComponent(p.type)}${_RB_GEAR_PHOTO_CB}`;
     const onerr = "this.style.display='none'; var n=this.nextElementSibling; if(n) n.classList.remove('hidden');";
+    // For pieces backed by one of our canvas-UI VSTs, show the recreated
+    // plugin face (at the piece's current param values) instead of RS art.
+    const pStem = hasVst ? rbCanvasStem(p) : '';
+    const pCanvasArt = (pStem && window.RBPedalCanvas && window.RBPedalCanvas.has(pStem))
+        ? window.RBPedalCanvas.dataURL(pStem, rbCanvasThumbValues(p)) : null;
+    const pCanvasTag = pCanvasArt
+        ? `<img src="${pCanvasArt}" alt="" style="max-width:100%;max-height:100%;object-fit:contain"
+               class="relative max-w-full max-h-full object-contain transition ${imgBypassCls}">`
+        : '';
     return `
         <button onclick="rbSelectPiece(${toneIdx}, ${pIdx})"
                 class="relative flex-shrink-0 w-28 rounded-lg border ${selCls} p-2 text-left transition focus:outline-none"
@@ -2382,8 +2401,9 @@ function rbRenderPieceCard(p, toneIdx, pIdx, isSelected, total) {
                 <div class="absolute inset-0 flex items-center justify-center text-[10px] text-gray-600 text-center px-1 leading-tight ${imgBypassCls}">
                     ${rbEsc(p.rs_category || 'gear')}
                 </div>
+                ${pCanvasTag}
                 <img src="${imgUrl}" alt="" loading="lazy"
-                     style="max-width:100%;max-height:100%;object-fit:contain"
+                     style="${pCanvasArt ? 'display:none;' : ''}max-width:100%;max-height:100%;object-fit:contain"
                      class="relative max-w-full max-h-full object-contain transition ${imgBypassCls}"
                      onerror="this.style.display='none';">
             </div>
@@ -2547,13 +2567,22 @@ function rbRenderPieceEditor(p, toneIdx, pIdx, filename) {
     // for why we avoid the `JSON.stringify` inside an attribute approach.
     const imgUrl = `${RB_API}/gear_photo/${encodeURIComponent(p.type)}${_RB_GEAR_PHOTO_CB}`;
     const onerrBig = "this.style.display='none'; var n=this.nextElementSibling; if(n) n.classList.remove('hidden');";
+    // Plugin-UI face for our canvas-backed VSTs (current param values).
+    const pStemBig = rbCanvasStem(p);
+    const pCanvasArtBig = (pStemBig && window.RBPedalCanvas && window.RBPedalCanvas.has(pStemBig))
+        ? window.RBPedalCanvas.dataURL(pStemBig, rbCanvasThumbValues(p)) : null;
+    const pCanvasTagBig = pCanvasArtBig
+        ? `<img src="${pCanvasArtBig}" alt="" style="max-width:100%;max-height:100%;object-fit:contain"
+               class="max-w-full max-h-full rounded object-contain bg-dark-900">`
+        : '';
 
     return `
         <div class="bg-dark-800/40 border-y border-gray-800/40 p-4 space-y-3" data-tone="${toneIdx}" data-piece="${pIdx}">
             <div class="flex items-start gap-4">
                 <div class="flex-shrink-0 w-32 h-32 flex items-center justify-center overflow-hidden" style="width:128px;height:128px">
+                    ${pCanvasTagBig}
                     <img src="${imgUrl}" alt="" loading="lazy"
-                         style="max-width:100%;max-height:100%;object-fit:contain"
+                         style="${pCanvasArtBig ? 'display:none;' : ''}max-width:100%;max-height:100%;object-fit:contain"
                          class="max-w-full max-h-full rounded object-contain bg-dark-900"
                          onerror="${onerrBig}">
                     <div class="hidden w-full h-full rounded bg-dark-900 flex items-center justify-center text-xs text-gray-600 text-center px-2">
@@ -2681,8 +2710,38 @@ function rbFilterVstParams(params) {
         // Bypass UI; Program is an internal patch index irrelevant here.
         if (/^bypass$/i.test(n)) return false;
         if (/^program$/i.test(n)) return false;
+        // Engine-injected meta params. The native host PREPENDS "Buffer Size"
+        // and "Sample Rate" (and sometimes "Latency") to every plugin's param
+        // list — they're not the plugin's own params. Leaving them in shifted
+        // every real param's index by 2, so the canvas knob/fader at logical
+        // slot 0 was reading/driving "Buffer Size" instead of the first real
+        // knob. Drop them here so logical position == real-param order.
+        if (/^(buffer\s*size|sample\s*rate|latency)$/i.test(n)) return false;
         return true;
     });
+}
+
+// Build the canvas's parameter model from a raw getParameters() array.
+// Returns { values, idMap, logicalParams }:
+//   • values     — keyed by LOGICAL index (0,1,2… into the filtered real
+//                  params) AND by param name, so hand-built specs (logical
+//                  ids) and the EQ (band freq names) both resolve correctly.
+//   • idMap       — logical index → REAL engine paramId (for setParameter).
+//   • logicalParams — the filtered params re-id'd to their logical index
+//                  (so the generic fallback lays them out 0,1,2…).
+// `overrideById` (optional, keyed by REAL id) overlays in-progress edits.
+function rbBuildCanvasModel(rawParams, overrideById) {
+    const filtered = rbFilterVstParams(rawParams || []);
+    const values = {}, idMap = {};
+    const logicalParams = filtered.map((p, i) => {
+        const realId = p.id ?? p.paramId ?? p.index ?? i;
+        idMap[i] = realId;
+        let v = p.value ?? p.current;
+        if (overrideById && overrideById[realId] != null) v = overrideById[realId];
+        if (typeof v === 'number') { values[i] = v; if (p.name) values[p.name] = v; if (p.label) values[p.label] = v; }
+        return Object.assign({}, p, { id: i });
+    });
+    return { values, idMap, logicalParams };
 }
 
 // Tear down the currently-loaded inline-editor VST: close its native window
@@ -2855,12 +2914,34 @@ async function rbToneEditVst(toneIdx, pIdx) {
             const v  = param.value ?? param.current;
             if (id != null && typeof v === 'number') piece._vst_params[id] = v;
         }
+        // Auto-apply this song's Rocksmith knob mapping when the tone has NO
+        // captured/saved state yet — so the editor opens reflecting the song's
+        // settings instead of plugin defaults. (The manual "Apply RS settings"
+        // button still lets you re-apply or override.) Skipped when a curated
+        // state already exists so we don't clobber the user's own tweaks.
+        const hadSaved = saved && Object.keys(saved).length > 0;
+        if (!hadSaved && piece.knobs && Object.keys(piece.knobs).length) {
+            try {
+                const vstStem2 = vstPath.split('/').pop().replace(/\.(vst3|component)$/i, '');
+                const mapped = await rbComputeRsMappedParams(piece.type, piece.knobs, vstStem2, params);
+                if (mapped && Object.keys(mapped).length) {
+                    for (const [id, v] of Object.entries(mapped)) {
+                        const nid = Number(id);
+                        try { await api.setParameter(slotId, nid, v); } catch (_) {}
+                        piece._vst_params[nid] = v;
+                    }
+                    try { piece._vst_param_meta = await api.getParameters(slotId); } catch (_) {}
+                }
+            } catch (_) { /* mapping is best-effort; defaults remain on failure */ }
+        }
         // Render the inline slider panel FIRST so a headless plugin (no GUI —
         // e.g. the bundled QTron envelope filter) still gets an editable
         // panel even if openPluginEditor misbehaves for a UI-less plugin
         // (returns non-promise / throws). Native-window plugins are unaffected.
-        rbToneRenderInlineVstParams(toneIdx, pIdx);
-        if (api.openPluginEditor) {
+        const usedCanvas = rbToneRenderInlineVstParams(toneIdx, pIdx);
+        // Only fall back to the native plugin window when we DON'T have an
+        // in-app canvas recreation — the canvas is the inline editor now.
+        if (!usedCanvas && api.openPluginEditor) {
             try {
                 const _ed = api.openPluginEditor(slotId);
                 if (_ed && typeof _ed.catch === 'function') _ed.catch(() => {});
@@ -2873,13 +2954,85 @@ async function rbToneEditVst(toneIdx, pIdx) {
     }
 }
 
+// Normalize a VST path → canvas spec key (lowercased basename, no separators).
+function rbCanvasStem(piece) {
+    const p = rbEffVstPath(piece);
+    if (!p) return '';
+    return p.split('/').pop().replace(/\.(vst3|component)$/i, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+// True if we have an in-app canvas recreation of this piece's plugin UI.
+function rbHasCanvasUI(piece) {
+    return !!(window.RBPedalCanvas && window.RBPedalCanvas.has(rbCanvasStem(piece)));
+}
+
+// Build the {key: value} map the canvas reads, keyed BOTH by numeric paramId
+// AND by param name. Source of truth is the live getParameters snapshot
+// (`_vst_param_meta`); in-progress edits in `_vst_params` are overlaid on top.
+// Dual keying matters for graphic-EQ plugins whose params are NAMED by band
+// frequency ("50","100",…) — a value keyed by name still lands on the right
+// fader, and one keyed by id still lands on the right knob.
+// Full canvas model (values + logical→real idMap + logical params) for a piece.
+function rbCanvasParamModel(piece) {
+    return rbBuildCanvasModel((piece && piece._vst_param_meta) || [], (piece && piece._vst_params) || null);
+}
+
+// Best-known values for a NON-interactive thumbnail (the piece may never have
+// been opened in the editor, so _vst_param_meta is empty). Falls back to the
+// piece's saved vst_state (name-keyed), which the canvas resolves by name.
+function rbCanvasThumbValues(piece) {
+    const v = rbCanvasParamModel(piece).values;
+    if (Object.keys(v).length) return v;
+    try { return rbParseVstStateParams(rbEffVstState(piece)) || {}; } catch (_) { return {}; }
+}
+
 function rbToneRenderInlineVstParams(toneIdx, pIdx) {
     const editor = document.getElementById(`rb-tone-vst-editor-${toneIdx}-${pIdx}`);
-    if (!editor) return;
+    if (!editor) return false;
     const piece = rbState.songTones.tones[toneIdx].chain[pIdx];
     const params = rbFilterVstParams((piece && piece._vst_param_meta) || []);
     const effVstPath = rbEffVstPath(piece);
     const vstName = effVstPath.split('/').pop().replace(/\.(vst3|component)$/i, '');
+    // ── In-app canvas UI (no native window): faithful pedal face, draggable
+    //    knobs → setParameter + persist into piece._vst_params. ───────────────
+    const stem = rbCanvasStem(piece);
+    if (window.RBPedalCanvas && (window.RBPedalCanvas.has(stem) || params.length > 0)) {
+        editor.innerHTML = `
+            <div class="flex items-center justify-between mb-1">
+                <div class="text-[11px] text-purple-300 font-semibold">In-Slopsmith editor · ${rbEsc(vstName)}</div>
+                <div class="flex items-center gap-1">
+                    <button onclick="rbToneCaptureVstState(${toneIdx}, ${pIdx})"
+                            title="Snapshot the current parameter values into this tone's saved state"
+                            class="bg-amber-700/60 hover:bg-amber-600/60 text-amber-100 text-[10px] px-2 py-0.5 rounded">📸 Capture state</button>
+                    <button onclick="rbToneEditVst(${toneIdx}, ${pIdx})"
+                            title="Close inline editor"
+                            class="text-[10px] text-gray-400 hover:text-gray-200 px-1">✕</button>
+                </div>
+            </div>
+            <div class="flex justify-center">
+                <canvas id="rb-tone-vst-canvas-${toneIdx}-${pIdx}" style="width:240px;cursor:ns-resize;touch-action:none"></canvas>
+            </div>
+            <div class="text-[10px] text-gray-500 text-center mt-1">Drag a knob up/down to adjust</div>`;
+        const canvas = document.getElementById(`rb-tone-vst-canvas-${toneIdx}-${pIdx}`);
+        const api = window.slopsmithDesktop && window.slopsmithDesktop.audio;
+        const draw = () => {
+            const model = rbCanvasParamModel(piece);   // values keyed by logical idx + name; idMap logical→real
+            window.RBPedalCanvas.attach(canvas, stem, {
+                values: model.values,
+                params: model.logicalParams,            // generic fallback lays these out 0,1,2…
+                interactive: true,
+                onChange: (logicalId, val) => {
+                    const realId = model.idMap[logicalId] ?? logicalId;
+                    if (piece._vst_slot_id != null && api) { try { api.setParameter(piece._vst_slot_id, realId, val); } catch (_) {} }
+                    piece._vst_params = piece._vst_params || {};
+                    piece._vst_params[realId] = val;
+                },
+            });
+        };
+        // Fonts may still be loading on first open — redraw once they're ready.
+        if (window.RBPedalCanvas.ready) window.RBPedalCanvas.ready().then(draw);
+        draw();
+        return true;
+    }
     const header = `
         <div class="flex items-center justify-between">
             <div class="text-[11px] text-purple-300 font-semibold">In-Slopsmith editor · ${rbEsc(vstName)} · ${params.length} params</div>
@@ -3553,8 +3706,8 @@ async function rbMasterEditVst(role, idx) {
         // Render inline sliders FIRST (headless plugins like the bundled QTron
         // have no native window); then open the plugin's own editor window as
         // an optional visual. The inline sliders drive everything regardless.
-        rbMasterRenderInlineVstParams(role, idx);
-        if (api.openPluginEditor) {
+        const usedCanvas = rbMasterRenderInlineVstParams(role, idx);
+        if (!usedCanvas && api.openPluginEditor) {
             try {
                 const _ed = api.openPluginEditor(slotId);
                 if (_ed && typeof _ed.catch === 'function') _ed.catch(() => {});
@@ -3569,10 +3722,49 @@ async function rbMasterEditVst(role, idx) {
 
 function rbMasterRenderInlineVstParams(role, idx) {
     const editor = document.getElementById(`rb-master-${role}-editor-${idx}`);
-    if (!editor) return;
+    if (!editor) return false;
     const piece = rbState.master[role][idx];
     const params = rbFilterVstParams((piece && piece._vst_param_meta) || []);
     const vstName = (piece._vst_path || '').split('/').pop().replace(/\.(vst3|component)$/i, '');
+    // ── In-app canvas UI (no native window) ──────────────────────────────────
+    const stem = rbCanvasStem(piece);
+    if (window.RBPedalCanvas && (window.RBPedalCanvas.has(stem) || params.length > 0)) {
+        editor.innerHTML = `
+            <div class="flex items-center justify-between mb-1">
+                <div class="text-[11px] text-purple-300 font-semibold">In-Slopsmith editor · ${rbEsc(vstName)}</div>
+                <div class="flex items-center gap-1">
+                    <button onclick="rbMasterCaptureVstState('${role}', ${idx})"
+                            title="Snapshot the current parameter values into the master chain's saved state"
+                            class="bg-amber-700/60 hover:bg-amber-600/60 text-amber-100 text-[10px] px-2 py-0.5 rounded">📸 Capture state</button>
+                    <button onclick="rbMasterEditVst('${role}', ${idx})"
+                            title="Close inline editor (the VST stays loaded in the master chain)"
+                            class="text-[10px] text-gray-400 hover:text-gray-200 px-1">✕</button>
+                </div>
+            </div>
+            <div class="flex justify-center">
+                <canvas id="rb-master-${role}-canvas-${idx}" style="width:240px;cursor:ns-resize;touch-action:none"></canvas>
+            </div>
+            <div class="text-[10px] text-gray-500 text-center mt-1">Drag a knob up/down to adjust</div>`;
+        const canvas = document.getElementById(`rb-master-${role}-canvas-${idx}`);
+        const api = window.slopsmithDesktop && window.slopsmithDesktop.audio;
+        const draw = () => {
+            const model = rbCanvasParamModel(piece);
+            window.RBPedalCanvas.attach(canvas, stem, {
+                values: model.values,
+                params: model.logicalParams,
+                interactive: true,
+                onChange: (logicalId, val) => {
+                    const realId = model.idMap[logicalId] ?? logicalId;
+                    if (piece._vst_slot_id != null && api) { try { api.setParameter(piece._vst_slot_id, realId, val); } catch (_) {} }
+                    piece._vst_params = piece._vst_params || {};
+                    piece._vst_params[realId] = val;
+                },
+            });
+        };
+        if (window.RBPedalCanvas.ready) window.RBPedalCanvas.ready().then(draw);
+        draw();
+        return true;
+    }
     const header = `
         <div class="flex items-center justify-between">
             <div class="text-[11px] text-purple-300 font-semibold">In-Slopsmith editor · ${vstName} · ${params.length} params</div>
@@ -4550,6 +4742,55 @@ function rbRenderVstPanelBody(toneIdx, pIdx, currentVstPath, currentFormat) {
             </button>
         </div>
         <div id="rb-vst-status-${toneIdx}-${pIdx}" class="text-[10px] text-gray-500"></div>`;
+}
+
+// Pure compute of the RS-knob→VST-param values for a piece (no engine calls).
+// Fetches the curated mapping for (rs_gear, vst) and translates this piece's
+// Rocksmith knob values + any `_static` pins into a {paramId: value} dict.
+// Returns null when there's no curated mapping. Shared by the manual "Apply
+// RS settings" button and the auto-apply on editor open.
+async function rbComputeRsMappedParams(rsGearType, rsKnobs, vstStem, paramsList) {
+    let mapping;
+    try {
+        const r = await fetch(`${RB_API}/vst/knob_mapping?rs_gear_type=${encodeURIComponent(rsGearType)}&vst_name=${encodeURIComponent(vstStem)}`);
+        const data = await r.json();
+        mapping = data && data.mapping;
+    } catch (_) { return null; }
+    if (!mapping) return null;
+    const nameToId = {};
+    (paramsList || []).forEach((p, i) => {
+        const id = p.id ?? p.paramId ?? p.index ?? i;
+        nameToId[(p.name || '').toLowerCase()] = id;
+    });
+    const out = {};
+    const staticBlock = mapping._static;
+    if (staticBlock && typeof staticBlock === 'object') {
+        for (const [pname, pval] of Object.entries(staticBlock)) {
+            const tid = nameToId[String(pname).toLowerCase()];
+            if (tid == null) continue;
+            out[tid] = Math.max(0, Math.min(1, parseFloat(pval)));
+        }
+    }
+    for (const [rsKnobName, rule] of Object.entries(mapping)) {
+        if (rsKnobName === '_static') continue;
+        if (!rsKnobs || !(rsKnobName in rsKnobs)) continue;
+        const rsValue = parseFloat(rsKnobs[rsKnobName]);
+        if (isNaN(rsValue)) continue;
+        let targetId;
+        if (typeof rule.param === 'number') targetId = rule.param;
+        else if (typeof rule.param === 'string') {
+            targetId = nameToId[rule.param.toLowerCase()];
+            if (targetId == null) { const asInt = parseInt(rule.param, 10);
+                if (!isNaN(asInt) && String(asInt) === rule.param.trim()) targetId = asInt; }
+        }
+        if (targetId == null) continue;
+        const scale = (rule.scale != null) ? parseFloat(rule.scale) : 0.01;
+        const offset = (rule.offset != null) ? parseFloat(rule.offset) : 0;
+        let v = rsValue * scale + offset;
+        if (rule.invert) v = 1 - v;
+        out[targetId] = Math.max(0, Math.min(1, v));
+    }
+    return out;
 }
 
 // Apply the RS knob values for THIS piece to the loaded VST's params,
@@ -5931,6 +6172,13 @@ function rbApplyGearFilters() {
         console.error('[rig_builder] catalog render failed', e);
         el.innerHTML = `<p class="text-red-400">Error rendering: ${rbEsc(e.message)}</p>`;
     }
+    // Pedal-canvas thumbnails are rendered with dataURL() at build time; if the
+    // embedded fonts weren't loaded yet they'd use a fallback face. Repaint the
+    // catalog ONCE when fonts finish loading so the thumbnails come out right.
+    if (!rbState._gearFontsRepaint && window.RBPedalCanvas && window.RBPedalCanvas.ready) {
+        rbState._gearFontsRepaint = true;
+        window.RBPedalCanvas.ready().then(() => { try { rbApplyGearFilters(); } catch (_) {} });
+    }
 }
 
 function rbScrollToCategory(cat) {
@@ -6047,6 +6295,18 @@ function rbRenderCatalogCard(g) {
     // sibling, which is the next photo source down the chain.
     const rsArt = `${RB_API}/gear_photo/${encodeURIComponent(g.rs_gear)}${_RB_GEAR_PHOTO_CB}`;
     const onerrChain = "this.style.display='none'; var n=this.nextElementSibling; if(n){ if(n.tagName==='IMG'){n.style.display=''} else {n.classList.remove('hidden')} }";
+    // For gears we've built a VST canvas UI for, show the recreated plugin
+    // face as the thumbnail (instead of the Rocksmith art). dataURL renders
+    // off-screen at default knob values; if fonts haven't loaded yet the one
+    // re-render kicked off by RBPedalCanvas.ready() (see rbApplyGearFilters)
+    // repaints it correctly.
+    const gStem = isVst ? g.vst_path.split('/').pop().replace(/\.(vst3|component)$/i, '').toLowerCase().replace(/[^a-z0-9]/g, '') : '';
+    const canvasArt = (gStem && window.RBPedalCanvas && window.RBPedalCanvas.has(gStem))
+        ? window.RBPedalCanvas.dataURL(gStem, {}) : null;
+    const canvasImgTag = canvasArt
+        ? `<img src="${canvasArt}" alt="" style="max-width:100%;max-height:100%;object-fit:contain"
+               class="max-w-full max-h-full rounded object-contain" onerror="${onerrChain}">`
+        : '';
     // Inline width/height/object-fit (not just Tailwind w-16 etc.) so the
     // thumbnail stays small even where the host's purged CSS build drops the
     // plugin-only sizing utilities — without it the raw ~512px art renders
@@ -6061,8 +6321,9 @@ function rbRenderCatalogCard(g) {
         <div class="flex-shrink-0 w-16 h-16 flex items-center justify-center rounded bg-dark-900 overflow-hidden transition ${photoOff}"
              style="width:64px;height:64px"
              title="${isAssigned ? '' : 'Unassigned — no NAM/IR/VST mapped yet'}">
+            ${canvasImgTag}
             <img src="${rsArt}" alt="" loading="lazy"
-                 style="max-width:100%;max-height:100%;object-fit:contain"
+                 style="${canvasArt ? 'display:none;' : ''}max-width:100%;max-height:100%;object-fit:contain"
                  class="max-w-full max-h-full rounded object-contain"
                  onerror="${onerrChain}">
             ${t3kImgTag}
@@ -6096,8 +6357,8 @@ function rbRenderCatalogCard(g) {
         // bulk-assign step). Passes rs_gear so rbCatalogEditVst can apply
         // the (gear, vst) `_static` defaults (e.g. kHs Distortion Type for
         // fuzz/od/dist pedals, MEqualizer band-enable flags).
-        editBtn = `<button onclick="event.stopPropagation(); rbCatalogEditVst('${rbEsc(g.vst_path).replace(/'/g,"\\'")}','${rbEsc(g.vst_format || 'VST3')}','${rbEsc(g.rs_gear)}')"
-                           title="Edit this VST's settings (loads + opens native editor, applies _static defaults)"
+        editBtn = `<button onclick="event.stopPropagation(); rbCatalogEditInline('${safeId}','${rbEsc(g.vst_path).replace(/'/g,"\\'")}','${rbEsc(g.vst_format || 'VST3')}','${rbEsc(g.rs_gear)}','${gStem}')"
+                           title="Edit this VST's settings (shows the plugin UI inline; applies _static defaults)"
                            class="bg-purple-900/40 hover:bg-purple-900/60 text-purple-200 border border-purple-800/50 px-3 py-1.5 rounded text-xs">🎛 Edit</button>`;
     } else if (g.assigned && !hasInlineAudition) {
         listenBtn = `<button id="${btnId}" onclick="event.stopPropagation(); rbAuditionFile('${rbEsc(g.file).replace(/'/g,"\\'")}', '${rbEsc(g.kind || 'nam')}', '${btnId}', undefined, '${rbEsc(g.rs_gear || '')}')"
@@ -6195,6 +6456,7 @@ function rbRenderCatalogCard(g) {
                 <div class="flex-1"></div>
                 ${searchBtn}
             </div>
+            <div id="rb-cat-edit-${safeId}" class="hidden bg-purple-900/10 border border-purple-800/30 rounded p-2"></div>
             <div id="rb-cat-lib-${safeId}" class="hidden bg-indigo-900/10 border border-indigo-800/30 rounded p-2"></div>
             <div id="rb-cat-variants-${safeId}" class="hidden bg-emerald-900/10 border border-emerald-800/30 rounded p-2"></div>
         </div>` : '';
@@ -7126,6 +7388,80 @@ window.rbSweepParam = async function (slotId, paramName, steps) {
     ranges.forEach(r => console.log(`    [${r.from} .. ${r.to}]  →  ${r.text}`));
     return ranges;
 };
+
+// Inline catalog editor: when we have an in-app canvas recreation of the
+// plugin UI, show it right in the expanded gear card (draggable knobs →
+// live setParameter) instead of popping the native window. Falls back to
+// the native-window path (rbCatalogEditVst) for plugins without a canvas.
+async function rbCatalogEditInline(safeId, vstPath, vstFormat, rsGear, stem) {
+    if (!window.RBPedalCanvas) return rbCatalogEditVst(vstPath, vstFormat, rsGear);
+    const el = document.getElementById(`rb-cat-edit-${safeId}`);
+    if (!el) return rbCatalogEditVst(vstPath, vstFormat, rsGear);
+    const api = rbNativeAudio();
+    if (!api || typeof api.loadVST !== 'function') return alert('Native VST hosting not available.');
+    // Toggle close.
+    if (!el.classList.contains('hidden')) {
+        el.classList.add('hidden');
+        el.innerHTML = '';
+        await rbCloseActiveVstEditor().catch(() => {});
+        return;
+    }
+    // Mutual exclusivity with the other sub-panels.
+    document.getElementById(`rb-cat-lib-${safeId}`)?.classList.add('hidden');
+    document.getElementById(`rb-cat-variants-${safeId}`)?.classList.add('hidden');
+    el.classList.remove('hidden');
+    el.innerHTML = `<div class="text-xs text-gray-500">loading ${rbEsc(vstPath.split('/').pop())}…</div>`;
+    try {
+        await rbCloseActiveVstEditor().catch(() => {});
+        if (rbState.listeningTone !== null || rbState._auditionId) await rbStopPreview().catch(() => {});
+        if (api.clearChain) await api.clearChain().catch(() => {});
+        await api.startAudio().catch(() => {});
+        const slotId = await api.loadVST(vstPath);
+        if (slotId == null || slotId < 0) throw new Error('engine refused to load this plugin');
+        rbState._vstEditorSlot = slotId;
+        // Apply the (gear, vst) `_static` defaults (subtype pins) if any.
+        if (rsGear) {
+            const vstStem = vstPath.split('/').pop().replace(/\.(vst3|component)$/i, '').toLowerCase();
+            try {
+                const r = await fetch(`${RB_API}/vst/knob_mapping?rs_gear_type=${encodeURIComponent(rsGear)}&vst_name=${encodeURIComponent(vstStem)}`);
+                const data = await r.json();
+                const staticBlock = data && data.mapping && data.mapping._static;
+                if (staticBlock && typeof staticBlock === 'object') await rbRestoreSavedParamsToSlot(api, slotId, staticBlock);
+            } catch (e) { console.warn('[rig_builder catalog-edit] _static apply skipped:', e); }
+        }
+        // Snapshot current params → canvas model (logical values + idMap).
+        let model = { values: {}, idMap: {}, logicalParams: [] };
+        try {
+            const raw = (typeof api.getParameters === 'function' ? await api.getParameters(slotId) : []) || [];
+            model = rbBuildCanvasModel(raw, null);
+        } catch (_) {}
+        // No canvas spec AND no params to synthesize one → use the native window.
+        if (!window.RBPedalCanvas.has(stem) && model.logicalParams.length === 0) {
+            el.classList.add('hidden'); el.innerHTML = '';
+            return rbCatalogEditVst(vstPath, vstFormat, rsGear);
+        }
+        el.innerHTML = `
+            <div class="flex items-center justify-between mb-1">
+                <div class="text-[11px] text-purple-300 font-semibold">In-Slopsmith editor · ${rbEsc(vstPath.split('/').pop().replace(/\.(vst3|component)$/i, ''))}</div>
+                <button onclick="event.stopPropagation(); rbCatalogEditInline('${safeId}','${rbEsc(vstPath).replace(/'/g,"\\'")}','${rbEsc(vstFormat)}','${rbEsc(rsGear)}','${stem}')"
+                        title="Close inline editor" class="text-[10px] text-gray-400 hover:text-gray-200 px-1">✕</button>
+            </div>
+            <div class="flex justify-center">
+                <canvas id="rb-cat-canvas-${safeId}" style="width:240px;cursor:ns-resize;touch-action:none"></canvas>
+            </div>
+            <div class="text-[10px] text-gray-500 text-center mt-1">Drag a knob up/down · then 📚 Library → Assign to save</div>`;
+        const canvas = document.getElementById(`rb-cat-canvas-${safeId}`);
+        const draw = () => window.RBPedalCanvas.attach(canvas, stem, {
+            values: model.values, params: model.logicalParams, interactive: true,
+            onChange: (logicalId, val) => { const realId = model.idMap[logicalId] ?? logicalId;
+                try { api.setParameter(slotId, realId, val); } catch (_) {} },
+        });
+        if (window.RBPedalCanvas.ready) window.RBPedalCanvas.ready().then(draw);
+        draw();
+    } catch (e) {
+        el.innerHTML = `<div class="text-xs text-red-400">load failed: ${rbEsc(e.message || e)}</div>`;
+    }
+}
 
 async function rbCatalogEditVst(vstPath, vstFormat, rsGear) {
     const api = rbNativeAudio();
