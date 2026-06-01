@@ -369,11 +369,11 @@
       textC(d,.50*W,.355*H,F.barlow,11,gl,'TONE');
       textC(d,.74*W,.355*H,F.barlow,11,gl,'FILTER');
       // 'bass' (script) sits over the 'BIG' word (left), like the real pedal
-      outlineText(d,.5*W,.675*H,F.anton,48,rgb(242,242,244),rgb(12,14,16),'BIG BUZZ',5);
-      textC(d,.30*W,.565*H,F.crete,34,rgb(16,20,14),'bass');
+      outlineText(d,.5*W,.635*H,F.anton,48,rgb(242,242,244),rgb(12,14,16),'BIG BUZZ',5);
+      textC(d,.30*W,.525*H,F.crete,34,rgb(16,20,14),'bass');
       // LED at top-centre (above the knobs), clear of the FUZZ wordmark
-      ledDot(d,W*.5,H*.105,true,224,60,52); footRound(d,W*.5,H*.81,21*s);
-      textC(d,.5*W,.90*H,F.crete,15,rgb(16,20,14),'quimical-harmony');   // brand (Big Muff = E-H at the bottom)
+      ledDot(d,W*.5,H*.105,true,224,60,52); footRound(d,W*.5,H*.77,21*s);
+      textC(d,.5*W,.855*H,F.crete,15,rgb(16,20,14),'quimical-harmony');   // brand (Big Muff = E-H at the bottom)
     } };
 
   // Big Buzz — silver/red vintage fuzz face inspired by a triangle-era fuzz box.
@@ -996,7 +996,7 @@
       let x = .5*W - (wq + gap + wt) / 2;
       setFont(d, F.graffiti, qSize); c.fillStyle = rgb(244,150,46); c.fillText('Q', x, by);
       setFont(d, F.graffiti, tSize); c.fillStyle = rgb(152,88,208); c.fillText('TRIX', x + wq + gap, by);
-      textC(d, W*0.5, H*0.06, F.crete, 14, rgb(206,208,214), 'quimical-harmony');  // brand (Q-Tron = E-H at the top)
+      textC(d, W*0.10, H*0.44, F.crete, 14, rgb(206,208,214), 'quimical-harmony', 'left');  // brand: above TRIX, below the knobs, left
       ledDot(d, W*0.5, H*0.10, true, 255,80,70);
       footRound(d, W*0.5, H*0.89, 16);   // footswitch centred at the bottom (over the logo if needed)
     } };
