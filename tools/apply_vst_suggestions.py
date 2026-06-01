@@ -29,10 +29,9 @@ What this script does NOT do:
     RS settings), the VSTs play with their DEFAULTS. The bulk-assign
     is still a strict upgrade vs the NAM that came before for pedals
     (where NAM doesn't model the FX at all).
-  - Recompute `presets.model_file`. Pedals are never the primary
-    `model_file` (only amp/rack slots are — see `_MODEL_SLOT_PRIORITY`)
-    so this is a no-op for the pedal scope. If you ever extend the
-    script to amp/rack slots, add a recompute pass.
+  - Capture each plugin's opaque state blob. `apply_vst_state.py` can write
+    params-only state for the post-load setParameter path, but full opaque
+    capture still needs the live engine.
 
 Usage:
     # See what WOULD change (default, no writes)
@@ -64,24 +63,35 @@ from common import PLUGIN_ROOT, DATA_DIR, default_db_path
 
 _PLUGIN_DIR = PLUGIN_ROOT
 _default_db_path = default_db_path
+_MODEL_SLOT_PRIORITY = ("amp", "rack")
 
 
 # ── Path helpers ────────────────────────────────────────────────────────
 
 def _vst_search_roots() -> list[Path]:
-    """Standard VST3 + AU install locations per platform."""
+    """Plugin-bundled VSTs first, then standard VST3 + AU install locations.
+
+    The plugin ships its own DSP plugins under ``vst/`` (e.g. AutoSweep.vst3,
+    a built-in envelope filter). Searching that dir first means a gear whose
+    primary VST is one of ours resolves without any system install — the
+    engine loads it by the absolute path we record here. Per-user installs
+    compute the right absolute path because PLUGIN_ROOT resolves to wherever
+    this plugin folder actually lives on that machine."""
+    roots = [_PLUGIN_DIR / "vst"]
     system = platform.system()
     if system == "Darwin":
-        return [
+        roots += [
             Path("/Library/Audio/Plug-Ins/VST3"),
             Path.home() / "Library/Audio/Plug-Ins/VST3",
             Path("/Library/Audio/Plug-Ins/Components"),
             Path.home() / "Library/Audio/Plug-Ins/Components",
         ]
-    if system == "Windows":
+    elif system == "Windows":
         common = Path(os.environ.get("CommonProgramFiles", r"C:\Program Files\Common Files"))
-        return [common / "VST3"]
-    return [Path.home() / ".vst3"]
+        roots += [common / "VST3"]
+    else:
+        roots += [Path.home() / ".vst3"]
+    return roots
 
 
 def _find_vst(name: str, roots: list[Path]) -> tuple[Path, str] | None:
@@ -129,6 +139,44 @@ def _primary_vst_for(rs_gear: str, catalog: dict) -> dict | None:
     if not isinstance(entry, list) or not entry:
         return None
     return entry[0]
+
+
+def _recompute_preset_primaries(conn: sqlite3.Connection, preset_id: int) -> None:
+    """Mirror routes.py::_recompute_preset_primaries after batch VST changes."""
+    rows = conn.execute(
+        "SELECT slot, kind, file, bypassed FROM preset_pieces "
+        "WHERE preset_id = ? ORDER BY slot_order",
+        (preset_id,),
+    ).fetchall()
+    pieces = [
+        {"slot": r[0], "kind": r[1], "file": r[2]}
+        for r in rows if not r[3]
+    ]
+
+    model_file = ""
+    for slot in _MODEL_SLOT_PRIORITY:
+        for p in pieces:
+            if p["slot"] == slot and p["kind"] == "nam" and p["file"]:
+                model_file = p["file"]
+                break
+        if model_file:
+            break
+
+    ir_file = ""
+    for p in pieces:
+        if p["slot"] == "cabinet" and p["kind"] in ("ir", "rs_ir") and p["file"]:
+            ir_file = p["file"]
+            break
+    if not ir_file:
+        for p in pieces:
+            if p["kind"] in ("ir", "rs_ir") and p["file"]:
+                ir_file = p["file"]
+                break
+
+    conn.execute(
+        "UPDATE presets SET model_file = ?, ir_file = ? WHERE id = ?",
+        (model_file, ir_file, preset_id),
+    )
 
 
 # ── Main pass ───────────────────────────────────────────────────────────
@@ -249,8 +297,15 @@ def main() -> int:
     # ── Write ──
     print("\nApplying…")
     updated = 0
+    affected_presets: set[int] = set()
     with conn:  # transaction
         for rs_gear, vst_path, vst_format, _name, _n, where in plan:
+            affected_presets.update(
+                r[0] for r in conn.execute(
+                    f"SELECT DISTINCT preset_id FROM preset_pieces WHERE {where}",
+                    (rs_gear,),
+                ).fetchall()
+            )
             cur = conn.execute(
                 f"UPDATE preset_pieces SET "
                 f"  kind = 'vst', file = NULL, "
@@ -260,10 +315,12 @@ def main() -> int:
                 (vst_path, vst_format, rs_gear),
             )
             updated += cur.rowcount
+        for preset_id in affected_presets:
+            _recompute_preset_primaries(conn, preset_id)
     print(f"Done: {updated} preset_pieces row(s) updated.")
-    print("Restart Slopsmith (or reload the affected songs) to see the change.")
-    print("VSTs play at plugin defaults until you open each editor once "
-          "(or click ⇶ Apply RS settings per piece) to capture opaque state.")
+    print(f"Recomputed primaries for {len(affected_presets)} preset(s).")
+    print("Run apply_vst_state.py for the same gear, then reload affected songs")
+    print("so the post-load setParameter path applies the saved Rocksmith knobs.")
     return 0
 
 

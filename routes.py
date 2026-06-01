@@ -263,13 +263,12 @@ _DEFAULT_SETTINGS = {
     # The actual drive that reaches the NAMs is the chain-input gain
     # below (set via setGain('input', X) from the frontend).
     "nam_input_drive": 1.0,
-    # Engine input gain (pre-NAM) applied via setGain('input', X) every
-    # time a chain loads. The audio engine respects this — confirmed by
-    # the user: setting it to 8.0 turns a "clean" amp NAM into a properly
-    # saturated one. Default 8.0 (≈+18 dB) matches typical NAM capture
-    # input levels (-3 dBFS test tone vs a live guitar peaking ~-18 dBFS).
-    # Lower if you hear digital clipping or harshness on hot pickups.
-    "nam_chain_input_drive": 8.0,
+    # Engine input gain (pre-NAM) applied via setGain('input', X) every time a
+    # chain loads. Default is now 1.0 = NO boost: the live signal enters the NAM
+    # as-is. The old 8.0 (≈+18 dB) over-drove most captures — both guitar and
+    # bass players reported amps sounding over-distorted. Users who WANT more
+    # amp saturation can raise it with the "Amp drive" slider in Settings.
+    "nam_chain_input_drive": 1.0,
     # When toggled, bypasses (or un-bypasses) the cabinet slot on EVERY song's
     # tones in one shot — for users who'd rather run no cab (raw amp) or their
     # own external cab sim. Stored just for the checkbox state; the actual
@@ -856,6 +855,12 @@ def _amp_input_drive_for(rs_gear: str | None, slot: str | None) -> float:
         beyond its capture-time operating point and the output
         sounds distorted — exactly the symptom the user reported on
         Gallien-Krueger.
+      - DI amps (rs_gear starting with 'DI_Amp_') stay at unity too.
+        They're direct-input preamps / DI boxes (Avalon tube pre, AMS
+        Neve 1073, Tech 21 SansAmp Bass Driver) used for acoustic/clean
+        DI tones, captured CLEAN — the 2.5× guitar boost saturates them
+        into buzz, wrecking an acoustic tone. The tone is shaped by the
+        Acoustic Emulator pedal + cab IR, not by overdriving the DI.
       - Guitar amps use the configured `nam_input_drive` (default 2.5).
         Guitar captures are made at HOT gain so the model expects an
         input that's louder than what arrives from a live pickup; the
@@ -868,10 +873,43 @@ def _amp_input_drive_for(rs_gear: str | None, slot: str | None) -> float:
     """
     if (slot or "").lower() != "amp":
         return 1.0
-    if rs_gear and rs_gear.startswith("Bass_"):
+    if rs_gear and (rs_gear.startswith("Bass_") or rs_gear.startswith("DI_Amp_")):
         return 1.0
     settings = _load_settings()
     return max(0.1, float(settings.get("nam_input_drive", 2.5)))
+
+
+def _rs_gain_from_params_json(params_json: str | None, rs_gear: str | None = None):
+    """Read the stored Rocksmith amp gain value from a preset_pieces row.
+
+    Returns None when the amp does not expose a gain-like knob. The frontend
+    uses this only to choose the chain-level input drive, so absence should
+    mean "unknown" rather than forcing a synthetic crunch value.
+    """
+    try:
+        knobs = json.loads(params_json or "{}")
+    except Exception:
+        return None
+    if not isinstance(knobs, dict):
+        return None
+    gear_def = (_load_rs_to_real() or {}).get(rs_gear or "") if rs_gear else {}
+    proxies = (gear_def or {}).get("gain_proxy_knobs") or []
+    if proxies:
+        vals = []
+        for key in proxies:
+            try:
+                vals.append(float(knobs[key]))
+            except (KeyError, TypeError, ValueError):
+                continue
+        if vals:
+            return sum(vals) / len(vals)
+    raw = knobs.get("Gain")
+    if raw is None:
+        return None
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return None
 
 
 def _gear_rs_gain(piece: dict, gear_def: dict | None = None) -> float:
@@ -1012,6 +1050,35 @@ def _load_vst_seed_catalog() -> dict:
     return _load_cached_json("rs_gear_to_vst.json")
 
 
+def _bundled_vst_plugins() -> list[dict]:
+    """Return VST/AU plugins shipped inside this plugin's own ``vst/`` dir.
+
+    These are not installed in the OS VST folders and may never appear in the
+    native engine's scan cache. Listing them here lets batch mapping and the UI
+    resolve our built-in DSP by absolute path immediately after a restart.
+    """
+    root = _plugin_dir / "vst"
+    if not root.exists():
+        return []
+    out = []
+    for suffix, fmt in ((".vst3", "VST3"), (".component", "AudioUnit")):
+        for entry in sorted(root.glob(f"*{suffix}")):
+            if not entry.exists():
+                continue
+            name = entry.name[:-len(suffix)]
+            out.append({
+                "name": name,
+                "manufacturer": "Rig Builder",
+                "category": "Fx",
+                "format": fmt,
+                "path": str(entry.resolve()),
+                "uid": f"bundled-{fmt}-{name}",
+                "isInstrument": False,
+                "bundled": True,
+            })
+    return out
+
+
 def _build_known_vst_lookup() -> dict:
     """Read rig_builder_known_vsts.json (populated by the frontend after the
     user clicks Settings → Scan for plugins) and return a lookup keyed by
@@ -1023,6 +1090,8 @@ def _build_known_vst_lookup() -> dict:
     unreadable — caller falls back to the NAM/IR resolution path.
     """
     out: dict[str, list[dict]] = {}
+    for p in _bundled_vst_plugins():
+        out.setdefault(p["name"].lower(), []).append(p)
     if _config_dir is None:
         return out
     path = _config_dir / "rig_builder_known_vsts.json"
@@ -1146,6 +1215,38 @@ def _compute_vst_state_for_piece(rs_gear: str, vst_path: str,
         return json.dumps({"params": {}})
     params_by_name, _skipped = result
     return json.dumps({"params": params_by_name})
+
+
+def _effective_vst_state_for_piece(
+    rs_gear: str,
+    vst_path: str,
+    vst_state: str | None,
+    params_json: str | dict | None,
+) -> str | None:
+    """Return stored VST state, or derive it from Rocksmith knobs.
+
+    UI assignment endpoints may leave `vst_state` empty while preserving the
+    original `params_json`. For bundled mapped VSTs that should still load the
+    Rocksmith knob values, not plugin defaults.
+    """
+    if vst_state:
+        try:
+            env = json.loads(vst_state)
+            if isinstance(env, dict) and (env.get("opaque") or isinstance(env.get("params"), dict)):
+                return vst_state
+        except (ValueError, TypeError):
+            return vst_state
+
+    if isinstance(params_json, dict):
+        knobs = params_json
+    else:
+        try:
+            knobs = json.loads(params_json or "{}") or {}
+        except (ValueError, TypeError):
+            knobs = {}
+    if not isinstance(knobs, dict) or not knobs:
+        return vst_state
+    return _compute_vst_state_for_piece(rs_gear, vst_path, knobs) or vst_state
 
 
 class _CaseInsensitiveDict(dict):
@@ -1429,7 +1530,24 @@ def _parse_gear(gear: dict, slot_type: str) -> dict:
     knobs = gear.get("KnobValues", {}) or {}
     category = gear.get("Category", "")
 
-    model_key = _extract_model_from_knobs(knobs) or gear_type
+    # Rocksmith stores the gear's canonical identity in `.Key`
+    # (e.g. "Amp_MarshallDSL100H", "Pedal_EQ5", "Rack_StudioDelay") for
+    # EVERY slot, while `.Type` is always the generic family string
+    # ("Amps"/"Pedals"/"Racks"/"Cabinets"). Historically we derived the
+    # rs_gear from `_extract_model_from_knobs` (the first knob's prefix),
+    # which silently falls back to the generic `.Type` whenever the gear
+    # has no KnobValues in that tone or the prefix doesn't resolve — the
+    # same failure that dumped every cab into "Cabinets". Prefer `.Key`:
+    # it's authoritative, present even for knob-less gear, and agrees with
+    # the knob heuristic whenever that heuristic actually worked. Cabinets
+    # are handled by the dedicated branch below (their Key carries a mic
+    # suffix that must be stripped); for every other slot the Key IS the
+    # rs_gear, so use it directly.
+    key = gear.get("Key", "") or ""
+    if slot_type != "cabinet" and key:
+        model_key = key
+    else:
+        model_key = _extract_model_from_knobs(knobs) or gear_type
 
     clean_knobs: dict = {}
     for k, v in knobs.items():
@@ -1512,6 +1630,40 @@ def _cab_suffix_from_effect_name(effect_name: str) -> str | None:
         return None
     base_suffix = _build_effect_to_mic_index().get(effect_name.lower())
     return base_suffix[1] if base_suffix else None
+
+
+def _resolve_cab_for_effect(effect_name: str, irs_root) -> tuple[str, str] | None:
+    """Resolve a Cabinet.Key to (base_rs_gear, ir_file_relpath), verifying
+    the IR exists under `irs_root`. Two tiers:
+
+      1. **HIRC mic map** — a Cabinet.Key carrying a mic-position suffix
+         (e.g. "Cab_Marshall1960a_57_Edge") resolves to (base, suffix) and
+         that mic's ir_file.
+      2. **Bare-cab fallback** — PA / acoustic / DI cabs (e.g. "Cab_PA600C")
+         have no per-mic captures, so they're absent from the HIRC mic map
+         entirely. Treat the Cabinet.Key as a bare base cab and use its
+         default IR from rs_cab_to_ir. Without this, those cabs never
+         promote out of the generic "Cabinets" placeholder.
+
+    Returns None if neither tier resolves or the IR isn't on disk.
+    """
+    if not effect_name:
+        return None
+    # Tier 1 — mic map (suffixed effect names)
+    base = _cab_base_from_effect_name(effect_name)
+    suffix = _cab_suffix_from_effect_name(effect_name)
+    if base and suffix:
+        spec = (_load_rs_cab_mic_map().get(base) or {}).get(suffix)
+        f = (spec or {}).get("ir_file")
+        if f and irs_root and (irs_root / f).exists():
+            return (base, f)
+    # Tier 2 — bare base cab via rs_cab_to_ir default IR
+    entry = (_load_rs_cab_to_ir() or {}).get(effect_name)
+    if isinstance(entry, dict):
+        irs = entry.get("irs") or []
+        if irs and irs[0] and irs_root and (irs_root / irs[0]).exists():
+            return (effect_name, irs[0])
+    return None
 
 
 def _parse_tone(tone_data: dict) -> dict:
@@ -1764,7 +1916,8 @@ def _load_saved_chain(conn: sqlite3.Connection, preset_id: int,
             "assigned_mode": assigned_mode,
             "vst_path": vst_path,
             "vst_format": vst_format,
-            "vst_state": vst_state,
+            "vst_state": _effective_vst_state_for_piece(rs_gear, vst_path, vst_state, knobs)
+            if kind == "vst" and vst_path else vst_state,
         }
         enriched["bypassed"] = bool(bypassed)
         enriched["_preset_piece_id"] = piece_id   # so the UI can reorder/remove by id
@@ -2509,9 +2662,9 @@ def _vst_stage_state(vst_path: str, vst_format: str | None, vst_state) -> str:
 
     Legacy pieces saved before opaque-capture (vst_state is a bare
     `{"params": {...}}` or empty) fall back to the old pluginPath/pluginState
-    wrapper. Those only re-apply via the preview's setParameter pass — they
-    play at plugin defaults in a real song until re-captured. See the
-    chain-editor VST notes in HANDOFF.md.
+    wrapper. Current native hosts also parse that wrapper and apply named
+    params on load, so these presets no longer depend on the editor/config
+    path to leave plugin defaults.
     """
     opaque = None
     if vst_state:
@@ -2539,7 +2692,8 @@ def _vst_stage_state(vst_path: str, vst_format: str | None, vst_state) -> str:
 # None so every caller's emitted JSON stays byte-identical to before.
 
 def _nam_stage(path, *, bypassed, input_level=1.0, output_drive=None,
-               output_mult=1.0, slot=None, rs_gear=None, tone_key=None) -> dict:
+               output_mult=1.0, slot=None, rs_gear=None, tone_key=None,
+               rs_gain=None) -> dict:
     """Build a type-1 (NAM) chain stage.
 
     `input_level` is the engine inputLevel (drive into the model); the
@@ -2558,6 +2712,11 @@ def _nam_stage(path, *, bypassed, input_level=1.0, output_drive=None,
         stage["rs_gear"] = rs_gear
     if tone_key is not None:
         stage["tone_key"] = tone_key
+    if rs_gain is not None:
+        try:
+            stage["rs_gain"] = float(rs_gain)
+        except (TypeError, ValueError):
+            pass
     stage["state"] = _state_b64({"modelPath": str(path),
                                  "inputLevel": input_level,
                                  "outputLevel": out_level})
@@ -3177,6 +3336,25 @@ def _manual_piece_usable(prev: dict) -> bool:
     if kind in ("ir", "rs_ir"):
         return (_config_dir / "nam_irs" / f).exists()
     return False
+
+
+def _resolve_song_swap_assignment(to_gear: str, params_json: str | None,
+                                  rs_gain: float | None) -> dict | None:
+    """Resolve the target gear for a per-song swap.
+
+    Song swaps should mirror what the All Gear catalog says this target gear
+    plays today. That means an existing manual/manual_vst assignment wins over
+    curated amp gain variants; otherwise swapping to an amp with EN30/TW22 VST
+    assigned globally silently falls back to the old NAM variant.
+    """
+    res = _existing_assignment_for_gear(to_gear)
+    if res is None:
+        res = _resolve_gear_assignment(to_gear, None, rs_gain)
+    if res and res.get("kind") == "vst" and res.get("vst_path") and not res.get("vst_state"):
+        res = dict(res)
+        res["vst_state"] = _effective_vst_state_for_piece(
+            to_gear, str(res["vst_path"]), None, params_json)
+    return res
 
 
 # Global rate-limit gate for tone3000 API calls. Pure tone3000 server-
@@ -3903,9 +4081,10 @@ def _batch_worker(mode: str = "all"):
                     # apply_vst_state.py would generate from the RS knobs
                     # — without that step the plugin would load at
                     # defaults regardless of how the song's tone is
-                    # actually configured. Skip for amps + cabs (amps
-                    # use the NAM-capture pipeline; cabs use IRs).
-                    if category not in ("amp", "cab"):
+                    # actually configured. Cabs use IRs; amps normally use
+                    # NAM captures unless a bundled primary VST exists for the
+                    # exact amp (e.g. Amp_EN30 -> EN30).
+                    if category != "cab":
                         _vst_pick = _pick_installed_primary_vst(rs_type, known_vst_lookup)
                         if _vst_pick:
                             _vst_state = _compute_vst_state_for_piece(
@@ -4264,10 +4443,9 @@ def _auto_download_for_song(filename: str, path: Path) -> dict:
                 # query (file IS NOT NULL) and re-used as that NAM here, never
                 # reaching the VST primary — so cloud-downloaded songs landed on
                 # NAMs and needed a manual "remap all". Computing the VST first
-                # means pedals/racks/EQ get their VST + RS-knob vst_state on
-                # download. Skip amps (NAM-capture pipeline) + cabs (IRs); those
-                # fall through to the reuse/IR/NAM paths below.
-                if category not in ("amp", "cab"):
+                # means mapped VST gear gets its VST + RS-knob vst_state on
+                # download. Cabs still fall through to IR paths below.
+                if category != "cab":
                     _vst_pick = _pick_installed_primary_vst(rs_type, known_vst_lookup)
                     if _vst_pick:
                         _vst_state = _compute_vst_state_for_piece(
@@ -4592,6 +4770,7 @@ def _watch_fire(name: str) -> None:
             else:
                 raw_tones = _read_tones_from_psarc(path)
             _auto_fix_cab_mics_for_song_module(name, raw_tones)
+            _promote_generic_gear_for_song_module(name, raw_tones)
         except Exception:
             log.exception("rig_builder watcher cab-mic fix failed for %s", name)
     except Exception as e:
@@ -4637,14 +4816,10 @@ def _auto_fix_cab_mics_for_song_module(filename: str, raw_tones: list) -> int:
             effect_name = (cab.get("Key") or "").strip()
             if not effect_name:
                 continue
-            base_rs_gear = _cab_base_from_effect_name(effect_name)
-            suffix = _cab_suffix_from_effect_name(effect_name)
-            if not base_rs_gear or not suffix:
+            resolved = _resolve_cab_for_effect(effect_name, irs_root)
+            if not resolved:
                 continue
-            spec = (_load_rs_cab_mic_map().get(base_rs_gear) or {}).get(suffix)
-            new_file = (spec or {}).get("ir_file")
-            if not new_file or not (irs_root / new_file).exists():
-                continue
+            base_rs_gear, new_file = resolved
             base_lc = base_rs_gear.lower()
             rows = conn.execute(
                 "SELECT id, rs_gear_type, file, assigned_mode "
@@ -4680,6 +4855,91 @@ def _auto_fix_cab_mics_for_song_module(filename: str, raw_tones: list) -> int:
         if updated:
             for pid in affected:
                 _recompute_preset_primaries(conn, pid)
+            conn.commit()
+    return updated
+
+
+# Generic family strings Rocksmith puts in `gear.Type` for every gear of
+# that family. A preset_piece carrying one of these as its rs_gear_type is
+# a parser-miss (the .Key didn't resolve via the old knob heuristic) — the
+# UI never lets the user pick a generic family deliberately, so promoting it
+# to the real .Key is always safe. Cabinets are handled by the cab self-heal.
+_GENERIC_GEAR_FAMILIES = {"Amps", "Pedals", "Racks"}
+
+# RS GearList slot names per internal slot_type, in the SAME order
+# `_parse_tone` walks them — so positional zip against a preset's
+# preset_pieces (ordered by slot_order) lines up piece-for-piece.
+_SLOT_GEARLIST_NAMES = {
+    "pre_pedal":  ("PrePedal1", "PrePedal2", "PrePedal3", "PrePedal4"),
+    "amp":        ("Amp",),
+    "post_pedal": ("PostPedal1", "PostPedal2", "PostPedal3", "PostPedal4"),
+    "rack":       ("Rack1", "Rack2", "Rack3", "Rack4"),
+}
+
+
+def _promote_generic_gear_for_song_module(filename: str, raw_tones: list) -> int:
+    """Promote generic 'Amps'/'Pedals'/'Racks' preset_piece rows to the
+    real rs_gear (the GearList slot's `.Key`, e.g. "Pedal_EQ5").
+
+    The non-cabinet analogue of `_auto_fix_cab_mics_for_song_module`: the
+    same parser-miss that dumped knob-less / unmapped gear into a generic
+    family bucket (because the old `_extract_model_from_knobs` heuristic
+    fell back to `gear.Type`) is fixed at parse time now, but existing rows
+    in the DB still carry the generic string. For each tone, re-read its
+    GearList, line the slots up positionally with the preset's stored
+    pieces of the same slot, and rewrite ONLY rs_gear_type on rows still
+    holding a generic family string. Assignments (file / vst / kind /
+    assigned_mode) are left untouched — the gear identity becomes accurate
+    without disturbing what's loaded. Returns rows updated.
+    """
+    if not raw_tones:
+        return 0
+    conn = _get_conn()
+    base_name = filename.rsplit("/", 1)[-1]
+    tm_rows = conn.execute(
+        "SELECT tone_key, preset_id FROM tone_mappings "
+        "WHERE filename = ? OR filename = ?",
+        (filename, base_name),
+    ).fetchall()
+    if not tm_rows:
+        return 0
+    tone_to_preset = {tk: pid for tk, pid in tm_rows}
+    updated = 0
+    with _lock:
+        for raw in raw_tones:
+            tone_key = raw.get("Key") or raw.get("Name") or ""
+            preset_id = tone_to_preset.get(tone_key)
+            if preset_id is None:
+                continue
+            gear_list = raw.get("GearList") or {}
+            for slot_type, gl_names in _SLOT_GEARLIST_NAMES.items():
+                # Ordered .Key list for this slot (skip empty/typeless slots,
+                # mirroring _parse_tone's `g and g.get("Type")` guard).
+                gl_keys: list[str] = []
+                for nm in gl_names:
+                    g = gear_list.get(nm)
+                    if g and g.get("Type"):
+                        gl_keys.append((g.get("Key") or "").strip())
+                if not gl_keys:
+                    continue
+                pp_rows = conn.execute(
+                    "SELECT id, rs_gear_type FROM preset_pieces "
+                    "WHERE preset_id = ? AND slot = ? ORDER BY slot_order",
+                    (preset_id, slot_type),
+                ).fetchall()
+                for i, (row_id, rs_gear) in enumerate(pp_rows):
+                    if rs_gear not in _GENERIC_GEAR_FAMILIES:
+                        continue
+                    if i >= len(gl_keys):
+                        continue
+                    key = gl_keys[i]
+                    if key and key != rs_gear:
+                        conn.execute(
+                            "UPDATE preset_pieces SET rs_gear_type = ? WHERE id = ?",
+                            (key, row_id),
+                        )
+                        updated += 1
+        if updated:
             conn.commit()
     return updated
 
@@ -5050,7 +5310,7 @@ def setup(app, context):
             # Chain-input drive (engine setGain('input', X)). Read by JS
             # at every chain load — value of 8.0 = +18 dB feeds NAM amps
             # at capture-time levels so they actually saturate.
-            "nam_chain_input_drive": float(s.get("nam_chain_input_drive", 8.0)),
+            "nam_chain_input_drive": float(s.get("nam_chain_input_drive", 1.0)),
             # User "Chain volume" trim (setGain('chain') multiplier). Default 4×
             # — the guitar chain runs much quieter than the backing track.
             "chain_makeup": float(s.get("chain_makeup", 4.0)),
@@ -5317,14 +5577,10 @@ def setup(app, context):
                 effect_name = (cab.get("Key") or "").strip()
                 if not effect_name:
                     continue
-                base_rs_gear = _cab_base_from_effect_name(effect_name)
-                suffix = _cab_suffix_from_effect_name(effect_name)
-                if not base_rs_gear or not suffix:
+                resolved = _resolve_cab_for_effect(effect_name, irs_root)
+                if not resolved:
                     continue
-                spec = (_load_rs_cab_mic_map().get(base_rs_gear) or {}).get(suffix)
-                new_file = (spec or {}).get("ir_file")
-                if not new_file or not (irs_root / new_file).exists():
-                    continue
+                base_rs_gear, new_file = resolved
                 # Find the cab preset_piece for this preset. Match by
                 # category-ish criteria: rs_gear is "Cabinets", or
                 # case-insensitively equals the resolved base, or a
@@ -5421,6 +5677,12 @@ def setup(app, context):
             _auto_fix_cab_mics_for_song(filename, raw_tones, conn)
         except Exception:
             log.exception("auto cab mic fix failed for %s", filename)
+        # Same self-heal for non-cab generics: promote any 'Amps'/'Pedals'/
+        # 'Racks' parser-miss rows to the real rs_gear from the GearList.
+        try:
+            _promote_generic_gear_for_song_module(filename, raw_tones)
+        except Exception:
+            log.exception("auto generic-gear promote failed for %s", filename)
         existing_rows = conn.execute(
             "SELECT tone_key, preset_id FROM tone_mappings WHERE filename = ?",
             (filename,),
@@ -5796,7 +6058,7 @@ def setup(app, context):
 
         rows = conn.execute(
             "SELECT slot, kind, file, rs_gear_type, bypassed, slot_order, "
-            "vst_path, vst_format, vst_state "
+            "vst_path, vst_format, vst_state, params_json "
             "FROM preset_pieces WHERE preset_id = ? "
             "ORDER BY slot_order",
             (preset_id,),
@@ -5814,19 +6076,21 @@ def setup(app, context):
         # so we can stable-sort everything (NAM + VST) by signal-flow first
         # and stored slot_order within the same slot second.
         audio_pieces = []
-        for slot, kind, file, gear, bypassed, slot_order, vst_path, vst_format, vst_state in rows:
+        for slot, kind, file, gear, bypassed, slot_order, vst_path, vst_format, vst_state, params_json in rows:
             if kind == "nam" and file:
                 audio_pieces.append((_rank(slot), slot_order, "nam", slot,
-                                     file, gear, bool(bypassed), None, None))
+                                     file, gear, bool(bypassed), None, None,
+                                     params_json))
             elif kind == "vst" and vst_path:
                 audio_pieces.append((_rank(slot), slot_order, "vst", slot,
                                      vst_path, gear, bool(bypassed),
-                                     vst_format or "VST3", vst_state))
+                                     vst_format or "VST3", vst_state,
+                                     params_json))
         audio_pieces.sort(key=lambda t: (t[0], t[1]))
 
         chain: list[dict] = []
         missing: list[str] = []
-        for _r, _o, kind, slot, payload, gear, bypassed, vst_format, vst_state in audio_pieces:
+        for _r, _o, kind, slot, payload, gear, bypassed, vst_format, vst_state, params_json in audio_pieces:
             if kind == "nam":
                 path = _safe_child(models_dir, payload)
                 if not path or not path.exists():
@@ -5846,7 +6110,8 @@ def setup(app, context):
                 _drive = _amp_input_drive_for(gear, slot)
                 chain.append(_nam_stage(path, bypassed=bypassed,
                                         input_level=_drive, output_drive=_drive,
-                                        slot=slot, rs_gear=gear))
+                                        slot=slot, rs_gear=gear,
+                                        rs_gain=_rs_gain_from_params_json(params_json, gear)))
             else:  # vst
                 # VST paths are absolute (no sandbox under models_dir). We
                 # don't .exists()-check on the backend because the engine
@@ -5855,14 +6120,16 @@ def setup(app, context):
                 vst_path_p = Path(payload)
                 # Opaque state blob (verbatim) so the plugin restores its
                 # captured params during real playback — not defaults.
+                effective_vst_state = _effective_vst_state_for_piece(
+                    gear, str(vst_path_p), vst_state, params_json)
                 chain.append(_vst_stage(
                     vst_path_p, vst_format, bypassed=bypassed,
-                    state=_vst_stage_state(str(vst_path_p), vst_format, vst_state),
+                    state=_vst_stage_state(str(vst_path_p), vst_format, effective_vst_state),
                     slot=slot, rs_gear=gear))
 
         # One cab IR at the tail (prefer the cabinet slot). Indexed in the
         # original `rows` tuples — column order: slot, kind, file, rs_gear,
-        # bypassed, slot_order, vst_path, vst_format, vst_state.
+        # bypassed, slot_order, vst_path, vst_format, vst_state, params_json.
         ir_rows = [(r[0], r[2], r[3], bool(r[4]), r[1]) for r in rows if r[1] in ("ir", "rs_ir") and r[2]]
         ir_pick = next((row for row in ir_rows if row[0] == "cabinet"), None)
         if ir_pick is None and ir_rows:
@@ -5969,7 +6236,7 @@ def setup(app, context):
         def _build_tone_stages(preset_id: int, tone_key: str, out_gain: float):
             rows = conn.execute(
                 "SELECT slot, kind, file, rs_gear_type, bypassed, slot_order, "
-                "vst_path, vst_format, vst_state "
+                "vst_path, vst_format, vst_state, params_json "
                 "FROM preset_pieces WHERE preset_id = ? "
                 "ORDER BY slot_order",
                 (preset_id,),
@@ -5979,18 +6246,20 @@ def setup(app, context):
                 return _CHAIN_NAM_ORDER.index(slot) if slot in _CHAIN_NAM_ORDER else len(_CHAIN_NAM_ORDER)
 
             audio_pieces = []
-            for slot, kind, file, gear, bypassed, slot_order, vst_path, vst_format, vst_state in rows:
+            for slot, kind, file, gear, bypassed, slot_order, vst_path, vst_format, vst_state, params_json in rows:
                 if kind == "nam" and file:
                     audio_pieces.append((_rank(slot), slot_order, "nam", slot,
-                                         file, gear, bool(bypassed), None, None))
+                                         file, gear, bool(bypassed), None, None,
+                                         params_json))
                 elif kind == "vst" and vst_path:
                     audio_pieces.append((_rank(slot), slot_order, "vst", slot,
                                          vst_path, gear, bool(bypassed),
-                                         vst_format or "VST3", vst_state))
+                                         vst_format or "VST3", vst_state,
+                                         params_json))
             audio_pieces.sort(key=lambda t: (t[0], t[1]))
 
             tone_stages: list[dict] = []
-            for _r, _o, kind, slot, payload, gear, persisted_bypassed, vst_format, vst_state in audio_pieces:
+            for _r, _o, kind, slot, payload, gear, persisted_bypassed, vst_format, vst_state, params_json in audio_pieces:
                 if kind == "nam":
                     path = _safe_child(models_dir, payload)
                     if not path or not path.exists():
@@ -6003,15 +6272,18 @@ def setup(app, context):
                     tone_stages.append(_nam_stage(
                         path, bypassed=persisted_bypassed,
                         input_level=_drive, output_drive=_drive,
-                        slot=slot, rs_gear=gear, tone_key=tone_key))
+                        slot=slot, rs_gear=gear, tone_key=tone_key,
+                        rs_gain=_rs_gain_from_params_json(params_json, gear)))
                 else:  # vst
                     vp = Path(payload)
                     # NOTE: mega_chain uses the simpler pluginPath wrapper (no
                     # opaque-state restore) — preserved verbatim by passing the
                     # state in. See _vst_stage / _vst_stage_state.
+                    effective_vst_state = _effective_vst_state_for_piece(
+                        gear, str(vp), vst_state, params_json)
                     state_obj = {"pluginPath": str(vp), "format": vst_format}
-                    if vst_state:
-                        state_obj["pluginState"] = vst_state
+                    if effective_vst_state:
+                        state_obj["pluginState"] = effective_vst_state
                     tone_stages.append(_vst_stage(
                         vp, vst_format, bypassed=persisted_bypassed,
                         state=_state_b64(state_obj),
@@ -6141,7 +6413,16 @@ def setup(app, context):
                     dkey = ("vst", tone_key, stage.get("name") or stage.get("path"))
                 idx = index_of_dkey.get((slot_type, dkey))
                 if idx is not None and idx not in seen:
-                    seen[idx] = {"idx": idx, "bypassed": bool(stage.get("bypassed", False))}
+                    entry = {"idx": idx, "bypassed": bool(stage.get("bypassed", False))}
+                    if stage.get("type") is not None:
+                        entry["type"] = stage.get("type")
+                    if stage.get("slot") is not None:
+                        entry["slot"] = stage.get("slot")
+                    if stage.get("rs_gear") is not None:
+                        entry["rs_gear"] = stage.get("rs_gear")
+                    if stage.get("rs_gain") is not None:
+                        entry["rs_gain"] = stage.get("rs_gain")
+                    seen[idx] = entry
             slots_list = sorted(seen.values(), key=lambda e: e["idx"])
             tone_index.append({
                 "tone_key": tone_key,
@@ -6254,20 +6535,30 @@ def setup(app, context):
         calls `getKnownPlugins()` on the native API. Empty list if the user
         hasn't synced yet (we can't initiate a scan from Python — the engine
         runs in the renderer's main process)."""
+        bundled = _bundled_vst_plugins()
         if _config_dir is None:
-            return {"plugins": []}
+            return {"plugins": bundled}
         path = _config_dir / _KNOWN_VSTS_FILENAME
         if not path.exists():
-            return {"plugins": []}
+            return {"plugins": bundled}
         try:
             data = json.loads(path.read_text())
+            by_path = {p["path"]: p for p in bundled if p.get("path")}
             if isinstance(data, list):
-                return {"plugins": data}
+                for p in data:
+                    if isinstance(p, dict) and p.get("path"):
+                        by_path[p["path"]] = p
+                return {"plugins": sorted(by_path.values(), key=lambda x: (x.get("name") or "").lower())}
             if isinstance(data, dict) and isinstance(data.get("plugins"), list):
-                return data
+                for p in data.get("plugins") or []:
+                    if isinstance(p, dict) and p.get("path"):
+                        by_path[p["path"]] = p
+                merged = dict(data)
+                merged["plugins"] = sorted(by_path.values(), key=lambda x: (x.get("name") or "").lower())
+                return merged
         except (json.JSONDecodeError, OSError):
             log.warning("known vsts file unreadable", exc_info=True)
-        return {"plugins": []}
+        return {"plugins": bundled}
 
     @app.post("/api/plugins/rig_builder/vst/sync_known")
     def vst_sync_known(data: dict = Body(...)):
@@ -6729,9 +7020,12 @@ def setup(app, context):
     # ── Gear catalog (grouped by type, with parenting + photo) ────────
     @app.get("/api/plugins/rig_builder/gear_catalog")
     def gear_catalog():
-        """Every Rocksmith gear referenced by a mapped song, grouped by
-        category, with what it's parented to (real make/model + assigned
-        capture/file) and a tone3000 photo when resolvable from cache."""
+        """The full Rocksmith gear catalog, grouped by category, with what
+        each is parented to (real make/model + assigned capture/file) and a
+        tone3000 photo when resolvable from cache. Gear used by a mapped song
+        carries its real assignment; gear NOT in any song is still listed so
+        the user can browse/audition everything — bundled-VST gear gets its
+        plugin attached (auditionable at defaults), the rest show unassigned."""
         from rb_core.tone3000_client import Tone3000Client
         conn = _get_conn()
         rs_map = _load_rs_to_real()
@@ -6865,6 +7159,36 @@ def setup(app, context):
                     "available": available,
                 })
             return out
+
+        # Surface gear that ISN'T used by any song yet so the user can browse
+        # and audition the FULL catalog — e.g. bundled effect pedals (Bass
+        # Phase, Sub Octave, …) that none of their tones happen to use. For
+        # every rs_to_real pedal/amp/rack not already represented by a
+        # preset_piece, synthesize a catalog entry; if the gear has a
+        # bundled/installed primary VST, attach it (with has_assignment=True)
+        # so the ▶ audition plays it at its defaults. Gear with no resolvable
+        # VST shows as unassigned, ready for the Suggest/assign flow.
+        # Cabs are intentionally EXCLUDED here: there are hundreds of cab
+        # codenames, they can't be auditioned without an extracted IR, and
+        # surfacing them all would bury the useful gear. Cabs still appear when
+        # a song actually uses them (they're already in `best`).
+        known_lookup = _build_known_vst_lookup()
+        for gear, info in rs_map.items():
+            if gear.startswith("_") or not isinstance(info, dict) or gear in best:
+                continue
+            cat = info.get("category") or _category_from_codename(gear)
+            if cat == "cab":
+                continue
+            prim = _pick_installed_primary_vst(gear, known_lookup)
+            best[gear] = {
+                "kind": "vst" if prim else "",
+                "file": None,
+                "tone3000_id": None,
+                "has_assignment": bool(prim),
+                "vst_path": prim["vst_path"] if prim else None,
+                "vst_format": prim["vst_format"] if prim else None,
+                "vst_state": None,
+            }
 
         cats: dict[str, list] = {}
         for gear, b in best.items():
@@ -7228,7 +7552,8 @@ def setup(app, context):
     # Three endpoints powering the new song/gear editor UX:
     #   GET  /gears_in_category/{cat}    list candidate replacements
     #   POST /piece_variant_override     force a variant for one preset
-    #   POST /gear/replace_with          swap one gear's file across all songs
+    #   POST /gear/replace_with          swap one gear to another gear's
+    #                                      current All Gear assignment
 
     # Single source of truth: the module-level resolver. Aliased here
     # so the gear-centric endpoints below keep their original name.
@@ -7369,6 +7694,44 @@ def setup(app, context):
             headers["ETag"] = etag
         return Response(content=data, media_type="image/png", headers=headers)
 
+    @app.get("/api/plugins/rig_builder/asset/font/{name}")
+    def asset_font(name: str):
+        """Serve a bundled OFL font (TTF) for the in-app canvas pedal UIs.
+
+        The web UI (`pedal_canvas.js`) recreates each bundled pedal's face on a
+        <canvas>, matching the C++ VST look — so it needs the same fonts the
+        plugins embed (Bebas Neue / Barlow / Anton / Crete Round). They live in
+        `assets/fonts/`. Only a fixed allow-list is served (no path traversal).
+        """
+        allow = {"bebas", "barlow", "anton", "crete"}
+        key = (name or "").split(".")[0].lower()
+        if key not in allow:
+            return JSONResponse({"error": "unknown font"}, 404)
+        path = _plugin_dir / "assets" / "fonts" / f"{key}.ttf"
+        if not path.exists():
+            return JSONResponse({"error": "missing"}, 404)
+        try:
+            data = path.read_bytes()
+        except OSError as e:
+            return JSONResponse({"error": str(e)}, 500)
+        return Response(content=data, media_type="font/ttf",
+                        headers={"Cache-Control": "public, max-age=604800"})
+
+    @app.get("/api/plugins/rig_builder/asset/pedal_canvas.js")
+    def asset_pedal_canvas():
+        """Serve pedal_canvas.js — the in-app canvas recreations of the bundled
+        pedal UIs. plugin.json only loads screen.js, so screen.js injects this
+        as a <script>. Served from the plugin root."""
+        path = _plugin_dir / "pedal_canvas.js"
+        if not path.exists():
+            return JSONResponse({"error": "missing"}, 404)
+        try:
+            data = path.read_bytes()
+        except OSError as e:
+            return JSONResponse({"error": str(e)}, 500)
+        return Response(content=data, media_type="application/javascript",
+                        headers={"Cache-Control": "no-cache"})
+
     @app.post("/api/plugins/rig_builder/piece_variant_override")
     def piece_variant_override(data: dict = Body(...)):
         """Force a specific variant on ONE preset's gear piece.
@@ -7453,12 +7816,10 @@ def setup(app, context):
                              preset. Omit to bulk-swap across every song.
 
         Effect: every matching preset_pieces row with rs_gear_type=from
-        gets a new file/tone3000_id drawn from to's gain_variants, with
-        the matching variant picked per-row by that row's Gain knob (so
-        songs with high Gain inherit to's dist variant, low Gain →
-        clean, etc.). The row's rs_gear_type stays the same — Rocksmith
-        still identifies the song as using `from` — but it now SOUNDS
-        like `to`. Marked `assigned_mode='manual'` so a Remap all
+        is rewritten to the current All Gear assignment for `to_rs_gear`
+        (including VST path + VST state). If the target gear is not assigned
+        yet, falls back to the curated resolver, with amp variants picked
+        per-row by that row's Gain knob. Marked manual/manual_vst so Remap all
         doesn't undo it.
         """
         try:
@@ -7509,7 +7870,7 @@ def setup(app, context):
                     rs_gain = float(rs_gain) if rs_gain is not None else None
                 except (ValueError, TypeError):
                     rs_gain = None
-                res = _resolve_gear_file(to_gear, None, rs_gain)
+                res = _resolve_song_swap_assignment(to_gear, params_json, rs_gain)
                 if res is None or (not res.get("file") and not res.get("vst_path")):
                     skipped += 1
                     continue
@@ -7524,7 +7885,7 @@ def setup(app, context):
                         "SET rs_gear_type = ?, kind = 'vst', "
                         "    file = NULL, tone3000_id = NULL, "
                         "    vst_path = ?, vst_format = ?, vst_state = ?, "
-                        "    assigned_mode = 'manual' "
+                        "    assigned_mode = 'manual_vst' "
                         "WHERE id = ?",
                         (to_gear, res["vst_path"],
                          res.get("vst_format") or "VST3",

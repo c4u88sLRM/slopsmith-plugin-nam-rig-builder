@@ -9,6 +9,16 @@
     if (window[HOOK_KEY]) return;
     window[HOOK_KEY] = true;
 
+    // Load pedal_canvas.js (in-app canvas recreations of the bundled pedal UIs).
+    // plugin.json only loads screen.js, so we inject it here and warm the fonts.
+    if (!document.getElementById('rb-pedal-canvas-js')) {
+        const sc = document.createElement('script');
+        sc.id = 'rb-pedal-canvas-js';
+        sc.src = '/api/plugins/rig_builder/asset/pedal_canvas.js';
+        sc.onload = () => { try { window.RBPedalCanvas && window.RBPedalCanvas.ready(); } catch (_) {} };
+        document.head.appendChild(sc);
+    }
+
     const origShowScreen = window.showScreen;
     if (typeof origShowScreen === 'function') {
         window.showScreen = function (id) {
@@ -102,7 +112,7 @@
                 // entire library sounds "very clean and similar".
                 // Same delay strategy as the VST param re-apply so it
                 // lands after the chain has settled in the engine.
-                setTimeout(() => { rbApplyChainInputDrive(); }, reapplyDelay);
+                setTimeout(() => { rbApplyChainInputDrive({ chain }); }, reapplyDelay);
             } catch (_) {
                 return origFetch(input, init);
             }
@@ -124,17 +134,10 @@
 // don't all refetch — the boot-time fetch in rbInit / mega-chain hook
 // populates it. Falls back to 8.0 if the cache hasn't loaded yet.
 //
-// BASS handling: tone3000 bass captures (Gallien-Krueger G1.0/G3.0/G5.0,
-// CS75B, Bassman, etc.) are typically authored at clean gain settings,
-// so the guitar-amp 8× drive over-saturates them — the model is being
-// fed +18 dB beyond its capture-time operating point. For bass songs
-// (4-string arrangement) or auditioning a Bass_* gear, we use unity
-// (1.0) drive instead. Detection sources, in priority:
-//   1. opts.isBass: explicit override (audition path passes this based
-//      on rs_gear, which the gear catalog has on hand)
-//   2. window.highway.getStringCount() <= 4 (song-playback path; the
-//      bundle publishes string count from the song_info payload)
-//   3. fall through to guitar drive
+// The old rule was "all guitars get 8×". That fixes high-gain amps, but it
+// also pushes clean amp captures into breakup. Prefer the active amp's stored
+// Rocksmith Gain when the chain JSON has it, and fall back to the old
+// guitar/bass split only when the chain has no useful amp metadata.
 //
 // The engine resets input gain to 1.0 on every chain reload, so we
 // have to re-apply after each loadPreset. Hooks:
@@ -142,25 +145,113 @@
 //   - mega-chain build (initial preload at song start)
 //   - rbListenTone (Listen ▶ in per-song view)
 //   - rbAuditionFile (▶ in Gear catalog)
+function rbNumberOrNull(value) {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
+}
+
+function rbSmoothstep01(value) {
+    const t = Math.max(0, Math.min(1, Number(value) || 0));
+    return t * t * (3 - 2 * t);
+}
+
+function rbConfiguredChainInputDrive() {
+    return (typeof window.__rbChainInputDrive === 'number' && window.__rbChainInputDrive > 0)
+        ? window.__rbChainInputDrive : 8.0;
+}
+
+function rbCleanGuitarChainInputDrive(maxDrive) {
+    // The backend's NAM output normalization and the captures themselves
+    // expect a guitar-level push even for clean amps. Unity made clean tones
+    // too quiet and made crunch/dist never reach their captured breakup.
+    return Math.min(maxDrive, Math.max(3.5, maxDrive * 0.68));
+}
+
+function rbLooksLikeBassFromHighway() {
+    try {
+        const hw = window.highway;
+        const sc = hw && typeof hw.getStringCount === 'function'
+            ? hw.getStringCount() : null;
+        return (typeof sc === 'number' && sc > 0 && sc <= 4);
+    } catch (_) {
+        return false;
+    }
+}
+
+function rbCleanishAmpDrive(stage, maxDrive) {
+    const gear = String(stage && stage.rs_gear || '');
+    if (gear.startsWith('Bass_') || gear.startsWith('DI_Amp_')) return 1.0;
+
+    const cleanDrive = rbCleanGuitarChainInputDrive(maxDrive);
+    const gain = rbNumberOrNull(stage && (stage.rs_gain ?? stage.rsGain));
+    if (gain !== null) {
+        if (gain <= 20) return cleanDrive * 0.82;
+        return cleanDrive + (maxDrive - cleanDrive) * rbSmoothstep01((gain - 30.0) / 45.0);
+    }
+
+    // Metadata fallback for catalog audition or older cached chains.
+    const haystack = [
+        stage && stage.name,
+        stage && stage.path,
+        stage && stage.rs_gear,
+    ].filter(Boolean).join(' ').toLowerCase();
+    if (/\bclean\b/.test(haystack)) return cleanDrive;
+    if (/amp_en30/i.test(gear) && /_v0?3(?:_|\.|$)/i.test(haystack)) return cleanDrive;
+    return maxDrive;
+}
+
+function rbActiveAmpStageForChain(chain) {
+    if (!Array.isArray(chain)) return null;
+    for (const stage of chain) {
+        if (!stage || stage.bypassed) continue;
+        const isAmp = Number(stage.type) === 1 && String(stage.slot || '').toLowerCase() === 'amp';
+        if (isAmp) return stage;
+    }
+    return null;
+}
+
+function rbPostAmpMakeupForChain(chainSpec) {
+    const amp = rbActiveAmpStageForChain(chainSpec);
+    if (!amp) return 1.0;
+    const gear = String(amp.rs_gear || '');
+    if (gear.startsWith('Bass_') || gear.startsWith('DI_Amp_')) return 1.0;
+
+    const maxDrive = rbConfiguredChainInputDrive();
+    const drive = rbCleanishAmpDrive(amp, maxDrive);
+    const ratio = maxDrive / Math.max(1.0, drive);
+    let makeup = Math.pow(Math.max(1.0, ratio), 0.9);
+
+    const gain = rbNumberOrNull(amp.rs_gain ?? amp.rsGain);
+    if (gain !== null) {
+        // Clean amps need their level recovered after we reduce pre-NAM drive
+        // to keep them clean. Do that post-amp so volume comes back without
+        // pushing the model into breakup again.
+        if (gain <= 20) makeup *= 1.70;
+        else if (gain <= 45) makeup *= 1.42;
+        else if (gain <= 60) makeup *= 1.16;
+    }
+    return Math.max(1.0, Math.min(3.25, makeup));
+}
+
+function rbDriveForChainInput(opts) {
+    const maxDrive = rbConfiguredChainInputDrive();
+    if (opts && opts.isBass === true) return 1.0;
+
+    const chain = opts && Array.isArray(opts.chain) ? opts.chain : null;
+    if (chain) {
+        const activeAmp = rbActiveAmpStageForChain(chain);
+        if (activeAmp) return rbCleanishAmpDrive(activeAmp, maxDrive);
+        return 1.0;
+    }
+
+    if (opts && opts.isBass === false) return maxDrive;
+    return rbLooksLikeBassFromHighway() ? 1.0 : maxDrive;
+}
+
 function rbApplyChainInputDrive(opts) {
     const audio = window.slopsmithDesktop && window.slopsmithDesktop.audio;
     if (!audio || typeof audio.setGain !== 'function') return;
-    let isBass = (opts && opts.isBass === true);
-    if (!isBass && !(opts && opts.isBass === false)) {
-        try {
-            const hw = window.highway;
-            const sc = hw && typeof hw.getStringCount === 'function'
-                ? hw.getStringCount() : null;
-            if (typeof sc === 'number' && sc > 0 && sc <= 4) isBass = true;
-        } catch (_) {}
-    }
-    let drive;
-    if (isBass) {
-        drive = 1.0;
-    } else {
-        drive = (typeof window.__rbChainInputDrive === 'number' && window.__rbChainInputDrive > 0)
-            ? window.__rbChainInputDrive : 8.0;
-    }
+    const drive = rbDriveForChainInput(opts);
     // Re-poll guard: the song-playback callers fire this ~600 ms after
     // the bundle's chain load — but `highway.getStringCount()` may not
     // have absorbed the song_info WS message yet (it defaults to 6
@@ -173,7 +264,7 @@ function rbApplyChainInputDrive(opts) {
     // idempotent on the engine side). Skipped when the caller passed
     // an explicit isBass — they already KNOW the answer (catalog
     // audition path).
-    const calledExplicitly = opts && (opts.isBass === true || opts.isBass === false);
+    const calledExplicitly = opts && (opts.isBass === true || opts.isBass === false || Array.isArray(opts.chain));
     if (!calledExplicitly && !opts?._isRepoll) {
         setTimeout(() => rbApplyChainInputDrive({ _isRepoll: true }), 1500);
         setTimeout(() => rbApplyChainInputDrive({ _isRepoll: true }), 3500);
@@ -190,9 +281,13 @@ function rbApplyChainInputDrive(opts) {
 // asymmetry without a slider — the caller passes this to rbPreLoadMute
 // so the fade-in lands at the right level for whatever this chain has.
 //
-//   active amp + active cab IR → ×2.0 (compensate cab attenuation)
-//   active amp + no cab IR     → ×0.5 (knock the raw-amp spike down)
-//   no active amp / fallback   → ×1.0 (don't change anything)
+//   active amp + Rocksmith cab IR → ×2.0 (RS cabs are raw/quiet — boost +6 dB)
+//   active amp + non-RS cab IR    → ×1.0 (tone3000 IRs are already loudness-
+//                                         normalized — boosting them over-drove
+//                                         the output, the "too boosted/saturated
+//                                         without the Rocksmith cab" report)
+//   active amp + no cab IR        → ×0.5 (knock the raw-amp spike down)
+//   no active amp / fallback      → ×1.0 (don't change anything)
 function rbChainGainTargetFor(chainSpec) {
     // User "Chain volume" trim (chain_makeup, default 1.0) — the ONLY level
     // the engine respects (per-stage IR gain is ignored). Multiplies the
@@ -200,27 +295,52 @@ function rbChainGainTargetFor(chainSpec) {
     const makeup = (typeof window.__rbChainMakeup === 'number') ? window.__rbChainMakeup : 4.0;
     let base = 1.0;
     if (Array.isArray(chainSpec)) {
-        let hasActiveAmp = false, hasActiveCab = false, activeNamCount = 0;
+        let hasActiveAmp = false, hasRsCab = false, hasOtherCab = false, activeNamCount = 0;
         for (const stage of chainSpec) {
             if (!stage || stage.bypassed) continue;
             if (stage.type === 1) {
                 activeNamCount++;
                 if (stage.slot === 'amp') hasActiveAmp = true;
             }
-            // type 2 = IR; ANY active IR counts as a cab (rs_ir master_pre etc.).
-            if (stage.type === 2) hasActiveCab = true;
+            // type 2 = IR. A Rocksmith cab IR lives under nam_irs/rocksmith/ and
+            // is RAW (quiet → needs +6 dB). A tone3000 IR is already normalized
+            // (boosting it is what saturated non-RS-cab tones), so 0 dB.
+            if (stage.type === 2) {
+                if (String(stage.path || '').toLowerCase().includes('rocksmith')) hasRsCab = true;
+                else hasOtherCab = true;
+            }
         }
-        // Auto makeup (dB): +6 if a cab IR is active, -6 if amp-only; +2 per
-        // extra NAM beyond the first; capped at +18. (Each NAM loses ~2-3 dB;
-        // the cab IR ~6 dB.) Only when an amp is active — otherwise leave at 1.
+        // Auto makeup (dB): +6 for a Rocksmith cab, 0 for a non-RS (tone3000)
+        // cab, -6 if amp-only; +2 per extra NAM beyond the first; capped at +18.
+        // Only when an amp is active — otherwise leave at 1.
         if (hasActiveAmp) {
-            let dB = (hasActiveCab ? 6 : -6) + 2 * Math.max(0, activeNamCount - 1);
+            const cabDb = hasRsCab ? 6 : (hasOtherCab ? 0 : -6);
+            let dB = cabDb + 2 * Math.max(0, activeNamCount - 1);
             dB = Math.max(-12, Math.min(18, dB));
             base = Math.pow(10, dB / 20);
+            base *= rbPostAmpMakeupForChain(chainSpec);
         }
     }
     window.__rbChainBaseTarget = base;   // remember (pre-trim) for live makeup changes
     return base * makeup;
+}
+
+function rbClampChainGainTarget(targetGain) {
+    return (typeof targetGain === 'number' && isFinite(targetGain) && targetGain >= 0)
+        ? Math.max(0, Math.min(32, targetGain))
+        : 1.0;
+}
+
+async function rbApplyChainOutputGain(opts) {
+    const chain = opts && Array.isArray(opts.chain) ? opts.chain : null;
+    if (!chain) return;
+    const audio = window.slopsmithDesktop && window.slopsmithDesktop.audio;
+    if (!audio || typeof audio.setGain !== 'function') return;
+    const target = rbClampChainGainTarget(rbChainGainTargetFor(chain));
+    window.__rbPendingChainGainTarget = target;
+    return audio.setGain('chain', target).catch((e) => {
+        console.warn('[rig_builder] setGain(chain,', target, ') failed:', e);
+    });
 }
 
 // User cab/chain volume trim. Persists to /settings and applies LIVE via
@@ -238,6 +358,22 @@ async function rbSetChainMakeup(v) {
     fetch(`${RB_API}/settings`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chain_makeup: val }),
+    }).catch(() => {});
+}
+
+// User "Amp drive" trim — the pre-NAM input gain for GUITAR amps (bass auto-
+// uses 1×). Default 8× (≈+18 dB); lower it if amp captures sound over-driven.
+// Persists to /settings (nam_chain_input_drive) and re-applies live through
+// rbApplyChainInputDrive (which keeps the bass/guitar branch correct).
+async function rbSetAmpDrive(v) {
+    const val = Math.max(0.1, Math.min(16.0, parseFloat(v) || 8.0));
+    window.__rbChainInputDrive = val;
+    const el = document.getElementById('rb-amp-drive-val');
+    if (el) el.textContent = val.toFixed(1) + '×';
+    rbApplyChainInputDrive();   // re-applies respecting bass detection
+    fetch(`${RB_API}/settings`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nam_chain_input_drive: val }),
     }).catch(() => {});
 }
 
@@ -260,13 +396,13 @@ async function rbSetChainMakeup(v) {
 let _rbMuteInFlight = false;
 async function rbPreLoadMute(chainLen, targetGain) {
     if (window.__rbMutePreLoad === false) return;
+    const pendingTarget = rbClampChainGainTarget(targetGain);
+    window.__rbPendingChainGainTarget = pendingTarget;
     if (_rbMuteInFlight) return;            // coalesce rapid tone changes
     _rbMuteInFlight = true;
     const audio = window.slopsmithDesktop && window.slopsmithDesktop.audio;
     if (!audio) { _rbMuteInFlight = false; return; }
-    const target = (typeof targetGain === 'number' && isFinite(targetGain) && targetGain >= 0)
-        ? Math.max(0, Math.min(32, targetGain))   // was 4 — clamped the auto-level + user makeup; chains can need ~20×
-        : 1.0;
+    const target = pendingTarget;   // was 4 — chains can need ~20×
     const hold = (typeof window.__rbMutePreLoadHold === 'number')
         ? Math.max(20, window.__rbMutePreLoadHold | 0)
         : 100 + 50 * Math.max(1, chainLen | 0);
@@ -287,7 +423,8 @@ async function rbPreLoadMute(chainLen, targetGain) {
             // not a fixed 1.0 — that's how we normalise across "amp +
             // cab" and "amp only" without a user-facing knob.
             if (typeof audio.setGain === 'function') {
-                const steps = [target * 0.25, target * 0.5, target * 0.8, target];
+                const restoreTarget = rbClampChainGainTarget(window.__rbPendingChainGainTarget ?? target);
+                const steps = [restoreTarget * 0.25, restoreTarget * 0.5, restoreTarget * 0.8, restoreTarget];
                 for (const v of steps) {
                     await audio.setGain('chain', v);
                     await new Promise(r => setTimeout(r, 6));
@@ -404,6 +541,8 @@ async function rbPreLoadMute(chainLen, targetGain) {
             // Goes through our patched loadPreset (mute + chain-gain 0)
             // so the AMP-on transient is suppressed just like a tone change.
             await api.loadPreset(JSON.stringify(full.native_preset));
+            await rbReapplyVstParamsToChain(api, chain).catch((e) =>
+                console.warn('[rig_builder] AMP auto-apply re-apply VST params:', e));
             console.log(`[rig_builder] AMP auto-apply: ${chain.length} stages for tone "${tone || '(base)'}"`
                 + ` (master ${full.master_pre_count || 0}+${full.master_post_count || 0})`);
         } catch (e) {
@@ -623,17 +762,20 @@ const RbMegaChain = (function () {
         const api = _api();
         if (!api || !_mega) return;
         const tone = _findToneByKey(activeToneKey);
-        const totalStages = (_mega.native_preset && _mega.native_preset.chain && _mega.native_preset.chain.length) || 0;
+        const chainSpec = (_mega.native_preset && _mega.native_preset.chain) || [];
+        const totalStages = chainSpec.length || 0;
         if (!totalStages) return;
 
         // Build a map: idx → desired bypass. Default for every slot is
         // bypassed=true (passthrough). For master + active-tone slots,
         // use the persisted bypass from the backend.
         const bypassByIdx = new Array(totalStages).fill(true);
+        const activeToneSlotByIdx = new Map();
         const applyEntry = (entry) => {
             if (!entry || typeof entry.idx !== 'number') return;
             if (entry.idx < 0 || entry.idx >= totalStages) return;
             bypassByIdx[entry.idx] = !!entry.bypassed;
+            activeToneSlotByIdx.set(entry.idx, entry);
         };
         (_mega.master_pre_slots  || []).forEach(applyEntry);
         (_mega.master_post_slots || []).forEach(applyEntry);
@@ -659,6 +801,19 @@ const RbMegaChain = (function () {
         } catch (e) {
             console.warn('[rig_builder mega-chain] applyActiveTone failed:', e);
         }
+        const effectiveChain = chainSpec.map((stage, idx) => {
+            const copy = Object.assign({}, stage, { bypassed: !!bypassByIdx[idx] });
+            const activeEntry = activeToneSlotByIdx.get(idx);
+            if (activeEntry) {
+                if (activeEntry.rs_gain != null) copy.rs_gain = activeEntry.rs_gain;
+                if (activeEntry.rs_gear != null) copy.rs_gear = activeEntry.rs_gear;
+                if (activeEntry.slot != null) copy.slot = activeEntry.slot;
+                if (activeEntry.type != null) copy.type = activeEntry.type;
+            }
+            return copy;
+        });
+        await rbApplyChainInputDrive({ chain: effectiveChain });
+        await rbApplyChainOutputGain({ chain: effectiveChain });
         _activeToneKey = activeToneKey;
     }
 
@@ -815,10 +970,8 @@ const RbMegaChain = (function () {
         try {
             const wasRunning = api.isAudioRunning ? await api.isAudioRunning().catch(() => true) : true;
             if (!wasRunning && api.startAudio) await api.startAudio();
-            // Input gain to chain-input-drive — pre-NAM, drives the amp
-            // captures from clean region into their saturation operating
-            // point (see rbApplyChainInputDrive comment).
-            await rbApplyChainInputDrive();
+            // _applyActiveTone already set the input drive from the active
+            // tone's amp metadata; don't overwrite it with a generic value.
         } catch (e) { console.warn('[rig_builder mega-chain] startAudio failed:', e); }
 
         // 6. Start watching highway for tone changes AND the bundle's
@@ -2227,6 +2380,15 @@ function rbRenderPieceCard(p, toneIdx, pIdx, isSelected, total) {
     // escaping bugs.
     const imgUrl = `${RB_API}/gear_photo/${encodeURIComponent(p.type)}${_RB_GEAR_PHOTO_CB}`;
     const onerr = "this.style.display='none'; var n=this.nextElementSibling; if(n) n.classList.remove('hidden');";
+    // For pieces backed by one of our canvas-UI VSTs, show the recreated
+    // plugin face (at the piece's current param values) instead of RS art.
+    const pStem = hasVst ? rbCanvasStem(p) : '';
+    const pCanvasArt = (pStem && window.RBPedalCanvas && window.RBPedalCanvas.has(pStem))
+        ? window.RBPedalCanvas.dataURL(pStem, rbCanvasThumbValues(p)) : null;
+    const pCanvasTag = pCanvasArt
+        ? `<img src="${pCanvasArt}" alt="" style="max-width:100%;max-height:100%;object-fit:contain"
+               class="relative max-w-full max-h-full object-contain transition ${imgBypassCls}">`
+        : '';
     return `
         <button onclick="rbSelectPiece(${toneIdx}, ${pIdx})"
                 class="relative flex-shrink-0 w-28 rounded-lg border ${selCls} p-2 text-left transition focus:outline-none"
@@ -2239,8 +2401,9 @@ function rbRenderPieceCard(p, toneIdx, pIdx, isSelected, total) {
                 <div class="absolute inset-0 flex items-center justify-center text-[10px] text-gray-600 text-center px-1 leading-tight ${imgBypassCls}">
                     ${rbEsc(p.rs_category || 'gear')}
                 </div>
+                ${pCanvasTag}
                 <img src="${imgUrl}" alt="" loading="lazy"
-                     style="max-width:100%;max-height:100%;object-fit:contain"
+                     style="${pCanvasArt ? 'display:none;' : ''}max-width:100%;max-height:100%;object-fit:contain"
                      class="relative max-w-full max-h-full object-contain transition ${imgBypassCls}"
                      onerror="this.style.display='none';">
             </div>
@@ -2285,6 +2448,7 @@ function rbRenderPieceEditor(p, toneIdx, pIdx, filename) {
     const effFile = rbEffFile(p);
     const hasVst = effKind === 'vst' && !!effVstPath;
     const hasFile = !hasVst && !!effFile;
+    const hasNam = !hasVst && effKind === 'nam' && !!effFile;
     const mode = (p.assigned && p.assigned.assigned_mode) || (p._uploaded_file ? 'manual' : '');
     const bypassed = !!p._bypassed;
 
@@ -2348,7 +2512,7 @@ function rbRenderPieceEditor(p, toneIdx, pIdx, filename) {
 
     // Amp gain variant picker — clickable buttons, active level highlighted.
     let ampVariantBadge = '';
-    if (p.amp_variant && Array.isArray(p.amp_variant.available) && p.amp_variant.available.length) {
+    if (hasNam && p.amp_variant && Array.isArray(p.amp_variant.available) && p.amp_variant.available.length) {
         const av = p.amp_variant;
         const activeLevel = av.current_level || av.picked;
         const manualMode = (p.assigned && p.assigned.assigned_mode === 'manual');
@@ -2403,13 +2567,22 @@ function rbRenderPieceEditor(p, toneIdx, pIdx, filename) {
     // for why we avoid the `JSON.stringify` inside an attribute approach.
     const imgUrl = `${RB_API}/gear_photo/${encodeURIComponent(p.type)}${_RB_GEAR_PHOTO_CB}`;
     const onerrBig = "this.style.display='none'; var n=this.nextElementSibling; if(n) n.classList.remove('hidden');";
+    // Plugin-UI face for our canvas-backed VSTs (current param values).
+    const pStemBig = rbCanvasStem(p);
+    const pCanvasArtBig = (pStemBig && window.RBPedalCanvas && window.RBPedalCanvas.has(pStemBig))
+        ? window.RBPedalCanvas.dataURL(pStemBig, rbCanvasThumbValues(p)) : null;
+    const pCanvasTagBig = pCanvasArtBig
+        ? `<img src="${pCanvasArtBig}" alt="" style="max-width:100%;max-height:100%;object-fit:contain"
+               class="max-w-full max-h-full rounded object-contain bg-dark-900">`
+        : '';
 
     return `
         <div class="bg-dark-800/40 border-y border-gray-800/40 p-4 space-y-3" data-tone="${toneIdx}" data-piece="${pIdx}">
             <div class="flex items-start gap-4">
                 <div class="flex-shrink-0 w-32 h-32 flex items-center justify-center overflow-hidden" style="width:128px;height:128px">
+                    ${pCanvasTagBig}
                     <img src="${imgUrl}" alt="" loading="lazy"
-                         style="max-width:100%;max-height:100%;object-fit:contain"
+                         style="${pCanvasArtBig ? 'display:none;' : ''}max-width:100%;max-height:100%;object-fit:contain"
                          class="max-w-full max-h-full rounded object-contain bg-dark-900"
                          onerror="${onerrBig}">
                     <div class="hidden w-full h-full rounded bg-dark-900 flex items-center justify-center text-xs text-gray-600 text-center px-2">
@@ -2537,8 +2710,38 @@ function rbFilterVstParams(params) {
         // Bypass UI; Program is an internal patch index irrelevant here.
         if (/^bypass$/i.test(n)) return false;
         if (/^program$/i.test(n)) return false;
+        // Engine-injected meta params. The native host PREPENDS "Buffer Size"
+        // and "Sample Rate" (and sometimes "Latency") to every plugin's param
+        // list — they're not the plugin's own params. Leaving them in shifted
+        // every real param's index by 2, so the canvas knob/fader at logical
+        // slot 0 was reading/driving "Buffer Size" instead of the first real
+        // knob. Drop them here so logical position == real-param order.
+        if (/^(buffer\s*size|sample\s*rate|latency)$/i.test(n)) return false;
         return true;
     });
+}
+
+// Build the canvas's parameter model from a raw getParameters() array.
+// Returns { values, idMap, logicalParams }:
+//   • values     — keyed by LOGICAL index (0,1,2… into the filtered real
+//                  params) AND by param name, so hand-built specs (logical
+//                  ids) and the EQ (band freq names) both resolve correctly.
+//   • idMap       — logical index → REAL engine paramId (for setParameter).
+//   • logicalParams — the filtered params re-id'd to their logical index
+//                  (so the generic fallback lays them out 0,1,2…).
+// `overrideById` (optional, keyed by REAL id) overlays in-progress edits.
+function rbBuildCanvasModel(rawParams, overrideById) {
+    const filtered = rbFilterVstParams(rawParams || []);
+    const values = {}, idMap = {};
+    const logicalParams = filtered.map((p, i) => {
+        const realId = p.id ?? p.paramId ?? p.index ?? i;
+        idMap[i] = realId;
+        let v = p.value ?? p.current;
+        if (overrideById && overrideById[realId] != null) v = overrideById[realId];
+        if (typeof v === 'number') { values[i] = v; if (p.name) values[p.name] = v; if (p.label) values[p.label] = v; }
+        return Object.assign({}, p, { id: i });
+    });
+    return { values, idMap, logicalParams };
 }
 
 // Tear down the currently-loaded inline-editor VST: close its native window
@@ -2549,8 +2752,16 @@ function rbFilterVstParams(params) {
 async function rbTeardownVstEditor(api) {
     const slot = rbState._vstEditorSlot;
     rbState._vstEditorSlot = null;
-    if (slot == null || !api) return;
-    try { if (api.closePluginEditor) await api.closePluginEditor(slot); } catch (_) {}
+    if (!api) return;
+    // Close the prior editor's native window only if there was one…
+    if (slot != null) {
+        try { if (api.closePluginEditor) await api.closePluginEditor(slot); } catch (_) {}
+    }
+    // …but ALWAYS clear the chain. The earlier `slot == null` early-return
+    // skipped this when opening the editor with no prior editor slot — so a
+    // live "Listen" chain (loaded via loadPreset, which sets no editor slot)
+    // stayed loaded, and the subsequent loadVST stacked a SECOND copy of the
+    // pedal on top → the effect was applied twice ("Edit VST doubles the sound").
     try { if (api.clearChain) await api.clearChain(); } catch (_) {}
 }
 
@@ -2703,12 +2914,34 @@ async function rbToneEditVst(toneIdx, pIdx) {
             const v  = param.value ?? param.current;
             if (id != null && typeof v === 'number') piece._vst_params[id] = v;
         }
+        // Auto-apply this song's Rocksmith knob mapping when the tone has NO
+        // captured/saved state yet — so the editor opens reflecting the song's
+        // settings instead of plugin defaults. (The manual "Apply RS settings"
+        // button still lets you re-apply or override.) Skipped when a curated
+        // state already exists so we don't clobber the user's own tweaks.
+        const hadSaved = saved && Object.keys(saved).length > 0;
+        if (!hadSaved && piece.knobs && Object.keys(piece.knobs).length) {
+            try {
+                const vstStem2 = vstPath.split('/').pop().replace(/\.(vst3|component)$/i, '');
+                const mapped = await rbComputeRsMappedParams(piece.type, piece.knobs, vstStem2, params);
+                if (mapped && Object.keys(mapped).length) {
+                    for (const [id, v] of Object.entries(mapped)) {
+                        const nid = Number(id);
+                        try { await api.setParameter(slotId, nid, v); } catch (_) {}
+                        piece._vst_params[nid] = v;
+                    }
+                    try { piece._vst_param_meta = await api.getParameters(slotId); } catch (_) {}
+                }
+            } catch (_) { /* mapping is best-effort; defaults remain on failure */ }
+        }
         // Render the inline slider panel FIRST so a headless plugin (no GUI —
         // e.g. the bundled QTron envelope filter) still gets an editable
         // panel even if openPluginEditor misbehaves for a UI-less plugin
         // (returns non-promise / throws). Native-window plugins are unaffected.
-        rbToneRenderInlineVstParams(toneIdx, pIdx);
-        if (api.openPluginEditor) {
+        const usedCanvas = rbToneRenderInlineVstParams(toneIdx, pIdx);
+        // Only fall back to the native plugin window when we DON'T have an
+        // in-app canvas recreation — the canvas is the inline editor now.
+        if (!usedCanvas && api.openPluginEditor) {
             try {
                 const _ed = api.openPluginEditor(slotId);
                 if (_ed && typeof _ed.catch === 'function') _ed.catch(() => {});
@@ -2721,13 +2954,85 @@ async function rbToneEditVst(toneIdx, pIdx) {
     }
 }
 
+// Normalize a VST path → canvas spec key (lowercased basename, no separators).
+function rbCanvasStem(piece) {
+    const p = rbEffVstPath(piece);
+    if (!p) return '';
+    return p.split('/').pop().replace(/\.(vst3|component)$/i, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+// True if we have an in-app canvas recreation of this piece's plugin UI.
+function rbHasCanvasUI(piece) {
+    return !!(window.RBPedalCanvas && window.RBPedalCanvas.has(rbCanvasStem(piece)));
+}
+
+// Build the {key: value} map the canvas reads, keyed BOTH by numeric paramId
+// AND by param name. Source of truth is the live getParameters snapshot
+// (`_vst_param_meta`); in-progress edits in `_vst_params` are overlaid on top.
+// Dual keying matters for graphic-EQ plugins whose params are NAMED by band
+// frequency ("50","100",…) — a value keyed by name still lands on the right
+// fader, and one keyed by id still lands on the right knob.
+// Full canvas model (values + logical→real idMap + logical params) for a piece.
+function rbCanvasParamModel(piece) {
+    return rbBuildCanvasModel((piece && piece._vst_param_meta) || [], (piece && piece._vst_params) || null);
+}
+
+// Best-known values for a NON-interactive thumbnail (the piece may never have
+// been opened in the editor, so _vst_param_meta is empty). Falls back to the
+// piece's saved vst_state (name-keyed), which the canvas resolves by name.
+function rbCanvasThumbValues(piece) {
+    const v = rbCanvasParamModel(piece).values;
+    if (Object.keys(v).length) return v;
+    try { return rbParseVstStateParams(rbEffVstState(piece)) || {}; } catch (_) { return {}; }
+}
+
 function rbToneRenderInlineVstParams(toneIdx, pIdx) {
     const editor = document.getElementById(`rb-tone-vst-editor-${toneIdx}-${pIdx}`);
-    if (!editor) return;
+    if (!editor) return false;
     const piece = rbState.songTones.tones[toneIdx].chain[pIdx];
     const params = rbFilterVstParams((piece && piece._vst_param_meta) || []);
     const effVstPath = rbEffVstPath(piece);
     const vstName = effVstPath.split('/').pop().replace(/\.(vst3|component)$/i, '');
+    // ── In-app canvas UI (no native window): faithful pedal face, draggable
+    //    knobs → setParameter + persist into piece._vst_params. ───────────────
+    const stem = rbCanvasStem(piece);
+    if (window.RBPedalCanvas && (window.RBPedalCanvas.has(stem) || params.length > 0)) {
+        editor.innerHTML = `
+            <div class="flex items-center justify-between mb-1">
+                <div class="text-[11px] text-purple-300 font-semibold">In-Slopsmith editor · ${rbEsc(vstName)}</div>
+                <div class="flex items-center gap-1">
+                    <button onclick="rbToneCaptureVstState(${toneIdx}, ${pIdx})"
+                            title="Snapshot the current parameter values into this tone's saved state"
+                            class="bg-amber-700/60 hover:bg-amber-600/60 text-amber-100 text-[10px] px-2 py-0.5 rounded">📸 Capture state</button>
+                    <button onclick="rbToneEditVst(${toneIdx}, ${pIdx})"
+                            title="Close inline editor"
+                            class="text-[10px] text-gray-400 hover:text-gray-200 px-1">✕</button>
+                </div>
+            </div>
+            <div class="flex justify-center">
+                <canvas id="rb-tone-vst-canvas-${toneIdx}-${pIdx}" style="width:240px;cursor:ns-resize;touch-action:none"></canvas>
+            </div>
+            <div class="text-[10px] text-gray-500 text-center mt-1">Drag a knob up/down to adjust</div>`;
+        const canvas = document.getElementById(`rb-tone-vst-canvas-${toneIdx}-${pIdx}`);
+        const api = window.slopsmithDesktop && window.slopsmithDesktop.audio;
+        const draw = () => {
+            const model = rbCanvasParamModel(piece);   // values keyed by logical idx + name; idMap logical→real
+            window.RBPedalCanvas.attach(canvas, stem, {
+                values: model.values,
+                params: model.logicalParams,            // generic fallback lays these out 0,1,2…
+                interactive: true,
+                onChange: (logicalId, val) => {
+                    const realId = model.idMap[logicalId] ?? logicalId;
+                    if (piece._vst_slot_id != null && api) { try { api.setParameter(piece._vst_slot_id, realId, val); } catch (_) {} }
+                    piece._vst_params = piece._vst_params || {};
+                    piece._vst_params[realId] = val;
+                },
+            });
+        };
+        // Fonts may still be loading on first open — redraw once they're ready.
+        if (window.RBPedalCanvas.ready) window.RBPedalCanvas.ready().then(draw);
+        draw();
+        return true;
+    }
     const header = `
         <div class="flex items-center justify-between">
             <div class="text-[11px] text-purple-300 font-semibold">In-Slopsmith editor · ${rbEsc(vstName)} · ${params.length} params</div>
@@ -2913,8 +3218,9 @@ function rbLibLabel(file, titleCounts) {
 //
 //   rbToggleGearSwap — open a category-filtered picker showing curated
 //                      gears with photos. Picking one swaps THIS song's
-//                      piece to that gear's NAM (variant auto-picked
-//                      by the row's Gain knob). Backed by POST
+//                      piece to that gear's current All Gear assignment
+//                      (VST when assigned, otherwise fallback NAM/IR).
+//                      Backed by POST
 //                      /gear/replace_with with `preset_id`.
 //
 // Both operations mark `assigned_mode='manual'` on the row so a Remap
@@ -3020,7 +3326,7 @@ function rbRenderGearSwapPanel(panel, gears, piece, toneIdx, pIdx) {
             <span class="text-[10px] text-gray-500">${gears.length} gears</span>
         </div>
         <div id="rb-swap-rows-${toneIdx}-${pIdx}" class="max-h-72 overflow-y-auto grid grid-cols-2 gap-1">${cards}</div>
-        <div class="text-[10px] text-gray-500 italic mt-2">Gears with curated multi-NAM variants are recommended. Cabs are skipped — use the IR dropdown instead.</div>`;
+        <div class="text-[10px] text-gray-500 italic mt-2">Uses the target gear's current All Gear assignment. Cabs are skipped — use the IR dropdown instead.</div>`;
     panel._rbGearList = gears;
     panel._rbToneIdx = toneIdx;
     panel._rbPIdx = pIdx;
@@ -3400,8 +3706,8 @@ async function rbMasterEditVst(role, idx) {
         // Render inline sliders FIRST (headless plugins like the bundled QTron
         // have no native window); then open the plugin's own editor window as
         // an optional visual. The inline sliders drive everything regardless.
-        rbMasterRenderInlineVstParams(role, idx);
-        if (api.openPluginEditor) {
+        const usedCanvas = rbMasterRenderInlineVstParams(role, idx);
+        if (!usedCanvas && api.openPluginEditor) {
             try {
                 const _ed = api.openPluginEditor(slotId);
                 if (_ed && typeof _ed.catch === 'function') _ed.catch(() => {});
@@ -3416,10 +3722,49 @@ async function rbMasterEditVst(role, idx) {
 
 function rbMasterRenderInlineVstParams(role, idx) {
     const editor = document.getElementById(`rb-master-${role}-editor-${idx}`);
-    if (!editor) return;
+    if (!editor) return false;
     const piece = rbState.master[role][idx];
     const params = rbFilterVstParams((piece && piece._vst_param_meta) || []);
     const vstName = (piece._vst_path || '').split('/').pop().replace(/\.(vst3|component)$/i, '');
+    // ── In-app canvas UI (no native window) ──────────────────────────────────
+    const stem = rbCanvasStem(piece);
+    if (window.RBPedalCanvas && (window.RBPedalCanvas.has(stem) || params.length > 0)) {
+        editor.innerHTML = `
+            <div class="flex items-center justify-between mb-1">
+                <div class="text-[11px] text-purple-300 font-semibold">In-Slopsmith editor · ${rbEsc(vstName)}</div>
+                <div class="flex items-center gap-1">
+                    <button onclick="rbMasterCaptureVstState('${role}', ${idx})"
+                            title="Snapshot the current parameter values into the master chain's saved state"
+                            class="bg-amber-700/60 hover:bg-amber-600/60 text-amber-100 text-[10px] px-2 py-0.5 rounded">📸 Capture state</button>
+                    <button onclick="rbMasterEditVst('${role}', ${idx})"
+                            title="Close inline editor (the VST stays loaded in the master chain)"
+                            class="text-[10px] text-gray-400 hover:text-gray-200 px-1">✕</button>
+                </div>
+            </div>
+            <div class="flex justify-center">
+                <canvas id="rb-master-${role}-canvas-${idx}" style="width:240px;cursor:ns-resize;touch-action:none"></canvas>
+            </div>
+            <div class="text-[10px] text-gray-500 text-center mt-1">Drag a knob up/down to adjust</div>`;
+        const canvas = document.getElementById(`rb-master-${role}-canvas-${idx}`);
+        const api = window.slopsmithDesktop && window.slopsmithDesktop.audio;
+        const draw = () => {
+            const model = rbCanvasParamModel(piece);
+            window.RBPedalCanvas.attach(canvas, stem, {
+                values: model.values,
+                params: model.logicalParams,
+                interactive: true,
+                onChange: (logicalId, val) => {
+                    const realId = model.idMap[logicalId] ?? logicalId;
+                    if (piece._vst_slot_id != null && api) { try { api.setParameter(piece._vst_slot_id, realId, val); } catch (_) {} }
+                    piece._vst_params = piece._vst_params || {};
+                    piece._vst_params[realId] = val;
+                },
+            });
+        };
+        if (window.RBPedalCanvas.ready) window.RBPedalCanvas.ready().then(draw);
+        draw();
+        return true;
+    }
     const header = `
         <div class="flex items-center justify-between">
             <div class="text-[11px] text-purple-300 font-semibold">In-Slopsmith editor · ${vstName} · ${params.length} params</div>
@@ -4399,6 +4744,55 @@ function rbRenderVstPanelBody(toneIdx, pIdx, currentVstPath, currentFormat) {
         <div id="rb-vst-status-${toneIdx}-${pIdx}" class="text-[10px] text-gray-500"></div>`;
 }
 
+// Pure compute of the RS-knob→VST-param values for a piece (no engine calls).
+// Fetches the curated mapping for (rs_gear, vst) and translates this piece's
+// Rocksmith knob values + any `_static` pins into a {paramId: value} dict.
+// Returns null when there's no curated mapping. Shared by the manual "Apply
+// RS settings" button and the auto-apply on editor open.
+async function rbComputeRsMappedParams(rsGearType, rsKnobs, vstStem, paramsList) {
+    let mapping;
+    try {
+        const r = await fetch(`${RB_API}/vst/knob_mapping?rs_gear_type=${encodeURIComponent(rsGearType)}&vst_name=${encodeURIComponent(vstStem)}`);
+        const data = await r.json();
+        mapping = data && data.mapping;
+    } catch (_) { return null; }
+    if (!mapping) return null;
+    const nameToId = {};
+    (paramsList || []).forEach((p, i) => {
+        const id = p.id ?? p.paramId ?? p.index ?? i;
+        nameToId[(p.name || '').toLowerCase()] = id;
+    });
+    const out = {};
+    const staticBlock = mapping._static;
+    if (staticBlock && typeof staticBlock === 'object') {
+        for (const [pname, pval] of Object.entries(staticBlock)) {
+            const tid = nameToId[String(pname).toLowerCase()];
+            if (tid == null) continue;
+            out[tid] = Math.max(0, Math.min(1, parseFloat(pval)));
+        }
+    }
+    for (const [rsKnobName, rule] of Object.entries(mapping)) {
+        if (rsKnobName === '_static') continue;
+        if (!rsKnobs || !(rsKnobName in rsKnobs)) continue;
+        const rsValue = parseFloat(rsKnobs[rsKnobName]);
+        if (isNaN(rsValue)) continue;
+        let targetId;
+        if (typeof rule.param === 'number') targetId = rule.param;
+        else if (typeof rule.param === 'string') {
+            targetId = nameToId[rule.param.toLowerCase()];
+            if (targetId == null) { const asInt = parseInt(rule.param, 10);
+                if (!isNaN(asInt) && String(asInt) === rule.param.trim()) targetId = asInt; }
+        }
+        if (targetId == null) continue;
+        const scale = (rule.scale != null) ? parseFloat(rule.scale) : 0.01;
+        const offset = (rule.offset != null) ? parseFloat(rule.offset) : 0;
+        let v = rsValue * scale + offset;
+        if (rule.invert) v = 1 - v;
+        out[targetId] = Math.max(0, Math.min(1, v));
+    }
+    return out;
+}
+
 // Apply the RS knob values for THIS piece to the loaded VST's params,
 // using the rs_knob_to_vst_param.json translation table. Surfaces a clear
 // message when no mapping exists for the (rs_gear, vst) pair so the user
@@ -4472,12 +4866,12 @@ async function rbApplyRsSettingsToVst(toneIdx, pIdx) {
         if (typeof rule.param === 'number') {
             targetId = rule.param;
         } else if (typeof rule.param === 'string') {
-            // Try direct index parse first (e.g. param: "5"), then name match.
-            const asInt = parseInt(rule.param, 10);
-            if (!isNaN(asInt) && String(asInt) === rule.param.trim()) {
-                targetId = asInt;
-            } else {
-                targetId = nameToId[rule.param.toLowerCase()];
+            // NAME first (graphic-EQ params are named by band frequency, e.g.
+            // "50"); fall back to a numeric index only if no name matches.
+            targetId = nameToId[rule.param.toLowerCase()];
+            if (targetId == null) {
+                const asInt = parseInt(rule.param, 10);
+                if (!isNaN(asInt) && String(asInt) === rule.param.trim()) targetId = asInt;
             }
         }
         if (targetId == null) { skipped.push(`${rsKnobName} → ${rule.param} (param not found on VST)`); continue; }
@@ -4581,6 +4975,18 @@ async function rbLoadKnownVsts() {
     //   2. Our backend filesystem cache /vst/known — persisted on our side.
     //   3. Empty list, user must click Scan.
     const api = window.slopsmithDesktop && window.slopsmithDesktop.audio;
+    const mergeByPath = (a, b) => {
+        const byPath = new Map();
+        for (const p of (a || [])) if (p && p.path) byPath.set(p.path, p);
+        for (const p of (b || [])) if (p && p.path) byPath.set(p.path, p);
+        return Array.from(byPath.values()).sort((x, y) => String(x.name || '').localeCompare(String(y.name || '')));
+    };
+    const loadBackend = async () => {
+        const r = await fetch(`${RB_API}/vst/known`);
+        if (!r.ok) return [];
+        const data = await r.json();
+        return Array.isArray(data.plugins) ? data.plugins : [];
+    };
     if (api && typeof api.loadPluginList === 'function' && typeof api.getKnownPlugins === 'function') {
         try {
             // loadPluginList loads the engine's cached list (no scan). Safe
@@ -4588,23 +4994,21 @@ async function rbLoadKnownVsts() {
             await api.loadPluginList();
             const plugins = await api.getKnownPlugins();
             if (Array.isArray(plugins) && plugins.length > 0) {
-                rbState.knownVsts = plugins;
+                const backendPlugins = await loadBackend().catch(() => []);
+                rbState.knownVsts = mergeByPath(backendPlugins, plugins);
                 // Sync to our backend cache so future loads work even if
                 // the engine cache gets wiped.
                 fetch(`${RB_API}/vst/sync_known`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({plugins}),
+                    body: JSON.stringify({plugins: rbState.knownVsts}),
                 }).catch(() => {});
                 return;
             }
         } catch (_) { /* fall through to backend cache */ }
     }
     try {
-        const r = await fetch(`${RB_API}/vst/known`);
-        if (!r.ok) return;
-        const data = await r.json();
-        rbState.knownVsts = Array.isArray(data.plugins) ? data.plugins : [];
+        rbState.knownVsts = await loadBackend();
     } catch (_) { /* best-effort */ }
 }
 
@@ -4803,11 +5207,20 @@ async function rbRestoreSavedParamsToSlot(api, slotId, savedParams) {
     const failed = [];
     const appliedDetail = [];
     for (const [pid, v] of Object.entries(savedParams)) {
-        let targetId = parseInt(pid, 10);
-        let resolvedBy = 'numeric';
-        if (isNaN(targetId) || String(targetId) !== String(pid).trim()) {
-            targetId = nameToId[String(pid).toLowerCase()];
-            resolvedBy = (targetId != null) ? 'name' : 'unresolved';
+        // Resolve by NAME first — graphic-EQ params are NAMED by band
+        // frequency ("50","100",…), which would otherwise be misread as a
+        // numeric paramId (50) that doesn't exist → silent no-op. Fall back
+        // to numeric paramId only when no param name matches.
+        let targetId = nameToId[String(pid).toLowerCase()];
+        let resolvedBy = (targetId != null) ? 'name' : null;
+        if (targetId == null) {
+            const asNum = parseInt(pid, 10);
+            if (!isNaN(asNum) && String(asNum) === String(pid).trim()) {
+                targetId = asNum;
+                resolvedBy = 'numeric';
+            } else {
+                resolvedBy = 'unresolved';
+            }
         }
         if (targetId == null || isNaN(targetId)) {
             failed.push(`${pid}(${resolvedBy})`);
@@ -4940,10 +5353,13 @@ async function rbReapplyVstParamsToChain(api, chainSpec) {
         // This makes bulk-populated vst_states (apply_vst_state.py writes
         // {paramName: value}) restore correctly on real song playback.
         let nameToId = null;
-        const needsResolve = Object.keys(params).some(
-            k => isNaN(parseInt(k, 10)) || String(parseInt(k, 10)) !== String(k).trim()
-        );
-        if (needsResolve && typeof api.getParameters === 'function') {
+        // ALWAYS build the name→id map: some plugins NAME their params with
+        // numeric strings (the bundled graphic EQs name each band by its
+        // frequency, e.g. "50","100","6400"). Those keys must resolve by
+        // NAME — reading "50" as numeric paramId 50 targets a nonexistent id
+        // and silently no-ops, leaving the band at its 0.5 default (the
+        // "EQ8/Bass EQ8 didn't map" bug).
+        if (typeof api.getParameters === 'function') {
             try {
                 const paramList = await api.getParameters(slotId);
                 if (Array.isArray(paramList)) {
@@ -4965,9 +5381,13 @@ async function rbReapplyVstParamsToChain(api, chainSpec) {
         let appliedCount = 0;
         const failed = [];
         for (const [pid, v] of Object.entries(params)) {
-            let targetId = parseInt(pid, 10);
-            if ((isNaN(targetId) || String(targetId) !== String(pid).trim()) && nameToId) {
-                targetId = nameToId[String(pid).toLowerCase()];
+            // Resolve by NAME first (handles numeric-named params like the
+            // graphic-EQ bands); fall back to a numeric paramId only when no
+            // param name matches the key.
+            let targetId = nameToId ? nameToId[String(pid).toLowerCase()] : undefined;
+            if (targetId == null) {
+                const asNum = parseInt(pid, 10);
+                if (!isNaN(asNum) && String(asNum) === String(pid).trim()) targetId = asNum;
             }
             if (targetId == null || isNaN(targetId)) {
                 failed.push(pid);
@@ -5478,6 +5898,8 @@ async function rbReloadPreview(refetchPresetId) {
         // explicitly so VSTs come up at their saved values, not defaults.
         await rbReapplyVstParamsToChain(api, chainArr).catch((e) =>
             console.warn('[rig_builder] reload re-apply VST params:', e));
+        await rbApplyChainInputDrive({ chain: chainArr });
+        await rbApplyChainOutputGain({ chain: chainArr });
         // Don't manually un-mute here — rbPreLoadMute does it with a fade
         // on its own timer. Forcing un-mute now would defeat the fade.
     } catch (e) { console.warn('[rig_builder] reload preview failed', e); }
@@ -5570,7 +5992,7 @@ async function rbAuditionFile(file, kind, btnId, gain, rsGear) {
             // over-saturating the tone3000 clean-gain capture; the
             // catalog always knows g.rs_gear so this is reliable.
             const isBass = typeof rsGear === 'string' && rsGear.startsWith('Bass_');
-            await rbApplyChainInputDrive({ isBass });
+            await rbApplyChainInputDrive({ isBass, chain });
             await api.setGain('chain', 1.0).catch(() => {});
         }
         if (api.setMonitorMute) await api.setMonitorMute(false).catch(() => {});
@@ -5750,6 +6172,13 @@ function rbApplyGearFilters() {
         console.error('[rig_builder] catalog render failed', e);
         el.innerHTML = `<p class="text-red-400">Error rendering: ${rbEsc(e.message)}</p>`;
     }
+    // Pedal-canvas thumbnails are rendered with dataURL() at build time; if the
+    // embedded fonts weren't loaded yet they'd use a fallback face. Repaint the
+    // catalog ONCE when fonts finish loading so the thumbnails come out right.
+    if (!rbState._gearFontsRepaint && window.RBPedalCanvas && window.RBPedalCanvas.ready) {
+        rbState._gearFontsRepaint = true;
+        window.RBPedalCanvas.ready().then(() => { try { rbApplyGearFilters(); } catch (_) {} });
+    }
 }
 
 function rbScrollToCategory(cat) {
@@ -5866,6 +6295,18 @@ function rbRenderCatalogCard(g) {
     // sibling, which is the next photo source down the chain.
     const rsArt = `${RB_API}/gear_photo/${encodeURIComponent(g.rs_gear)}${_RB_GEAR_PHOTO_CB}`;
     const onerrChain = "this.style.display='none'; var n=this.nextElementSibling; if(n){ if(n.tagName==='IMG'){n.style.display=''} else {n.classList.remove('hidden')} }";
+    // For gears we've built a VST canvas UI for, show the recreated plugin
+    // face as the thumbnail (instead of the Rocksmith art). dataURL renders
+    // off-screen at default knob values; if fonts haven't loaded yet the one
+    // re-render kicked off by RBPedalCanvas.ready() (see rbApplyGearFilters)
+    // repaints it correctly.
+    const gStem = isVst ? g.vst_path.split('/').pop().replace(/\.(vst3|component)$/i, '').toLowerCase().replace(/[^a-z0-9]/g, '') : '';
+    const canvasArt = (gStem && window.RBPedalCanvas && window.RBPedalCanvas.has(gStem))
+        ? window.RBPedalCanvas.dataURL(gStem, {}) : null;
+    const canvasImgTag = canvasArt
+        ? `<img src="${canvasArt}" alt="" style="max-width:100%;max-height:100%;object-fit:contain"
+               class="max-w-full max-h-full rounded object-contain" onerror="${onerrChain}">`
+        : '';
     // Inline width/height/object-fit (not just Tailwind w-16 etc.) so the
     // thumbnail stays small even where the host's purged CSS build drops the
     // plugin-only sizing utilities — without it the raw ~512px art renders
@@ -5880,8 +6321,9 @@ function rbRenderCatalogCard(g) {
         <div class="flex-shrink-0 w-16 h-16 flex items-center justify-center rounded bg-dark-900 overflow-hidden transition ${photoOff}"
              style="width:64px;height:64px"
              title="${isAssigned ? '' : 'Unassigned — no NAM/IR/VST mapped yet'}">
+            ${canvasImgTag}
             <img src="${rsArt}" alt="" loading="lazy"
-                 style="max-width:100%;max-height:100%;object-fit:contain"
+                 style="${canvasArt ? 'display:none;' : ''}max-width:100%;max-height:100%;object-fit:contain"
                  class="max-w-full max-h-full rounded object-contain"
                  onerror="${onerrChain}">
             ${t3kImgTag}
@@ -5915,8 +6357,8 @@ function rbRenderCatalogCard(g) {
         // bulk-assign step). Passes rs_gear so rbCatalogEditVst can apply
         // the (gear, vst) `_static` defaults (e.g. kHs Distortion Type for
         // fuzz/od/dist pedals, MEqualizer band-enable flags).
-        editBtn = `<button onclick="event.stopPropagation(); rbCatalogEditVst('${rbEsc(g.vst_path).replace(/'/g,"\\'")}','${rbEsc(g.vst_format || 'VST3')}','${rbEsc(g.rs_gear)}')"
-                           title="Edit this VST's settings (loads + opens native editor, applies _static defaults)"
+        editBtn = `<button onclick="event.stopPropagation(); rbCatalogEditInline('${safeId}','${rbEsc(g.vst_path).replace(/'/g,"\\'")}','${rbEsc(g.vst_format || 'VST3')}','${rbEsc(g.rs_gear)}','${gStem}')"
+                           title="Edit this VST's settings (shows the plugin UI inline; applies _static defaults)"
                            class="bg-purple-900/40 hover:bg-purple-900/60 text-purple-200 border border-purple-800/50 px-3 py-1.5 rounded text-xs">🎛 Edit</button>`;
     } else if (g.assigned && !hasInlineAudition) {
         listenBtn = `<button id="${btnId}" onclick="event.stopPropagation(); rbAuditionFile('${rbEsc(g.file).replace(/'/g,"\\'")}', '${rbEsc(g.kind || 'nam')}', '${btnId}', undefined, '${rbEsc(g.rs_gear || '')}')"
@@ -6014,6 +6456,7 @@ function rbRenderCatalogCard(g) {
                 <div class="flex-1"></div>
                 ${searchBtn}
             </div>
+            <div id="rb-cat-edit-${safeId}" class="hidden bg-purple-900/10 border border-purple-800/30 rounded p-2"></div>
             <div id="rb-cat-lib-${safeId}" class="hidden bg-indigo-900/10 border border-indigo-800/30 rounded p-2"></div>
             <div id="rb-cat-variants-${safeId}" class="hidden bg-emerald-900/10 border border-emerald-800/30 rounded p-2"></div>
         </div>` : '';
@@ -6946,6 +7389,80 @@ window.rbSweepParam = async function (slotId, paramName, steps) {
     return ranges;
 };
 
+// Inline catalog editor: when we have an in-app canvas recreation of the
+// plugin UI, show it right in the expanded gear card (draggable knobs →
+// live setParameter) instead of popping the native window. Falls back to
+// the native-window path (rbCatalogEditVst) for plugins without a canvas.
+async function rbCatalogEditInline(safeId, vstPath, vstFormat, rsGear, stem) {
+    if (!window.RBPedalCanvas) return rbCatalogEditVst(vstPath, vstFormat, rsGear);
+    const el = document.getElementById(`rb-cat-edit-${safeId}`);
+    if (!el) return rbCatalogEditVst(vstPath, vstFormat, rsGear);
+    const api = rbNativeAudio();
+    if (!api || typeof api.loadVST !== 'function') return alert('Native VST hosting not available.');
+    // Toggle close.
+    if (!el.classList.contains('hidden')) {
+        el.classList.add('hidden');
+        el.innerHTML = '';
+        await rbCloseActiveVstEditor().catch(() => {});
+        return;
+    }
+    // Mutual exclusivity with the other sub-panels.
+    document.getElementById(`rb-cat-lib-${safeId}`)?.classList.add('hidden');
+    document.getElementById(`rb-cat-variants-${safeId}`)?.classList.add('hidden');
+    el.classList.remove('hidden');
+    el.innerHTML = `<div class="text-xs text-gray-500">loading ${rbEsc(vstPath.split('/').pop())}…</div>`;
+    try {
+        await rbCloseActiveVstEditor().catch(() => {});
+        if (rbState.listeningTone !== null || rbState._auditionId) await rbStopPreview().catch(() => {});
+        if (api.clearChain) await api.clearChain().catch(() => {});
+        await api.startAudio().catch(() => {});
+        const slotId = await api.loadVST(vstPath);
+        if (slotId == null || slotId < 0) throw new Error('engine refused to load this plugin');
+        rbState._vstEditorSlot = slotId;
+        // Apply the (gear, vst) `_static` defaults (subtype pins) if any.
+        if (rsGear) {
+            const vstStem = vstPath.split('/').pop().replace(/\.(vst3|component)$/i, '').toLowerCase();
+            try {
+                const r = await fetch(`${RB_API}/vst/knob_mapping?rs_gear_type=${encodeURIComponent(rsGear)}&vst_name=${encodeURIComponent(vstStem)}`);
+                const data = await r.json();
+                const staticBlock = data && data.mapping && data.mapping._static;
+                if (staticBlock && typeof staticBlock === 'object') await rbRestoreSavedParamsToSlot(api, slotId, staticBlock);
+            } catch (e) { console.warn('[rig_builder catalog-edit] _static apply skipped:', e); }
+        }
+        // Snapshot current params → canvas model (logical values + idMap).
+        let model = { values: {}, idMap: {}, logicalParams: [] };
+        try {
+            const raw = (typeof api.getParameters === 'function' ? await api.getParameters(slotId) : []) || [];
+            model = rbBuildCanvasModel(raw, null);
+        } catch (_) {}
+        // No canvas spec AND no params to synthesize one → use the native window.
+        if (!window.RBPedalCanvas.has(stem) && model.logicalParams.length === 0) {
+            el.classList.add('hidden'); el.innerHTML = '';
+            return rbCatalogEditVst(vstPath, vstFormat, rsGear);
+        }
+        el.innerHTML = `
+            <div class="flex items-center justify-between mb-1">
+                <div class="text-[11px] text-purple-300 font-semibold">In-Slopsmith editor · ${rbEsc(vstPath.split('/').pop().replace(/\.(vst3|component)$/i, ''))}</div>
+                <button onclick="event.stopPropagation(); rbCatalogEditInline('${safeId}','${rbEsc(vstPath).replace(/'/g,"\\'")}','${rbEsc(vstFormat)}','${rbEsc(rsGear)}','${stem}')"
+                        title="Close inline editor" class="text-[10px] text-gray-400 hover:text-gray-200 px-1">✕</button>
+            </div>
+            <div class="flex justify-center">
+                <canvas id="rb-cat-canvas-${safeId}" style="width:240px;cursor:ns-resize;touch-action:none"></canvas>
+            </div>
+            <div class="text-[10px] text-gray-500 text-center mt-1">Drag a knob up/down · then 📚 Library → Assign to save</div>`;
+        const canvas = document.getElementById(`rb-cat-canvas-${safeId}`);
+        const draw = () => window.RBPedalCanvas.attach(canvas, stem, {
+            values: model.values, params: model.logicalParams, interactive: true,
+            onChange: (logicalId, val) => { const realId = model.idMap[logicalId] ?? logicalId;
+                try { api.setParameter(slotId, realId, val); } catch (_) {} },
+        });
+        if (window.RBPedalCanvas.ready) window.RBPedalCanvas.ready().then(draw);
+        draw();
+    } catch (e) {
+        el.innerHTML = `<div class="text-xs text-red-400">load failed: ${rbEsc(e.message || e)}</div>`;
+    }
+}
+
 async function rbCatalogEditVst(vstPath, vstFormat, rsGear) {
     const api = rbNativeAudio();
     if (!api || typeof api.loadVST !== 'function') {
@@ -7118,7 +7635,10 @@ async function rbListenTone(toneIdx, filename) {
             // Don't touch chain gain or monitor mute — rbPreLoadMute fades
             // chain back to its target and un-mutes on its own timer
             // with a smooth ramp. Forcing them here defeats the fade.
-            if (api.setGain) { await rbApplyChainInputDrive(); }
+            if (api.setGain) {
+                await rbApplyChainInputDrive({ chain });
+                await rbApplyChainOutputGain({ chain });
+            }
             const wasRunning = api.isAudioRunning ? await api.isAudioRunning().catch(() => true) : true;
             await api.startAudio();
             rbState._previewStartedAudio = !wasRunning;
@@ -7160,8 +7680,6 @@ async function rbLoadSettings() {
     }
     const megaCb = document.getElementById('rb-mega-chain-mode');
     if (megaCb) megaCb.checked = !!s.mega_chain_mode;
-    const bac = document.getElementById('rb-bypass-all-cabs');
-    if (bac) bac.checked = !!s.bypass_all_cabs;
     // Inverted-sense checkbox: the user opts OUT of curated-only by
     // ticking the box (= allow tone3000 fuzzy fallback). The persisted
     // setting is still `curated_only`; the UI just shows the opposite.
@@ -7176,6 +7694,11 @@ async function rbLoadSettings() {
     if (typeof s.nam_chain_input_drive === 'number') {
         window.__rbChainInputDrive = s.nam_chain_input_drive;
     }
+    const adv = (typeof s.nam_chain_input_drive === 'number') ? s.nam_chain_input_drive : 1.0;
+    const adSlider = document.getElementById('rb-amp-drive');
+    const adVal = document.getElementById('rb-amp-drive-val');
+    if (adSlider) adSlider.value = String(adv);
+    if (adVal) adVal.textContent = adv.toFixed(1) + '×';
     // Chain volume trim (user cab/chain makeup). Default 4.0.
     window.__rbChainMakeup = (typeof s.chain_makeup === 'number') ? s.chain_makeup : 4.0;
     const cmSlider = document.getElementById('rb-chain-makeup');
@@ -7246,12 +7769,10 @@ async function rbOauthDisconnect() {
 async function rbSaveSettings() {
     const megaCb = document.getElementById('rb-mega-chain-mode');
     const mega_chain_mode = megaCb ? !!megaCb.checked : false;
-    const bac = document.getElementById('rb-bypass-all-cabs');
-    const bypass_all_cabs = bac ? !!bac.checked : false;
     await fetch(`${RB_API}/settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mega_chain_mode, bypass_all_cabs }),
+        body: JSON.stringify({ mega_chain_mode }),
     });
     // Mirror to the runtime so RbMegaChain picks it up without a restart.
     window.__rbMegaChainSetting = mega_chain_mode;

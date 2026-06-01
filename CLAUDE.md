@@ -98,7 +98,25 @@ Key paths:
 
 ---
 
-## Current feature state (as of 2026-05-27)
+## Current feature state (as of 2026-06-01)
+
+> **v2.0.0 (2026-06-01):** ships **100 copyright-free bundled VST3 effects**
+> (pedals + racks) under `vst/` and recreates each pedal UI **in-app** on an
+> HTML canvas. `pedal_canvas.js` (`window.RBPedalCanvas`) renders the pedal/EQ/
+> generic faces; `screen.js` injects it and, on **Edit** (per-tone, master,
+> Gear catalog), shows the canvas inline instead of `openPluginEditor` (no
+> native window) with draggable controls → `setParameter`. Gear photos show the
+> rendered face for bundled-VST gears. Fonts served from `assets/fonts/` via
+> `GET …/asset/font/{name}`; the JS via `GET …/asset/pedal_canvas.js`.
+> **Key gotcha:** the engine prepends "Buffer Size"/"Sample Rate" to every
+> plugin's param list — `rbFilterVstParams` drops them and `rbBuildCanvasModel`
+> maps each spec's LOGICAL knob id (0,1,2…) → the REAL engine param id, so
+> controls aren't off-by-two. Edit auto-applies the RS knob mapping
+> (`rbComputeRsMappedParams`) when a tone has no captured state. Amps are NOT in
+> `rs_gear_to_vst.json` → they keep their chosen NAM; only pedals/racks default
+> to bundled VSTs. Amp VSTs live on the separate `feat/amps-vst` branch.
+
+## Earlier feature state (as of 2026-05-27)
 
 > **v1.2.0 (2026-05-27):** amp **gain variants** (clean/crunch/dist captures per
 > amp via `gain_variants` in `rs_to_real.json`), library **Manage** tab + storage

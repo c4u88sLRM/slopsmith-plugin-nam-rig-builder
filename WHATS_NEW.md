@@ -1,3 +1,44 @@
+# Rig Builder 2.0.0 — 100 bundled effect VSTs + in-app pedal UIs (2026-06-01)
+
+The big one. Rig Builder now ships **100 copyright-free VST3 effects** (pedals
+and rack units) built into the plugin, and recreates each one's UI **inside the
+app** — so you can see and tweak a pedal without any external plugin window.
+
+**Bundled effects (no external installs for these).** Every Rocksmith pedal and
+rack now maps to a faithful, brand-free in-house VST3 — distortions, fuzzes,
+overdrives, choruses, flangers, phasers, delays/echoes, reverbs, octavers,
+wahs/filters, tremolos/vibes, compressors, graphic EQs, rotary, and the Studio
+rack family. The free Kilohearts / Melda / Voxengo mappings remain as optional
+alternatives, but a fresh install needs nothing extra to play the full chain.
+
+**In-app pedal UIs (HTML canvas).** Pressing **Edit** on a pedal — in a song's
+chain, the master chain, or the Gear tab — now shows the pedal's face right
+inline, with **draggable knobs/faders** that drive the plugin live. No more
+separate native editor window. Gear thumbnails show the recreated pedal face
+instead of the Rocksmith art for any effect we bundle a VST for. Plugins we
+don't have a hand-drawn face for fall back to a clean auto-generated knob panel
+built from their parameters, so **nothing opens in an external window**.
+
+**Faithful graphic EQs.** EQ8 / Bass EQ8 / EQ5 render as real graphic EQs with
+vertical faders, a ±15 dB grid, and frequency labels — Boss-style (portrait) or
+Mesa-style (landscape).
+
+**Rocksmith settings now load on Edit.** Opening a pedal applies the song's
+Rocksmith knob values through the curated translation table automatically, so
+the editor opens reflecting the song (not plugin defaults). Your own captured
+tweaks are never overwritten.
+
+**Fixed: controls were off by two parameters.** The audio engine prepends
+"Buffer Size" and "Sample Rate" to every plugin's parameter list. The inline
+editor now filters those out and maps each on-screen control to the correct
+engine parameter — previously a knob could read/drive the wrong value.
+
+**Amps are unchanged.** Amplifiers keep using the NAM capture you already chose;
+only pedals and racks default to the bundled VSTs. (Amp VSTs are tracked
+separately and are not part of this release.)
+
+---
+
 # Rig Builder 1.3.4 — Windows extractor + gear-photo size fixes (2026-05-31)
 
 Two Windows-only fixes on top of 1.3.3.
