@@ -2884,7 +2884,7 @@ async function rbToneEditVst(toneIdx, pIdx) {
         await api.startAudio().catch(() => {});
         const slotId = await api.loadVST(vstPath);
         if (slotId == null || slotId < 0) {
-            editor.innerHTML = `<div class="text-xs text-red-400">engine refused to load this plugin</div>`;
+            editor.innerHTML = `<div class="text-xs text-red-400">${rbEsc(rbVstRefusedMsg())}</div>`;
             return;
         }
         rbState._vstEditorSlot = slotId;
@@ -2952,6 +2952,17 @@ async function rbToneEditVst(toneIdx, pIdx) {
     } finally {
         rbState._vstEditorBusy = false;
     }
+}
+
+function rbIsWindows() { return /win/i.test((navigator.platform || navigator.userAgent || '')); }
+// Message for a failed VST load. The bundled effects currently ship macOS-only
+// VST3 binaries, so on Windows the engine can't load them — say so clearly
+// instead of the cryptic "engine refused to load this plugin".
+function rbVstRefusedMsg() {
+    return 'engine refused to load this plugin'
+        + (rbIsWindows()
+            ? ' — heads up: the bundled effects only ship a macOS build right now, so they can\'t load on Windows yet (a Windows build is on the way).'
+            : '');
 }
 
 // Normalize a VST path → canvas spec key (lowercased basename, no separators).
@@ -3687,7 +3698,7 @@ async function rbMasterEditVst(role, idx) {
         await api.startAudio().catch(() => {});
         const slotId = await api.loadVST(vstPath);
         if (slotId == null || slotId < 0) {
-            editor.innerHTML = `<div class="text-xs text-red-400">engine refused to load this plugin</div>`;
+            editor.innerHTML = `<div class="text-xs text-red-400">${rbEsc(rbVstRefusedMsg())}</div>`;
             return;
         }
         rbState._vstEditorSlot = slotId;
@@ -5289,7 +5300,7 @@ async function rbLoadAndEditVst(toneIdx, pIdx) {
         await rbTeardownVstEditor(api);
         await api.startAudio().catch(() => {});
         const slotId = await api.loadVST(path);
-        if (slotId == null || slotId < 0) throw new Error('engine refused to load this plugin');
+        if (slotId == null || slotId < 0) throw new Error(rbVstRefusedMsg());
         rbState._vstEditorSlot = slotId;
         // Render the inline params editor (HTML sliders driving setParameter
         // in real time). This is THE workaround for the blurry-native-editor
@@ -7262,7 +7273,7 @@ async function rbCatalogLoadAndEdit(panelId) {
         await rbTeardownVstEditor(api);
         await api.startAudio().catch(() => {});
         const slotId = await api.loadVST(path);
-        if (slotId == null || slotId < 0) throw new Error('engine refused to load this plugin');
+        if (slotId == null || slotId < 0) throw new Error(rbVstRefusedMsg());
         rbState._vstEditorSlot = slotId;
         if (api.openPluginEditor) {
             await api.openPluginEditor(slotId).catch((e) => console.warn('openPluginEditor:', e));
@@ -7429,7 +7440,7 @@ async function rbCatalogEditInline(safeId, vstPath, vstFormat, rsGear, stem) {
         if (api.clearChain) await api.clearChain().catch(() => {});
         await api.startAudio().catch(() => {});
         const slotId = await api.loadVST(vstPath);
-        if (slotId == null || slotId < 0) throw new Error('engine refused to load this plugin');
+        if (slotId == null || slotId < 0) throw new Error(rbVstRefusedMsg());
         rbState._vstEditorSlot = slotId;
         // Apply the (gear, vst) `_static` defaults (subtype pins) if any.
         if (rsGear) {
