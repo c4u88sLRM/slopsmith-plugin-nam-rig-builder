@@ -300,13 +300,15 @@ protected:
         fillColor(Color(14,16,22)); text(cx*W(), cy*H(), s, NULL);
     }
     // text with a contrasting outline (e.g. red fill + white outline wordmarks)
-    void outlineText(float cx, float cy, float size, Color fillC, Color outC, const char* s, int fid) {
-        const float o = 1.8f * sc();
+    void outlineText(float cx, float cy, float size, Color fillC, Color outC, const char* s, int fid, float spacing = 0.f) {
+        const float o = 2.2f * sc();
         face(fid); fontSize(size*sc()); textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
+        textLetterSpacing(spacing*sc());
         fillColor(outC);
         for (float dx=-o; dx<=o; dx+=o) for (float dy=-o; dy<=o; dy+=o)
             if (dx||dy) text(cx*W()+dx, cy*H()+dy, s, NULL);
         fillColor(fillC); text(cx*W(), cy*H(), s, NULL);
+        textLetterSpacing(0.f);
     }
     void title(const char* s, Color c, float cy, float size, int fid) {
         face(fid); textAlign(ALIGN_CENTER | ALIGN_MIDDLE); fontSize(size * sc()); fillColor(c);

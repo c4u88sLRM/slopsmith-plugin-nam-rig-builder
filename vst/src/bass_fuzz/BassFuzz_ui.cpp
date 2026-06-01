@@ -36,11 +36,12 @@ protected:
         beginPath(); roundedRect(w*0.105f, h*0.085f, w*0.79f, h*0.83f, 10*f); strokeColor(Color(0,0,0,70)); strokeWidth(1.5f*f); stroke();
         // 3-way mode toggle
         modeToggle(w*0.40f, h*0.42f);
-        // wordmark: lowercase 'bass' in BLACK (script) + big 'FUZZ' white w/ black outline
-        textC(0.37f, 0.515f, 25, Color(16,20,14), "bass", fSerif);
-        outlineText(0.55f, 0.63f, 52, Color(242,242,244), Color(12,14,16), "FUZZ", fAnton);
+        // wordmark: big wide centred 'FUZZ' (white + black outline) with lowercase
+        // black 'bass' sitting on top of the 'FU'
+        outlineText(0.5f, 0.64f, 62, Color(242,242,244), Color(12,14,16), "FUZZ", fAnton, 7.0f);
+        textC(0.34f, 0.55f, 29, Color(16,20,14), "bass", fSerif);
         // red LED by the wordmark (not under a knob)
-        ledDot(w*0.515f, h*0.515f, 4.5f*f, true, 224,60,52);
+        ledDot(w*0.52f, h*0.55f, 4.5f*f, true, 224,60,52);
         footswitchRound(w*0.5f, h*0.81f, 21*f);
     }
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(BassFuzzUI)
