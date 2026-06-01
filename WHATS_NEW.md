@@ -1,3 +1,32 @@
+# Rig Builder 2.0.1 — Windows binaries for the bundled effects + parody pedal UIs (2026-06-01)
+
+**Windows support for the bundled effects.** The 100 bundled VST3 effects now
+ship a **Windows (x86_64-win) binary** inside every `.vst3` bundle, alongside
+the macOS one. Windows users were hitting *"engine refused to load this plugin"*
+on Edit/playback because the bundles only had a macOS binary — that's fixed:
+download the plugin and the effects load and play on Windows too. (Linux builds
+are still to come; the editor now shows a clear message instead of the cryptic
+error on platforms without a build.)
+
+**Parody pedal artwork (in-app canvas UIs).** The recreated pedal faces now use
+tasteful, legally-distinct parody branding instead of generic labels:
+- Distortion (RAT) → **MOUSE**
+- Fuzz (Big Muff) → **bass · BIG BUZZ**
+- Overdrive (Darkglass B3K) → **BLACKBRASS · MINITUBES B3X** (faithful B3K layout)
+- Bass Auto Filter (Q-Tron+) → **Q-TRIX** with a two-colour graffiti logo and a
+  click-through **LP/BP/HP** mode selector
+- Boss-style pedals → engraved **CHIEF** badge + parody model codes
+  (Bass Chorus **CB-3**, Delay **DL-3**, Flanger **FL-3**, Sub Octave **SO-2**)
+- Boss graphic EQs → **GE-8 / GEB-8** codes + CHIEF badge
+- Plus faithful **Eden WTDI** and **Bass Wah** faces.
+
+**Other fixes.** The guitar **Auto Tone** gear now maps to the Mu-Tron-style
+AutoFilter plugin (bass keeps the Q-Tron-style one); the Bass Overdrive knobs are
+correctly labelled (Blend/Drive/Grunt/Attack); landscape pedals render wider so
+their lettering stays legible.
+
+---
+
 # Rig Builder 2.0.0 — 100 bundled effect VSTs + in-app pedal UIs (2026-06-01)
 
 The big one. Rig Builder now ships **100 copyright-free VST3 effects** (pedals
