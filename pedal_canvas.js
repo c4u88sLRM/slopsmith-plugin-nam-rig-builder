@@ -1167,7 +1167,8 @@
     rr(c,pX,pY,pW,pH,6); c.strokeStyle='rgba(0,0,0,0.28)'; c.lineWidth=1.5; c.stroke();
     const lum=0.299*A[0]+0.587*A[1]+0.114*A[2], lc=lum>140?rgb(28,28,32):rgb(238,240,244);
     knobs.forEach(k=>{ let l=k._lbl; if(l.length>10) l=l.slice(0,10);
-      textC(d, k.cx*W, k.cy*H + k.r*W + 10, F.barlow, 9.5, lc, l); });
+      const ly = k._above ? k.cy*H - k.r*W - 6 : k.cy*H + k.r*W + 11;   // top row labels ABOVE its knobs
+      textC(d, k.cx*W, ly, F.barlow, 11, lc, l); });
     // green LCD nameplate
     const lX=pX+pW+22, lY=H*0.22, lW=W*0.30, lH=H*0.56;
     rr(c,lX,lY,lW,lH,4); c.fillStyle=rgb(8,20,10); c.fill();
@@ -1187,8 +1188,8 @@
     const r=Math.max(0.016, Math.min(0.030, pWf/cols*0.30));
     const knobs=o.names.map((nm,i)=>{ const cc=i%cols, rw=Math.floor(i/cols);
       return { id:i, cx:pXf+pWf*((cc+0.5)/cols),
-        cy: rows===1 ? pYf+pHf*0.40 : (rw===0 ? pYf+pHf*0.22 : pYf+pHf*0.74),
-        r, style:'boss', _lbl:nm }; });
+        cy: rows===1 ? pYf+pHf*0.42 : (rw===0 ? pYf+pHf*0.32 : pYf+pHf*0.70),
+        r, style:'boss', _lbl:nm, _above:(rows===2 && rw===0) }; });
     return { w:760, h:172, knobs, ptr:rgb(238,240,242), draw(d){ rackFace(d,o,knobs); } };
   }
   P.rotavibe        = rackSpec({title:'ROTA VIBE',         accent:[205,135,120], names:['Rate','Depth','Mix','Balance']});
