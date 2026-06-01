@@ -162,13 +162,17 @@
     const padT=tyTop+(tBot-tyTop)*0.50, padBot=tBot-9*s; rr(c,tx+12*s,padT,tw-24*s,padBot-padT,9*s); c.fillStyle=rgb(20,20,22); c.fill();
     // brand badge on the black step pad (parody of Boss's logo): same near-black
     // as the pad, with a blacker outline so it reads as engraved. Up near the
-    // top of the pad, bigger, all caps.
-    outlineText(d, W*0.5, padT+(padBot-padT)*0.27, FONTS.bebas, 26, rgb(20,20,22), rgb(0,0,0), 'CHIEF', 1.5);
+    // top of the pad, big, all caps.
+    outlineText(d, W*0.5, padT+(padBot-padT)*0.27, FONTS.bebas, 33, rgb(20,20,22), rgb(0,0,0), 'CHIEF', 1.5);
   }
-  function chiefName(d, n1, n2) { const {W,H}=d;
-    if (n2){ textC(d, 0.31*W, 0.575*H, FONTS.crete, 42, rgb(16,16,20), n1);
-             textC(d, 0.62*W, 0.648*H, FONTS.crete, 34, rgb(16,16,20), n2); }
-    else   { textC(d, 0.5*W, 0.63*H, FONTS.crete, 40, rgb(16,16,20), n1); } }
+  // n1/n2 = two-word model name; code = parody model number (e.g. 'CB-3'),
+  // printed small just under the second word (above the treadle pad).
+  function chiefName(d, n1, n2, code) { const {W,H}=d;
+    if (n2){ textC(d, 0.31*W, 0.535*H, FONTS.crete, 42, rgb(16,16,20), n1);
+             textC(d, 0.62*W, 0.608*H, FONTS.crete, 34, rgb(16,16,20), n2);
+             if (code) textC(d, 0.62*W, 0.665*H, FONTS.barlow, 14, rgb(16,16,20), code); }
+    else   { textC(d, 0.5*W, 0.585*H, FONTS.crete, 40, rgb(16,16,20), n1);
+             if (code) textC(d, 0.5*W, 0.655*H, FONTS.barlow, 14, rgb(16,16,20), code); } }
 
   // ── pedal specs ───────────────────────────────────────────────────────────
   // each: {w,h, knobs:[{id,cx,cy,r,style,cap:[r,g,b]}], draw(d,vals)}
@@ -220,30 +224,30 @@
       textC(d,.26*W,.355*H,F.barlow,11,gl,'GAIN');
       textC(d,.50*W,.355*H,F.barlow,11,gl,'TONE');
       textC(d,.74*W,.355*H,F.barlow,11,gl,'FILTER');
-      // 'bass' (script) sits directly ABOVE the wide 'BIG BUZZ' wordmark
-      textC(d,.5*W,.565*H,F.crete,30,rgb(16,20,14),'bass');
+      // 'bass' (script) sits over the 'BIG' word (left), like the real pedal
       outlineText(d,.5*W,.675*H,F.anton,48,rgb(242,242,244),rgb(12,14,16),'BIG BUZZ',5);
+      textC(d,.34*W,.605*H,F.crete,30,rgb(16,20,14),'bass');
       // LED at top-centre (above the knobs), clear of the FUZZ wordmark
       ledDot(d,W*.5,H*.105,true,224,60,52); footRound(d,W*.5,H*.81,21*s); } };
 
-  function chiefSpec(w,h,col,knobIds,n1,n2){ return { w,h, knobs: knobIds.map(k=>({id:k.id,cx:k.cx,cy:.235,r:.072,style:'boss'})),
+  function chiefSpec(w,h,col,knobIds,n1,n2,code){ return { w,h, knobs: knobIds.map(k=>({id:k.id,cx:k.cx,cy:.235,r:.072,style:'boss'})),
     ptr:rgb(238,240,242), draw(d){ chiefBody(d,col[0],col[1],col[2]); const wc=rgb(238,240,242);
       knobIds.forEach(k=> textSpaced(d,k.cx*d.W,.135*d.H,F.barlow,k.lblPx||8.5,wc,k.lbl,0.2));
-      chiefName(d,n1,n2); } }; }
+      chiefName(d,n1,n2,code); } }; }
 
   P.basschorus = chiefSpec(300,480,[40,158,150],
     [{id:0,cx:.205,lbl:'RATE'},{id:1,cx:.40,lbl:'DEPTH'},{id:2,cx:.595,lbl:'LO FILTER',lblPx:8},{id:3,cx:.79,lbl:'MIX'}],
-    'Bass','Chorus');
+    'Bass','Chorus','CB-3');
   P.basssuboctave = { w:300,h:480, knobs:[{id:0,cx:.34,cy:.235,r:.088,style:'boss'},{id:1,cx:.66,cy:.235,r:.088,style:'boss'}],
     ptr:rgb(236,232,224), draw(d){ chiefBody(d,112,70,66); const w=rgb(236,232,224);
       textSpaced(d,.34*d.W,.12*d.H,F.barlow,9,w,'MIX',0.2); textSpaced(d,.66*d.W,.12*d.H,F.barlow,9,w,'TONE',0.2);
-      chiefName(d,'Bass','Suboctave'); } };
+      chiefName(d,'Bass','Suboctave','SO-2'); } };
   P.bassfilterdelay = chiefSpec(300,480,[156,64,72],
     [{id:0,cx:.205,lbl:'TIME'},{id:1,cx:.40,lbl:'FEEDBACK',lblPx:7.5},{id:2,cx:.595,lbl:'MIX'},{id:3,cx:.79,lbl:'FILTER',lblPx:8}],
-    'Bass','Delay');
+    'Bass','Delay','DL-3');
   P.bassflanger = chiefSpec(300,480,[96,80,134],
     [{id:0,cx:.205,lbl:'RATE'},{id:1,cx:.40,lbl:'DEPTH'},{id:2,cx:.595,lbl:'FILTER',lblPx:8},{id:3,cx:.79,lbl:'MIX'}],
-    'Bass','Flanger');
+    'Bass','Flanger','FL-3');
 
   function boxSpec(w,h,col,knobs,wordmark,sub,accent,wfont){ return { w,h,
     knobs: knobs.map(k=>({id:k.id,cx:k.cx,cy:.27,r:.082,style:'pointer',cap:k.cap||[40,40,44]})),
