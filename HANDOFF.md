@@ -100,7 +100,7 @@ may remain as the implementation behind native capability handlers.
 | Surface | Current state | Target state |
 |---|---|---|
 | UI navigation/screens | Manifest + runtime native `ui.navigation` / `ui.plugin-screens` records exist. | Legacy `nav`/`screen` fields are compatibility only, with native records owning inspector output. |
-| Library | Manifest + runtime `library` requester/observer exists; Songs tab uses `/api/library?provider=...`. | All song search/sync flows use the library owner/provider contract; delete Rig Builder local song scanner fallback. |
+| Library | Manifest + runtime `library` requester/observer exists; Songs tab uses `/api/library?provider=...`; provider refresh/selection/sync go through the `library` owner command. | Keep all song search/sync flows on the library owner/provider contract; do not reintroduce a Rig Builder local song scanner. |
 | Audio effects | `audio-effects` participant reports safe chain summaries; full-chain playback still uses the `nam_tone/native-preset` fetch redirect bridge. | NAM player asks `audio-effects` for the active Rig Builder chain/route directly; no fetch monkey-patch. |
 | Jobs | Long-running UI actions are wrapped with job labels/progress where possible; backend routes still execute the real work. | Batch, preload, extraction, export, purge, and downloads are dispatched through `jobs` provider handlers with job IDs, cancellation, and safe recovery refs. |
 | Privileged work | Backend routes, tone3000, media import/export, and extractors are inventoried in `privileged-capabilities`. | Privileged operations are authorized and audited through the host before route execution, then linked to `jobs` when long-running. |
@@ -110,7 +110,7 @@ may remain as the implementation behind native capability handlers.
 
 1. **Stabilize native inventory.** Keep `plugin.json` and `rbRegisterCapabilities()` in lockstep for `library`, `audio-effects`, `jobs`, `privileged-capabilities`, `ui.navigation`, and `ui.plugin-screens`. Inspector smoke should show `rig_builder` in each domain with no duplicate participants after repeated screen opens/restarts.
 
-2. **Finish library migration.** Keep Songs tab search on `/api/library?provider=<id>` for local and remote sources. Use library `sync-song` for remote rows, and require providers to return a local `filename` / `localFilename` before Rig Builder parses tones. Once the minimum Slopsmith host has `/api/library` provider support, remove `rbListSongsLegacy()` and the `/api/plugins/rig_builder/list_songs` UI dependency. The backend route can remain only for old hosts or be deleted in a breaking plugin release.
+2. **Library migration is complete for Rig Builder.** Songs tab search stays on `/api/library?provider=<id>` for local and remote sources. Provider refresh/selection/sync use `library` owner commands, with `window.slopsmith.libraryProviders` only as the in-page provider cache. Remote rows must return a local `filename` / `localFilename` before Rig Builder parses tones. The legacy `rbListSongsLegacy()` fallback and `/api/plugins/rig_builder/list_songs` route have been removed; do not add plugin-local library listing back.
 
 3. **Replace the NAM fetch bridge.** Add a core/native audio-effects selection point used by `nam_tone` playback. Rig Builder should expose a route/provider handler that returns the full NAM/VST/IR chain for a preset or current song tone, and `nam_tone` should request that handler instead of Rig Builder monkey-patching `window.fetch`. Removal gate: normal song playback, Listen preview, mega-chain/preloader mode, bypass toggles, and fallback-to-2-stage all work with zero `audio-effects.legacy-nam-routing` bridge hits.
 
@@ -130,8 +130,7 @@ are either expected diagnostics-only records or gone, and the following legacy
 dependencies are absent from the normal path:
 
 - No `window.fetch` interception for NAM playback routing.
-- No direct local-library scanner from the Songs tab when the core library
-  provider endpoint is available.
+- No direct local-library scanner from the Songs tab.
 - No long-running action that bypasses `jobs` attribution.
 - No privileged route execution without a privileged-capabilities outcome.
 - No duplicate UI/navigation/screen participants after repeated hydration.
@@ -142,11 +141,12 @@ dependencies are absent from the normal path:
 ## Songs tab library provider routing (2026-06-01)
 
 The Songs tab search has a Slopsmith library-source selector before the search
-box. On current Slopsmith builds, `rbListSongs()` always searches through the
-core provider endpoint, including the local library:
-`GET /api/library?provider=local&...` or `provider=<remote-id>`. The old
-Rig Builder `/list_songs` route is only a compatibility fallback if the core
-library provider endpoint itself is unavailable.
+box. `rbListSongs()` always searches through the core provider endpoint,
+including the local library: `GET /api/library?provider=local&...` or
+`provider=<remote-id>`. Provider refresh, selection, and remote sync are routed
+through `window.slopsmith.capabilities.command('library', ...)`. The old
+Rig Builder `/list_songs` route and frontend fallback were removed during the
+library capability migration; local is a provider, not a private implementation.
 
 Remote rows must resolve to a real local filename before tone parsing. If a
 remote result already includes `localFilename` / `local_filename` /
@@ -648,7 +648,6 @@ The script's top of file adds `slopsmith/lib` to `sys.path` so the
 | POST | `/api/plugins/rig_builder/batch_all` | Kicks off the library-wide worker. Body `{mode}`: `new` = map only tones without a preset; `all` = remap every tone (re-resolves captures, preserves per-tone bypass + cab-IR variant). |
 | GET | `/api/plugins/rig_builder/batch_status` | Progress + log (polled by UI every 1s while running) |
 | GET | `/api/plugins/rig_builder/coverage` | Aggregates preset_pieces — pending vs assigned per rs_gear |
-| GET | `/api/plugins/rig_builder/list_songs?q=...` | DLC dir listing (recursive) — joins with web_library.db so titles/artists/years from the host's library cache surface to the UI. Search matches title/artist/album/filename. |
 | GET | `/api/plugins/rig_builder/native_preset_full/{preset_id}` | Full multi-stage chain (every NAM + VST + cab IR, honouring bypass) in nam_tone's native_preset shape. The fetch redirect points nam_tone's `native-preset/{id}` here for full-chain playback. |
 | GET | `/api/plugins/rig_builder/native_preset_one?file=&kind=` | One-stage native_preset from a single file — Gear-tab / candidate ▶ audition. Now also supports `kind=vst&vst_path=...` for VST audition. |
 | GET | `/api/plugins/rig_builder/gear_catalog` | Gears grouped by category with parenting (real make/model + assigned capture/VST) + a tone3000 photo. Powers the Gear tab. |
@@ -676,8 +675,9 @@ Users running `cloud_loader` keep most of their DLC dir as 0-byte
 placeholders — actual PSARC content lives in Google Drive and only
 gets pulled when needed. rig_builder handles this:
 
-- `list_songs` now returns `[{name, size, materialized}, …]` so the
-  UI can render a `☁ cloud` chip next to unmaterialized songs.
+- The Songs tab uses Slopsmith's library provider results rather than a
+  Rig Builder-local listing. Remote/cloud rows must sync through the provider
+  and return a local filename before tone parsing.
 - `GET /song/{filename}` returns HTTP 409 + `{error: "cloud_only",
   filename, hint}` when the file is 0 bytes, instead of trying to
   parse and failing with a noisy ValueError.
@@ -857,7 +857,8 @@ Six smoke tests, all green:
    `model_file` even when a pre-pedal NAM appears first in the chain.
 2. `/status` returns the right gear count (613) and recognizes no API
    key is configured.
-3. `/list_songs?q=…` finds songs in the user's real DLC dir.
+3. `/api/library?provider=local&q=…` finds songs in the user's real DLC dir for
+  the Songs tab.
 4. `/search?rs_gear=Amp_AT120` returns query="Marshall JCM 800" and a
    well-formed deep-link URL (no API key needed).
 5. `/coverage` correctly aggregates `preset_pieces` by `rs_gear_type`

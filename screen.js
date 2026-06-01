@@ -972,6 +972,25 @@ function rbLibraryProviderSnapshot() {
     return { current: 'local', providers: [{ id: 'local', label: 'My Library', kind: 'local', capabilities: ['library.read'], default: true }] };
 }
 
+async function rbLibraryCapabilityCommand(command, payload, target) {
+    const caps = rbCapabilitiesApi();
+    if (!caps || typeof caps.command !== 'function') return null;
+    try {
+        return await caps.command('library', command, {
+            requester: RB_PLUGIN_ID,
+            target: target || {},
+            payload: payload || {},
+        });
+    } catch (e) {
+        console.warn(`[rig_builder] library.${command} failed:`, e);
+        return null;
+    }
+}
+
+function rbLibraryPayload(result) {
+    return result && result.payload && typeof result.payload === 'object' ? result.payload : null;
+}
+
 function rbLibraryProviderById(providerId) {
     const api = rbLibraryProvidersApi();
     if (api && typeof api.providerById === 'function') return api.providerById(providerId);
@@ -1028,14 +1047,11 @@ function rbLibraryProviderSupports(providerId, capability) {
 }
 
 async function rbRefreshLibraryProviderSelector() {
-    const api = rbLibraryProvidersApi();
-    if (api && typeof api.refresh === 'function') {
-        await api.refresh({ restoreSaved: true }).catch(() => null);
-    }
+    const refreshed = await rbLibraryCapabilityCommand('refresh-providers', { restoreSaved: true });
     _rbLibraryProvidersLoaded = true;
     const select = document.getElementById('rb-library-provider');
     if (!select) return;
-    const snapshot = rbLibraryProviderSnapshot();
+    const snapshot = rbLibraryPayload(refreshed) || rbLibraryProviderSnapshot();
     const providers = (snapshot.providers || []).filter(provider =>
         Array.isArray(provider.capabilities) && provider.capabilities.includes('library.read'));
     select.innerHTML = providers.map(provider =>
@@ -1047,16 +1063,9 @@ async function rbRefreshLibraryProviderSelector() {
 
 async function rbSetLibraryProvider(providerId) {
     const id = String(providerId || 'local');
-    const caps = rbCapabilitiesApi();
-    if (caps && typeof caps.command === 'function') {
-        await caps.command('library', 'select-provider', {
-            requester: RB_PLUGIN_ID,
-            target: { providerId: id },
-        }).catch(() => null);
-    }
-    const api = rbLibraryProvidersApi();
-    if (api && typeof api.activeProviderId === 'function' && api.activeProviderId() !== id && typeof api.select === 'function') {
-        api.select(id);
+    const result = await rbLibraryCapabilityCommand('select-provider', {}, { providerId: id });
+    if (!rbLibraryPayload(result)) {
+        console.warn('[rig_builder] library.select-provider did not return a handled payload');
     }
     await rbRefreshLibraryProviderSelector();
     rbShowSongList();
@@ -1076,15 +1085,15 @@ async function rbSyncLibrarySong(providerId, songId, statusEl) {
         statusEl.className = 'text-xs text-blue-300 ml-2';
         statusEl.textContent = 'syncing...';
     }
-    const api = rbLibraryProvidersApi();
-    let result;
-    if (api && typeof api.syncSong === 'function') {
-        result = await api.syncSong(providerId, songId);
-    } else {
-        const response = await fetch(`/api/library/providers/${encodeURIComponent(providerId)}/songs/${encodeURIComponent(songId)}/sync`, { method: 'POST' });
-        result = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(result.detail || result.error || `HTTP ${response.status}`);
+    const commandResult = await rbLibraryCapabilityCommand('sync-song', {}, { providerId, songId });
+    if (!commandResult) {
+        throw new Error('Library sync capability is unavailable');
     }
+    if (commandResult.outcome !== 'handled') {
+        throw new Error(commandResult.reason || 'Library sync failed');
+    }
+    let result = rbLibraryPayload(commandResult);
+    if (result && result.result) result = result.result;
     const localFilename = rbExtractSyncLocalFilename(result);
     if (statusEl) {
         if (localFilename) {
@@ -2560,11 +2569,10 @@ function rbOnSongSearchInput() {
 async function rbListSongs() {
     const q = document.getElementById('rb-song-search').value.trim();
     const el = document.getElementById('rb-song-list');
-    const api = rbLibraryProvidersApi();
-    if (api && !_rbLibraryProvidersLoaded) {
+    if (!_rbLibraryProvidersLoaded) {
         await rbRefreshLibraryProviderSelector();
     }
-    const providerId = api ? rbActiveLibraryProviderId() : 'local';
+    const providerId = rbActiveLibraryProviderId();
     const params = new URLSearchParams({ q, page: '0', size: '50', sort: 'artist', provider: providerId });
     let data;
     try {
@@ -2572,7 +2580,6 @@ async function rbListSongs() {
         data = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(data.detail || data.error || `HTTP ${r.status}`);
     } catch (e) {
-        if (!api) return rbListSongsLegacy(q, el);
         el.innerHTML = `<p class="text-red-400 text-sm">Library search failed: ${rbEsc(e.message || e)}</p>`;
         return;
     }
@@ -2582,41 +2589,6 @@ async function rbListSongs() {
         return;
     }
     el.innerHTML = songs.map(song => rbRenderLibrarySongListItem(song, providerId)).join('');
-}
-
-async function rbListSongsLegacy(q, el) {
-    const r = await fetch(`${RB_API}/list_songs?q=${encodeURIComponent(q)}`);
-    const data = await r.json();
-    if (!data.songs.length) {
-        el.innerHTML = '<p class="text-gray-500 text-sm">No matches</p>';
-        return;
-    }
-    el.innerHTML = data.songs.map(s => {
-        const name = typeof s === 'string' ? s : s.name;
-        const mat = typeof s === 'string' ? true : s.materialized;
-        const title = (typeof s === 'object' && s.title) || '';
-        const artist = (typeof s === 'object' && s.artist) || '';
-        const year = (typeof s === 'object' && s.year) || '';
-        const cloudTag = mat ? '' : '<span class="text-xs text-blue-400 ml-2">cloud</span>';
-        const textColor = mat ? 'text-gray-300' : 'text-gray-500';
-        let label;
-        if (title || artist) {
-            const yearTag = year ? ` <span class="text-gray-600">(${rbEsc(year)})</span>` : '';
-            label = `
-                <div class="flex-1 min-w-0">
-                    <div class="truncate">${rbEsc(title || '(untitled)')}${yearTag}</div>
-                    <div class="text-xs text-gray-500 truncate" title="${rbEsc(name)}">${rbEsc(artist || '(unknown artist)')}</div>
-                </div>`;
-        } else {
-            label = `<span class="flex-1 truncate" title="${rbEsc(name)}">${rbEsc(name)}</span>`;
-        }
-        return `
-            <div onclick="rbLoadSongTones(this.dataset.rbFilename)" data-rb-filename="${rbEsc(name)}"
-                 class="cursor-pointer hover:bg-dark-700/50 px-3 py-2 rounded text-sm ${textColor} flex items-center">
-                ${label}
-                ${cloudTag}
-            </div>`;
-    }).join('');
 }
 
 function rbRenderLibrarySongListItem(song, fallbackProviderId) {
