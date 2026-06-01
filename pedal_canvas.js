@@ -163,16 +163,22 @@
     // brand badge on the black step pad (parody of Boss's logo): same near-black
     // as the pad, with a blacker outline so it reads as engraved. Up near the
     // top of the pad, big, all caps.
-    outlineText(d, W*0.5, padT+(padBot-padT)*0.27, FONTS.bebas, 33, rgb(20,20,22), rgb(0,0,0), 'CHIEF', 1.5);
+    chiefBadge(d, padT, padBot);
   }
-  // n1/n2 = two-word model name; code = parody model number (e.g. 'CB-3'),
-  // printed small just under the second word (above the treadle pad).
+  // Wide engraved 'CHIEF' badge across the black step pad (parody Boss logo):
+  // pad-colour fill + black outline; much wider than tall via big letter spacing.
+  function chiefBadge(d, padT, padBot) { const W = d.W;
+    outlineText(d, W*0.5, padT+(padBot-padT)*0.30, FONTS.bebas, 40, rgb(20,20,22), rgb(0,0,0), 'CHIEF', 24);
+  }
+  // n1/n2 = two-word model name (big, right-shifted); code = parody model number
+  // (e.g. 'CB-3'), a bit smaller, just under the second word (above the pad).
   function chiefName(d, n1, n2, code) { const {W,H}=d;
-    if (n2){ textC(d, 0.31*W, 0.535*H, FONTS.crete, 42, rgb(16,16,20), n1);
-             textC(d, 0.62*W, 0.608*H, FONTS.crete, 34, rgb(16,16,20), n2);
-             if (code) textC(d, 0.62*W, 0.665*H, FONTS.barlow, 14, rgb(16,16,20), code); }
-    else   { textC(d, 0.5*W, 0.585*H, FONTS.crete, 40, rgb(16,16,20), n1);
-             if (code) textC(d, 0.5*W, 0.655*H, FONTS.barlow, 14, rgb(16,16,20), code); } }
+    if (n2){ const s2 = n2.length > 7 ? 32 : 44, sc = s2 - 10;
+             textC(d, 0.37*W, 0.50*H, FONTS.crete, 48, rgb(16,16,20), n1);
+             textC(d, 0.65*W, 0.58*H, FONTS.crete, s2, rgb(16,16,20), n2);
+             if (code) textC(d, 0.65*W, 0.665*H, FONTS.barlow, sc, rgb(16,16,20), code); }
+    else   { textC(d, 0.5*W, 0.56*H, FONTS.crete, 46, rgb(16,16,20), n1);
+             if (code) textC(d, 0.5*W, 0.65*H, FONTS.barlow, 32, rgb(16,16,20), code); } }
 
   // ── pedal specs ───────────────────────────────────────────────────────────
   // each: {w,h, knobs:[{id,cx,cy,r,style,cap:[r,g,b]}], draw(d,vals)}
@@ -226,7 +232,7 @@
       textC(d,.74*W,.355*H,F.barlow,11,gl,'FILTER');
       // 'bass' (script) sits over the 'BIG' word (left), like the real pedal
       outlineText(d,.5*W,.675*H,F.anton,48,rgb(242,242,244),rgb(12,14,16),'BIG BUZZ',5);
-      textC(d,.34*W,.605*H,F.crete,30,rgb(16,20,14),'bass');
+      textC(d,.30*W,.565*H,F.crete,34,rgb(16,20,14),'bass');
       // LED at top-centre (above the knobs), clear of the FUZZ wordmark
       ledDot(d,W*.5,H*.105,true,224,60,52); footRound(d,W*.5,H*.81,21*s); } };
 
@@ -441,23 +447,23 @@
       rr(c, tx, tyTop, tw, tBot - tyTop, 12); c.fillStyle = tre; c.fill();
       rr(c, tx, tyTop, tw, 10, 12); c.fillStyle = 'rgba(255,255,255,0.08)'; c.fill();
       rr(c, tx, tyTop, tw, tBot - tyTop, 12); c.strokeStyle = 'rgba(0,0,0,0.47)'; c.lineWidth = 1.6; c.stroke();
-      const padT = tyTop + (tBot - tyTop) * 0.50; rr(c, tx + 12, padT, tw - 24, tBot - padT - 9, 9); c.fillStyle = rgb(20, 20, 22); c.fill();
-      if (spec.name1 && spec.name2) { textC(d, W * 0.30, H * 0.575, F.crete, 42, rgb(16, 16, 20), spec.name1); textC(d, W * 0.61, H * 0.675, F.crete, 34, rgb(16, 16, 20), spec.name2); }
-      else textC(d, W * 0.5, H * 0.625, F.crete, 40, rgb(16, 16, 20), spec.label);
+      const padT = tyTop + (tBot - tyTop) * 0.50, padBot = tBot - 9; rr(c, tx + 12, padT, tw - 24, padBot - padT, 9); c.fillStyle = rgb(20, 20, 22); c.fill();
+      chiefName(d, spec.name1 || spec.label, spec.name2, spec.code);   // same name + parody code as the Boss pedals
+      chiefBadge(d, padT, padBot);                                     // CHIEF badge on the pad
     }
   }
   function eqSpec(o) {
     const lum = 0.299 * o.col[0] + 0.587 * o.col[1] + 0.114 * o.col[2];
     const spec = { w: o.w, h: o.h, mesa: o.style === 1, bands: o.bands, db: o.db, col: o.col,
-      label: o.label || '', name1: o.name1, name2: o.name2,
+      label: o.label || '', name1: o.name1, name2: o.name2, code: o.code,
       textCol: lum > 140 ? rgb(34, 34, 38) : rgb(232, 234, 240),
       eq: true, knobs: [], ptr: rgb(0, 0, 0), tick: rgb(0, 0, 0) };
     spec.draw = (d, values) => eqDraw(d, spec, values);
     return spec;
   }
-  P.eq8     = eqSpec({ w: 320, h: 500, style: 0, db: 15, col: [188, 190, 186], label: 'Equalizer',
+  P.eq8     = eqSpec({ w: 320, h: 500, style: 0, db: 15, col: [188, 190, 186], label: 'Equalizer', code: 'GE-8',
                        bands: ['50', '100', '200', '400', '800', '1600', '3200', '6400'] });
-  P.basseq8 = eqSpec({ w: 320, h: 500, style: 0, db: 15, col: [210, 206, 194], name1: 'Bass', name2: 'Equalizer',
+  P.basseq8 = eqSpec({ w: 320, h: 500, style: 0, db: 15, col: [210, 206, 194], name1: 'Bass', name2: 'Equalizer', code: 'GEB-8',
                        bands: ['30', '75', '185', '460', '1100', '2700', '6800', '16000'] });
   P.eq5     = eqSpec({ w: 440, h: 300, style: 1, db: 15, col: [30, 30, 33], label: '5-BAND GRAPHIC',
                        bands: ['63', '250', '750', '2200', '5700'] });
