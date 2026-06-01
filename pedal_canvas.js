@@ -73,6 +73,16 @@
     rr(c, cx-hs, cy-hs, hs*2, hs*2, 3); c.strokeStyle = rgb(20,12,10); c.lineWidth = 1.5; c.stroke();
     if (on) { c.beginPath(); c.arc(cx, cy, hs*0.34, 0, 7); c.fillStyle = rgb(255,180,170); c.fill(); } }
 
+  // 3-position mini bat toggle (Darkglass Grunt/Attack): lever at top (val 1),
+  // middle (0.5) or bottom (0). Click cycles 0→0.5→1→0.
+  function switch3(d, cx, cy, val) { const c = d.ctx, w = 13, h = 32;
+    rr(c, cx-w/2, cy-h/2, w, h, 4); c.fillStyle = rgb(26,26,28); c.fill();
+    rr(c, cx-w/2, cy-h/2, w, h, 4); c.strokeStyle = rgb(8,8,10); c.lineWidth = 1.2; c.stroke();
+    const ly = cy + (0.5 - val) * (h - 14);
+    const g = c.createLinearGradient(cx-5, ly-6, cx+5, ly+6); g.addColorStop(0, rgb(234,236,240)); g.addColorStop(1, rgb(150,153,160));
+    rr(c, cx-5, ly-7, 10, 14, 3); c.fillStyle = g; c.fill();
+    rr(c, cx-5, ly-7, 10, 14, 3); c.strokeStyle = rgb(70,72,78); c.lineWidth = 1; c.stroke(); }
+
   function setFont(d, family, px) { d.ctx.font = `${px*d.s}px ${family}, sans-serif`; }
   function textC(d, cx, cy, family, px, col, str, align) {
     const c=d.ctx; setFont(d,family,px); c.fillStyle=col; c.textAlign=align||'center'; c.textBaseline='middle';
@@ -199,18 +209,23 @@
       boxedLabel(d,.5,.55,.255,.092,F.anton,56,w,w,'MOUSE');
       ledDot(d,d.W*.5,d.H*.71,true,210,70,58); footRound(d,d.W*.5,d.H*.83,24*d.s); } };
 
-  P.bassoverdrive = { w:300,h:490, knobs:[
-      {id:0,cx:.30,cy:.31,r:.10,style:'knurled'},{id:1,cx:.70,cy:.31,r:.10,style:'knurled'},
-      {id:2,cx:.30,cy:.62,r:.10,style:'knurled'},{id:3,cx:.70,cy:.62,r:.10,style:'knurled'}],
+  // Bass Overdrive — Darkglass Microtubes B3K (params: Blend0 Drive1 Grunt2 Attack3).
+  // Faithful B3K layout: 2 knobs (Blend/Drive) + 2 three-way toggles (Grunt/Attack).
+  P.bassoverdrive = { w:300,h:490,
+    knobs:[
+      {id:0,cx:.30,cy:.30,r:.105,style:'boss'},   // BLEND
+      {id:1,cx:.70,cy:.30,r:.105,style:'boss'}],  // DRIVE
+    sw3:[ {id:2,cx:.30,cy:.565}, {id:3,cx:.70,cy:.565} ],   // GRUNT, ATTACK (3-way)
     ptr:rgb(238,239,242),
-    draw(d){ box(d,20,20,22); const w=rgb(235,236,239), dim=rgb(150,151,154);
-      textSpaced(d,.30*d.W,.185*d.H,F.barlow,10.5,w,'BLEND',1.2);
-      textSpaced(d,.70*d.W,.185*d.H,F.barlow,10.5,w,'TONE',1.2);
-      textSpaced(d,.30*d.W,.495*d.H,F.barlow,10.5,w,'GAIN',1.2);
-      textSpaced(d,.70*d.W,.495*d.H,F.barlow,10.5,w,'FILTER',1.2);
-      textSpaced(d,.5*d.W,.80*d.H,F.barlow,17,w,'OVERDRIVE',2.2);
-      textSpaced(d,.5*d.W,.845*d.H,F.barlow,8.5,dim,'CMOS  BASS  OVERDRIVE',1.6);
-      ledDot(d,d.W*.5,d.H*.885,true,196,72,60); footRound(d,d.W*.5,d.H*.95,17*d.s); } };
+    draw(d){ box(d,18,18,20); const w=rgb(235,236,239), dim=rgb(150,151,154);
+      textSpaced(d,.5*d.W,.115*d.H,F.bebas,24,w,'BLACKBRASS',2);          // parody brand
+      textSpaced(d,.30*d.W,.42*d.H,F.barlow,11,w,'BLEND',1.4);
+      textSpaced(d,.70*d.W,.42*d.H,F.barlow,11,w,'DRIVE',1.4);
+      textSpaced(d,.30*d.W,.67*d.H,F.barlow,10,w,'GRUNT',1.4);
+      textSpaced(d,.70*d.W,.67*d.H,F.barlow,10,w,'ATTACK',1.4);
+      textSpaced(d,.5*d.W,.755*d.H,F.barlow,13,w,'MINITUBES B3X',2);      // parody model
+      textSpaced(d,.5*d.W,.795*d.H,F.barlow,8,dim,'CMOS BASS OVERDRIVE',1.4);
+      ledDot(d,d.W*.5,d.H*.85,true,196,72,60); footRound(d,d.W*.5,d.H*.93,18*d.s); } };
 
   P.bassfuzz = { w:320,h:400, knobs:[
       {id:0,cx:.26,cy:.225,r:.085,style:'davies'},{id:1,cx:.50,cy:.225,r:.085,style:'davies'},
@@ -514,6 +529,10 @@
       const on = (values && values[s.id] != null) ? values[s.id] > 0.5 : false;
       switchSquare(d, s.cx * d.W, s.cy * d.H, s.hs * d.W, on);
     });
+    (spec.sw3 || []).forEach(s => {
+      const v = (values && values[s.id] != null) ? values[s.id] : 0.5;
+      switch3(d, s.cx * d.W, s.cy * d.H, v);
+    });
   }
   function render(canvas, stem, values) {
     const spec = P[stem]; if (!spec) return false;
@@ -546,6 +565,15 @@
         const hs = s.hs * spec.w + 5;
         if (Math.abs(p.x - s.cx * spec.w) <= hs && Math.abs(p.y - s.cy * spec.h) <= hs) {
           const nv = (values[s.id] > 0.5) ? 0 : 1; values[s.id] = nv;
+          drawSpec(canvas, spec, values); if (opts.onChange) opts.onChange(s.id, nv);
+          e.preventDefault(); return;
+        }
+      }
+      // 3-way toggles: a click cycles 0→0.5→1→0.
+      for (const s of (spec.sw3 || [])) {
+        if (Math.abs(p.x - s.cx * spec.w) <= 10 && Math.abs(p.y - s.cy * spec.h) <= 20) {
+          const cur = (values[s.id] != null) ? values[s.id] : 0.5;
+          const nv = cur < 0.25 ? 0.5 : cur < 0.75 ? 1 : 0; values[s.id] = nv;
           drawSpec(canvas, spec, values); if (opts.onChange) opts.onChange(s.id, nv);
           e.preventDefault(); return;
         }
