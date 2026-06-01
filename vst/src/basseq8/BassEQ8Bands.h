@@ -11,3 +11,5 @@ static const char* const kEqNames[kEqBands] = { "30", "75", "185", "460", "1100"
 #define EQ_ACR 210
 #define EQ_ACG 206
 #define EQ_ACB 194
+#define EQ_NAME1 "Bass"
+#define EQ_NAME2 "EQ"
