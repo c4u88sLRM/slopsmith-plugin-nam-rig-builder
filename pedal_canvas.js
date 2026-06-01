@@ -211,9 +211,15 @@
       setFont(d,F.barlow,7.5); c.fillStyle=rgb(22,32,16); c.textBaseline='middle';
       c.textAlign='right'; c.fillText('NORM',tx-12*s,ty);
       c.textAlign='left'; c.fillText('BASS BOOST',tx+12*s,ty-5*s); c.fillText('DRY',tx+12*s,ty+5*s);
+      // knob labels (Gain / Tone / Filter) — dark green, like the C++ UI
+      const gl=rgb(22,32,16);
+      textC(d,.26*W,.335*H,F.barlow,11,gl,'GAIN');
+      textC(d,.50*W,.335*H,F.barlow,11,gl,'TONE');
+      textC(d,.74*W,.335*H,F.barlow,11,gl,'FILTER');
       outlineText(d,.5*W,.64*H,F.anton,62,rgb(242,242,244),rgb(12,14,16),'FUZZ',7);
       textC(d,.34*W,.485*H,F.crete,29,rgb(16,20,14),'bass');
-      ledDot(d,W*.52,H*.55,true,224,60,52); footRound(d,W*.5,H*.81,21*s); } };
+      // LED at top-centre (above the knobs), clear of the FUZZ wordmark
+      ledDot(d,W*.5,H*.105,true,224,60,52); footRound(d,W*.5,H*.81,21*s); } };
 
   function chiefSpec(w,h,col,knobIds,n1,n2){ return { w,h, knobs: knobIds.map(k=>({id:k.id,cx:k.cx,cy:.235,r:.072,style:'boss'})),
     ptr:rgb(238,240,242), draw(d){ chiefBody(d,col[0],col[1],col[2]); const wc=rgb(238,240,242);
