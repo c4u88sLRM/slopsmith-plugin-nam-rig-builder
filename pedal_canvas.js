@@ -1198,7 +1198,75 @@
   P.stereotubetrem  = rackSpec({title:'STEREO TUBE TREM',  accent:[150,180,160], names:['Speed','Mix','Waveform']});
   P.studiochamber   = rackSpec({title:'STUDIO CHAMBER',    accent:[140,175,200], names:['Time','Tone','Depth','Mix']});
   P.studiochorus    = rackSpec({title:'STUDIO CHORUS',     accent:[120,165,205], names:['Rate','Depth','Mix','Lo Filter','Hi Filter','Stereo','Delay']});
-  P.studiocomp      = rackSpec({title:'STUDIO COMP',       accent:[226,150,28],  names:['Threshold','Ratio','Attack','Release','Output']});
+  // Studio Comp — dbx 160 look: walnut sides, brushed-silver rails, black face,
+  // silver knurled knobs, big amber VU meter, "HZX 165 COMPRESSOR/LIMITER" logo.
+  // RS params (5 knobs): Threshold0 Ratio1 Attack2 Release3 Output4.
+  P.studiocomp = { w:900, h:290,
+    knobs:[
+      {id:0,cx:.100,cy:.50,r:.040,style:'knurled'},  // Threshold
+      {id:1,cx:.205,cy:.50,r:.040,style:'knurled'},  // Ratio (= COMPRESSION)
+      {id:2,cx:.310,cy:.50,r:.040,style:'knurled'},  // Attack
+      {id:3,cx:.415,cy:.50,r:.040,style:'knurled'},  // Release
+      {id:4,cx:.520,cy:.50,r:.040,style:'knurled'}], // Output (= OUTPUT GAIN)
+    tick:rgb(150,152,158), ptr:rgb(30,30,32),
+    draw(d){ const {ctx:c,W,H}=d, ew=W*0.045;
+      c.fillStyle=rgb(10,10,12); c.fillRect(0,0,W,H);
+      // walnut side panels
+      const wood=(x)=>{ const wg=c.createLinearGradient(x,0,x+ew,0);
+        wg.addColorStop(0,rgb(92,54,28)); wg.addColorStop(.5,rgb(128,82,44)); wg.addColorStop(1,rgb(88,52,27));
+        c.fillStyle=wg; c.fillRect(x,0,ew,H); };
+      wood(0); wood(W-ew);
+      // black faceplate
+      const fg=c.createLinearGradient(0,0,0,H); fg.addColorStop(0,rgb(32,32,35)); fg.addColorStop(1,rgb(15,15,18));
+      c.fillStyle=fg; c.fillRect(ew,H*0.095,W-2*ew,H*0.81);
+      // brushed-silver rack rails (full width, top & bottom)
+      const rail=(y,h)=>{ const rg=c.createLinearGradient(0,y,0,y+h);
+        rg.addColorStop(0,rgb(222,224,228)); rg.addColorStop(.5,rgb(146,148,154)); rg.addColorStop(1,rgb(196,198,204));
+        c.fillStyle=rg; c.fillRect(0,y,W,h); c.strokeStyle=rgb(86,88,92); c.lineWidth=1; c.strokeRect(.5,y+.5,W-1,h-1); };
+      rail(H*0.045,H*0.05); rail(H*0.905,H*0.05);
+      const w=rgb(226,228,232), dim=rgb(150,152,158);
+      // section labels
+      textC(d,.100*W,.255*H,F.barlow,12,w,'THRESHOLD');
+      textC(d,.205*W,.255*H,F.barlow,12,w,'COMPRESSION');
+      textC(d,.310*W,.255*H,F.barlow,12,w,'ATTACK');
+      textC(d,.415*W,.255*H,F.barlow,12,w,'RELEASE');
+      textC(d,.520*W,.255*H,F.barlow,12,w,'OUTPUT');
+      // BELOW / ABOVE indicator LEDs over THRESHOLD
+      ledDot(d,.060*W,.355*H,true,224,196,40);  textC(d,.060*W,.405*H,F.barlow,7,dim,'BELOW');
+      ledDot(d,.140*W,.355*H,false,200,40,40);  textC(d,.142*W,.405*H,F.barlow,7,dim,'ABOVE');
+      // POWER button
+      rr(c,.062*W,.685*H,.072*W,.085*H,3); c.fillStyle=rgb(40,40,44); c.fill();
+      rr(c,.072*W,.700*H,.052*W,.055*H,2); c.fillStyle=rgb(170,172,176); c.fill();
+      textC(d,.098*W,.815*H,F.barlow,8,dim,'POWER');
+      // METER selector buttons + bracket
+      ['INPUT','OUTPUT','GAIN'].forEach((t,i)=>{ const bx=(.275+i*.072)*W;
+        rr(c,bx,.690*H,.058*W,.075*H,3); c.fillStyle=rgb(40,40,44); c.fill();
+        rr(c,bx+.008*W,.703*H,.042*W,.048*H,2); c.fillStyle=rgb(150,152,158); c.fill();
+        textC(d,bx+.029*W,.665*H,F.barlow,6.5,dim,i===2?'CHANGE':t); });
+      textC(d,.347*W,.835*H,F.barlow,8,dim,'METER');
+      // ── amber VU meter ──
+      const vx=.625*W, vy=.205*H, vw=.275*W, vh=.40*H;
+      rr(c,vx-7,vy-7,vw+14,vh+14,6); c.fillStyle=rgb(16,16,18); c.fill();
+      const ag=c.createLinearGradient(0,vy,0,vy+vh); ag.addColorStop(0,rgb(255,214,128)); ag.addColorStop(1,rgb(230,168,68));
+      rr(c,vx,vy,vw,vh,4); c.fillStyle=ag; c.fill();
+      rr(c,vx,vy,vw,vh,4); c.strokeStyle=rgb(120,80,30); c.lineWidth=1.2; c.stroke();
+      const mcx=vx+vw/2, mcy=vy+vh*1.16, mR=vh*0.96, a0=Math.PI*1.20, a1=Math.PI*1.80;
+      c.strokeStyle=rgb(38,66,142); c.lineWidth=1.6; c.beginPath(); c.arc(mcx,mcy,mR,a0,a1); c.stroke();
+      const nums=['-40','-30','-20','-10','0','+10','+20'];
+      nums.forEach((n,i)=>{ const t=a0+(a1-a0)*(i/(nums.length-1));
+        c.strokeStyle=i>=4?rgb(170,40,40):rgb(38,66,142); c.lineWidth=1.4; c.beginPath();
+        c.moveTo(mcx+Math.cos(t)*(mR-5),mcy+Math.sin(t)*(mR-5)); c.lineTo(mcx+Math.cos(t)*mR,mcy+Math.sin(t)*mR); c.stroke();
+        textC(d,mcx+Math.cos(t)*(mR+11),mcy+Math.sin(t)*(mR+11)+3,F.barlow,6.5,i>=4?rgb(150,30,30):rgb(30,55,128),n); });
+      textC(d,mcx,vy+vh*0.55,F.barlow,8,rgb(38,66,142),'DECIBELS');
+      textC(d,mcx,vy+vh*0.78,F.bebas,13,rgb(38,66,142),'HZX');
+      const nt=a0+(a1-a0)*0.42; c.strokeStyle=rgb(22,22,26); c.lineWidth=2;
+      c.beginPath(); c.moveTo(mcx,mcy); c.lineTo(mcx+Math.cos(nt)*mR*0.98,mcy+Math.sin(nt)*mR*0.98); c.stroke();
+      c.beginPath(); c.arc(mcx,mcy,3,0,7); c.fillStyle=rgb(22,22,26); c.fill();
+      // ── brand logo ──
+      textC(d,.690*W,.815*H,F.bebas,30,w,'HZX');
+      c.beginPath(); c.arc(.760*W,.795*H,3.5,0,7); c.fillStyle=dim; c.fill();
+      textC(d,.815*W,.815*H,F.bebas,30,w,'165');
+      textC(d,.760*W,.895*H,F.barlow,9,dim,'COMPRESSOR / LIMITER'); } };
   P.studiodelay     = rackSpec({title:'STUDIO DELAY',      accent:[105,135,205], names:['Time L','Time R','Feedback','Filter','Mix']});
   // Parametric EQ — GML 8200 look: black wide rack, COLOUR-coded knobs per band
   // (centred), centre LNG logo, "MODEL 8300 PARAMETRIC EQUALIZER" bottom.
