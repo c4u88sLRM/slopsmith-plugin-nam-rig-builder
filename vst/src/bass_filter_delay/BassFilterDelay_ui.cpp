@@ -21,7 +21,8 @@ protected:
         textSpaced(0.400f,0.135f,7.5f,w,"FEEDBACK",fBarlow,0.5f);
         textSpaced(0.595f,0.135f,8.0f,w,"MIX",fBarlow,1.0f);
         textSpaced(0.790f,0.135f,8.0f,w,"FILTER",fBarlow,0.7f);
-        textSpaced(0.5f,0.385f,12,w,"BASS DELAY",fBarlow,1.6f);
+        embossText(0.30f, 0.52f, 16, "BASS", fBarlow);
+        embossText(0.62f, 0.77f, 32, "DELAY", fBarlow);
     }
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(BassFilterDelayUI)
 };

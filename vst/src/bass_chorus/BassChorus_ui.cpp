@@ -22,7 +22,8 @@ protected:
         textSpaced(0.400f,0.135f,8.5f,w,"DEPTH",fBarlow,1.0f);
         textSpaced(0.595f,0.135f,8.0f,w,"LO FILTER",fBarlow,0.6f);
         textSpaced(0.790f,0.135f,8.5f,w,"MIX",fBarlow,1.0f);
-        textSpaced(0.5f,0.385f,12,w,"BASS CHORUS",fBarlow,1.6f);
+        embossText(0.30f, 0.52f, 16, "BASS", fBarlow);
+        embossText(0.62f, 0.77f, 30, "CHORUS", fBarlow);
     }
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(BassChorusUI)
 };

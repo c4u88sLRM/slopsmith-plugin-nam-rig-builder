@@ -278,20 +278,25 @@ protected:
         // two hex screws at the top corners + status LED top-centre
         screw(m+15*f, m+15*f); screw(w-m-15*f, m+15*f);
         ledDot(w*0.5f, h*0.072f, 4.5f*f, true, 224, 70, 58);
-        // name strip (darker shade) sitting between the knobs and the treadle
-        beginPath(); roundedRect(m+12*f, h*0.355f, w-2*m-24*f, h*0.058f, 4*f);
-        fillColor(Color(cl(r-34),cl(g-34),cl(b-34))); fill();
-        beginPath(); roundedRect(m+12*f, h*0.355f, w-2*m-24*f, h*0.058f, 4*f);
-        strokeColor(Color(0,0,0,70)); strokeWidth(1*f); stroke();
-        // big treadle (stops short of the bottom)
-        const float tx = m+13*f, tw = w-2*m-26*f, tyTop = h*0.45f, tBot = h*0.865f;
-        Paint tre = linearGradient(0, tyTop, 0, tBot, Color(cl(r-4),cl(g-4),cl(b-4)), Color(cl(r-30),cl(g-30),cl(b-30)));
+        // big treadle (the raised footswitch pad) — DARK CHARCOAL on every Boss,
+        // regardless of body colour. The subclass embosses the big name on it.
+        const float tx = m+13*f, tw = w-2*m-26*f, tyTop = h*0.42f, tBot = h - m - 12*f;
+        Paint tre = linearGradient(0, tyTop, 0, tBot, Color(52,52,56), Color(30,30,33));
         beginPath(); roundedRect(tx, tyTop, tw, tBot - tyTop, 16*f); fillPaint(tre); fill();
-        beginPath(); roundedRect(tx, tyTop, tw, 12*f, 16*f); fillColor(Color(255,255,255,20)); fill();   // front lip
-        beginPath(); roundedRect(tx, tyTop, tw, tBot - tyTop, 16*f); strokeColor(Color(0,0,0,100)); strokeWidth(1.5f*f); stroke();
-        // black bottom plate (the label/jack base of the pedal)
-        beginPath(); roundedRect(m+11*f, h*0.885f, w-2*m-22*f, h*0.072f, 5*f);
-        fillColor(Color(20,20,22)); fill();
+        beginPath(); roundedRect(tx, tyTop, tw, 12*f, 16*f); fillColor(Color(255,255,255,18)); fill();   // front lip
+        beginPath(); roundedRect(tx, tyTop, tw, tBot - tyTop, 16*f); strokeColor(Color(0,0,0,130)); strokeWidth(1.6f*f); stroke();
+        // recessed label band near the bottom of the treadle
+        beginPath(); roundedRect(tx + 12*f, tBot - h*0.085f, tw - 24*f, h*0.055f, 4*f);
+        fillColor(Color(22,22,25)); fill();
+        treadleTop_ = tyTop / h; treadleBot_ = tBot / h;
+    }
+    float treadleTop_ = 0.42f, treadleBot_ = 0.93f;
+    // engraved text (dark, with a faint highlight) — for names on the dark treadle
+    void embossText(float cx, float cy, float size, const char* s, int fid) {
+        const float f = sc();
+        face(fid); fontSize(size*f); textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
+        fillColor(Color(255,255,255,30)); text(cx*W() + 1.3f*f, cy*H() + 1.3f*f, s, NULL); // highlight
+        fillColor(Color(12,12,14));       text(cx*W(),          cy*H(),          s, NULL); // engrave
     }
     void title(const char* s, Color c, float cy, float size, int fid) {
         face(fid); textAlign(ALIGN_CENTER | ALIGN_MIDDLE); fontSize(size * sc()); fillColor(c);
