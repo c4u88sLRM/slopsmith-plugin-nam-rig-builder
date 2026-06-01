@@ -144,6 +144,29 @@
       c.beginPath(); c.moveTo(cx+R*0.15*Math.cos(a),cy+R*0.15*Math.sin(a)); c.lineTo(cx+R*0.9*Math.cos(a),cy+R*0.9*Math.sin(a));
       c.strokeStyle=rgb(22,22,24); c.lineWidth=2.6*s; c.stroke(); return;
     }
+    if (style==='moog') {
+      // black fluted skirt
+      c.beginPath(); c.arc(cx,cy,R,0,7); c.fillStyle=rgb(20,20,22); c.fill();
+      c.strokeStyle=rgb(50,50,54); c.lineWidth=s;
+      for(let i=0;i<40;i++){ const t=i/40*Math.PI*2; c.beginPath();
+        c.moveTo(cx+R*0.82*Math.cos(t),cy+R*0.82*Math.sin(t)); c.lineTo(cx+R*0.99*Math.cos(t),cy+R*0.99*Math.sin(t)); c.stroke(); }
+      // 0..10 tick scale around the knob
+      c.strokeStyle=tickCol; c.lineWidth=1.3*s;
+      for(let t=0;t<=10;t++){ const aa=ang(t/10); c.beginPath();
+        c.moveTo(cx+R*1.06*Math.cos(aa),cy+R*1.06*Math.sin(aa)); c.lineTo(cx+R*1.20*Math.cos(aa),cy+R*1.20*Math.sin(aa)); c.stroke(); }
+      // big brushed-aluminium dome
+      const mg=c.createRadialGradient(cx-R*0.3,cy-R*0.35,R*0.1,cx,cy,R*0.80);
+      mg.addColorStop(0,rgb(238,240,244)); mg.addColorStop(0.55,rgb(188,191,197)); mg.addColorStop(1,rgb(120,123,130));
+      c.beginPath(); c.arc(cx,cy,R*0.74,0,7); c.fillStyle=mg; c.fill();
+      c.save(); c.beginPath(); c.arc(cx,cy,R*0.74,0,7); c.clip();
+      c.strokeStyle=rgb(255,255,255,0.10); c.lineWidth=0.8*s;
+      for(let i=-6;i<=6;i++){ c.beginPath(); c.moveTo(cx-R,cy+i*R*0.12); c.lineTo(cx+R,cy+i*R*0.12); c.stroke(); }
+      c.restore();
+      c.strokeStyle=rgb(92,94,100); c.lineWidth=1*s; c.beginPath(); c.arc(cx,cy,R*0.74,0,7); c.stroke();
+      // engraved dark pointer on the aluminium
+      c.beginPath(); c.moveTo(cx+R*0.10*Math.cos(a),cy+R*0.10*Math.sin(a)); c.lineTo(cx+R*0.70*Math.cos(a),cy+R*0.70*Math.sin(a));
+      c.strokeStyle=rgb(46,48,52); c.lineWidth=2.8*s; c.stroke(); return;
+    }
     // pointer + tick fan (default)
     c.beginPath(); c.arc(cx,cy,R*1.16,0,7); c.fillStyle=rgb(16,16,18); c.fill();
     c.strokeStyle=tickCol; c.lineWidth=1.4*s;
@@ -184,6 +207,98 @@
   // pad-colour fill + black outline; much wider than tall via big letter spacing.
   function chiefBadge(d, padT, padBot) { const W = d.W;
     outlineText(d, W*0.5, padT+(padBot-padT)*0.30, FONTS.bebas, 40, rgb(20,20,22), rgb(0,0,0), 'CHIEF', 13);
+  }
+
+  // ── Ibanez Tonelok-style body (parallels chiefBody): silver enclosure, jack
+  //    nubs at the seam, a big footswitch treadle with diagonal screw slots +
+  //    an embossed wordmark. Parody, brand-free apart from the chosen name. ──
+  function ibanezBody(d) { const {ctx:c,W,H,s}=d, m=7*s;
+    c.fillStyle=rgb(8,8,10); c.fillRect(0,0,W,H);
+    const grad=c.createLinearGradient(0,m,0,H-m);
+    grad.addColorStop(0,rgb(212,214,218)); grad.addColorStop(.45,rgb(186,189,194)); grad.addColorStop(1,rgb(150,153,159));
+    rr(c,m,m,W-2*m,H-2*m,13*s); c.fillStyle=grad; c.fill();
+    rr(c,m,m,W-2*m,H-2*m,13*s); c.strokeStyle='rgba(0,0,0,0.42)'; c.lineWidth=2*s; c.stroke();
+    // jack nubs at the panel/treadle seam
+    const sy=H*0.395, nh=24*s;
+    rr(c,1*s,sy,m+9*s,nh,4*s); c.fillStyle=rgb(150,153,159); c.fill(); c.strokeStyle='rgba(0,0,0,0.4)'; c.lineWidth=1.3*s; c.stroke();
+    rr(c,W-m-10*s,sy,m+10*s,nh,4*s); c.fillStyle=rgb(150,153,159); c.fill(); c.stroke();
+    // big footswitch treadle (lower part)
+    const tx=m+5*s, tyTop=H*0.455, tw=W-2*m-10*s, tBot=H-m-6*s;
+    const tg=c.createLinearGradient(0,tyTop,0,tBot);
+    tg.addColorStop(0,rgb(200,202,207)); tg.addColorStop(1,rgb(160,163,169));
+    rr(c,tx,tyTop,tw,tBot-tyTop,11*s); c.fillStyle=tg; c.fill();
+    rr(c,tx,tyTop,tw,12*s,11*s); c.fillStyle='rgba(255,255,255,0.10)'; c.fill();
+    rr(c,tx,tyTop,tw,tBot-tyTop,11*s); c.strokeStyle='rgba(0,0,0,0.32)'; c.lineWidth=1.6*s; c.stroke();
+    const sd=(x,y)=>{ c.save(); c.translate(x,y); c.rotate(0.6);
+      rr(c,-5*s,-1.5*s,10*s,3*s,1.5*s); c.fillStyle='rgba(0,0,0,0.20)'; c.fill(); c.restore(); };
+    sd(tx+20*s,tyTop+22*s); sd(tx+tw-20*s,tyTop+22*s); sd(tx+20*s,tBot-20*s); sd(tx+tw-20*s,tBot-20*s);
+    outlineText(d, W*0.5, tyTop+(tBot-tyTop)*0.66, FONTS.crete, 42, rgb(168,171,176), rgb(118,121,127), 'Ibañez', 1);
+  }
+  // Builder for Ibanez Tonelok pedals (parallels chiefSpec). knobIds:[{id,cx,lbl,lblPx?}];
+  // model = salmon code badge ('LF6'), fxname = effect tag ('LO FI'). Labels use
+  // the RS knob names so the face matches what the knob actually does.
+  function ibanezSpec(w,h,knobIds,model,fxname){ return { w,h,
+    knobs: knobIds.map(k=>({id:k.id,cx:k.cx,cy:.135,r:k.r||.060,style:'pointer',cap:[224,226,230]})),
+    tick:rgb(74,76,82), ptr:rgb(40,42,48),
+    draw(d){ const {ctx:c,W,H,s}=d; ibanezBody(d); const dk=rgb(46,48,54);
+      knobIds.forEach(k=> textSpaced(d,k.cx*d.W,.235*d.H,F.barlow,k.lblPx||8,dk,k.lbl,0.2));
+      // decorative MODE slider on the panel
+      const mx=W*.26, my=H*.315, mw=W*.20, mh=8*s;
+      rr(c,mx,my-mh/2,mw,mh,3*s); c.fillStyle=rgb(70,72,78); c.fill();
+      rr(c,mx+mw*0.34,my-mh*1.1,mw*0.22,mh*2.2,2*s); c.fillStyle=rgb(228,230,234); c.fill();
+      rr(c,mx+mw*0.34,my-mh*1.1,mw*0.22,mh*2.2,2*s); c.strokeStyle=rgb(90,92,98); c.lineWidth=0.8*s; c.stroke();
+      textSpaced(d,mx+mw/2,my+13*s,F.barlow,6.5,dk,'MODE',0.4);
+      // red status LED
+      ledDot(d, W*.66, H*.315, true, 224,60,52);
+      // OUT / IN jack legends
+      textSpaced(d,.115*W,.378*H,F.barlow,7,dk,'OUT',0.3);
+      textSpaced(d,.885*W,.378*H,F.barlow,7,dk,'IN',0.3);
+      // salmon model badge + effect tag at the treadle top
+      const bx=W*.235, by=H*.495, bw=W*.235, bh=H*.072;
+      rr(c,bx,by,bw,bh,5*s); c.fillStyle=rgb(208,140,122); c.fill();
+      rr(c,bx,by,bw,bh,5*s); c.strokeStyle=rgb(138,80,66); c.lineWidth=1.2*s; c.stroke();
+      textC(d,bx+bw/2,by+bh*0.52,F.anton,26,rgb(26,26,28),model);
+      textC(d,bx+bw+W*.12,by+bh*0.52,F.anton,20,dk,fxname); } };
+  }
+
+  // ── Foog (moogerfooger)-style body: dark granite face with wood side panels.
+  //    Parallels chiefBody/ibanezBody. Parody, brand-free. ──
+  function foogBody(d) { const {ctx:c,W,H,s}=d, woodW=W*.075, ty=W*.012, th=H-W*.024;
+    c.fillStyle=rgb(8,8,10); c.fillRect(0,0,W,H);
+    [0, W-woodW].forEach(x=>{ const wg=c.createLinearGradient(x,0,x+woodW,0);
+      wg.addColorStop(0,rgb(118,70,34)); wg.addColorStop(.5,rgb(152,98,54)); wg.addColorStop(1,rgb(108,62,30));
+      rr(c,x,ty,woodW,th,4*s); c.fillStyle=wg; c.fill();
+      rr(c,x,ty,woodW,th,4*s); c.strokeStyle='rgba(0,0,0,0.4)'; c.lineWidth=1.4*s; c.stroke(); });
+    const fx=woodW+4*s, fw=W-2*(woodW+4*s);
+    const fg=c.createLinearGradient(0,0,0,H); fg.addColorStop(0,rgb(66,66,70)); fg.addColorStop(1,rgb(46,46,50));
+    rr(c,fx,ty,fw,th,4*s); c.fillStyle=fg; c.fill();
+    c.save(); rr(c,fx,ty,fw,th,4*s); c.clip();
+    c.fillStyle=rgb(255,255,255,0.035);
+    for(let i=0;i<320;i++){ c.fillRect(fx+((i*71)%Math.floor(fw)), ty+((i*131)%Math.floor(th)),1.3*s,1.3*s); }
+    c.fillStyle=rgb(0,0,0,0.10);
+    for(let i=0;i<320;i++){ c.fillRect(fx+((i*97)%Math.floor(fw)), ty+((i*53)%Math.floor(th)),1.3*s,1.3*s); }
+    c.restore();
+    rr(c,fx,ty,fw,th,4*s); c.strokeStyle='rgba(0,0,0,0.5)'; c.lineWidth=1.5*s; c.stroke();
+  }
+  // Builder for Foog (moogerfooger) pedals (parallels chiefSpec/ibanezSpec).
+  // knobIds:[{id,cx,cy,r?,lbl,lblPx?}] (free 2D placement); model = e.g. 'FM107'.
+  // Labels (RS knob names) sit ABOVE each knob, moogerfooger-style.
+  function foogSpec(w,h,knobIds,model){ return { w,h,
+    knobs: knobIds.map(k=>({id:k.id,cx:k.cx,cy:k.cy,r:k.r||.10,style:'moog'})),
+    tick:rgb(150,152,158), ptr:rgb(238,240,244),
+    draw(d){ const {ctx:c,W,H,s}=d; foogBody(d); const wt=rgb(226,228,232);
+      textC(d,.40*W,.065*H,F.crete,18,wt,'foogermooger');
+      textC(d,.74*W,.065*H,F.crete,16,wt,model);
+      // white control-group outline box (moogerfooger signature)
+      const rr0=Math.max.apply(null,knobIds.map(k=>k.r||.10));
+      const xs=knobIds.map(k=>k.cx), ys=knobIds.map(k=>k.cy);
+      const x0=(Math.min.apply(null,xs)-rr0-.045)*W, x1=(Math.max.apply(null,xs)+rr0+.045)*W;
+      const y0=(Math.min.apply(null,ys)-rr0-.085)*H, y1=(Math.max.apply(null,ys)+rr0+.04)*H;
+      rr(c,x0,y0,x1-x0,y1-y0,9*s); c.strokeStyle=wt; c.lineWidth=1.6*s; c.stroke();
+      // knob labels just above each knob
+      knobIds.forEach(k=> textSpaced(d,k.cx*d.W,(k.cy-(k.r||.10)-0.022)*d.H,F.barlow,k.lblPx||8.5,wt,k.lbl,0.3));
+      textC(d,.78*W,.815*H,F.crete,22,wt,'foog');
+      footRound(d,W*.46,H*.865,18*s); } };
   }
   // n1/n2 = two-word model name (n1 left, n2 right); code = parody model number
   // (e.g. 'CB-3'), a bit smaller, bottom-RIGHT corner. dy shifts everything down
@@ -261,25 +376,39 @@
 
   // Big Buzz — silver/red vintage fuzz face inspired by a triangle-era fuzz box.
   // Param order: Gain0 Tone1.
+  // Big Buzz — Big Muff π-style: brushed-silver box, black logo panel with the
+  // red wordmark + π symbol, quimical-harmony parody. RS knob names: Gain0 Tone1.
   P.bigbuzz = { w:320,h:430, knobs:[
-      {id:0,cx:.30,cy:.245,r:.092,style:'davies'},
-      {id:1,cx:.70,cy:.245,r:.092,style:'davies'}],
-    ptr:rgb(236,238,238),
-    draw(d){ const {ctx:c,W,H,s}=d; box(d,202,201,190);
-      const panelX=W*.105, panelY=H*.095, panelW=W*.79, panelH=H*.79;
-      const pg=c.createLinearGradient(0,panelY,0,panelY+panelH);
-      pg.addColorStop(0,rgb(228,226,214)); pg.addColorStop(1,rgb(178,176,164));
-      rr(c,panelX,panelY,panelW,panelH,9*s); c.fillStyle=pg; c.fill();
-      rr(c,panelX,panelY,panelW,panelH,9*s); c.strokeStyle=rgb(126,44,36); c.lineWidth=2.4*s; c.stroke();
-      c.strokeStyle=rgb(154,48,38); c.lineWidth=2.2*s;
-      c.beginPath(); c.moveTo(W*.20,H*.455); c.lineTo(W*.50,H*.555); c.lineTo(W*.80,H*.455); c.stroke();
-      c.beginPath(); c.moveTo(W*.20,H*.705); c.lineTo(W*.50,H*.610); c.lineTo(W*.80,H*.705); c.stroke();
-      textSpaced(d,.30*W,.360*H,F.barlow,10.5,rgb(78,50,42),'GAIN',1.0);
-      textSpaced(d,.70*W,.360*H,F.barlow,10.5,rgb(78,50,42),'TONE',1.0);
-      outlineText(d,.5*W,.555*H,F.anton,54,rgb(236,232,218),rgb(132,38,32),'BIG',5.2);
-      outlineText(d,.5*W,.655*H,F.anton,54,rgb(236,232,218),rgb(132,38,32),'BUZZ',4.8);
-      textSpaced(d,.5*W,.760*H,F.barlow,8.5,rgb(82,64,54),'SUSTAIN  FUZZ',1.9);
-      ledDot(d,W*.50,H*.820,true,224,62,52); footRound(d,W*.50,H*.905,20*s); } };
+      {id:0,cx:.30,cy:.155,r:.082,style:'davies'},
+      {id:1,cx:.70,cy:.155,r:.082,style:'davies'}],
+    tick:rgb(150,152,158), ptr:rgb(244,244,240),
+    draw(d){ const {ctx:c,W,H,s}=d; const m=7*s, ink=rgb(40,40,44), red=rgb(196,40,42);
+      c.fillStyle=rgb(10,10,12); c.fillRect(0,0,W,H);
+      const g=c.createLinearGradient(0,m,0,H-m); g.addColorStop(0,rgb(206,208,212)); g.addColorStop(.5,rgb(184,186,192)); g.addColorStop(1,rgb(160,162,168));
+      rr(c,m,m,W-2*m,H-2*m,12*s); c.fillStyle=g; c.fill();
+      c.save(); rr(c,m,m,W-2*m,H-2*m,12*s); c.clip();
+      c.strokeStyle=rgb(150,153,160,0.18); c.lineWidth=1;
+      for(let y=m;y<H-m;y+=3*s){ c.beginPath(); c.moveTo(m,y); c.lineTo(W-m,y); c.stroke(); }
+      c.restore();
+      rr(c,m,m,W-2*m,H-2*m,12*s); c.strokeStyle='rgba(0,0,0,0.4)'; c.lineWidth=2*s; c.stroke();
+      // knob labels (RS names) + red LED
+      textSpaced(d,.30*W,.255*H,F.barlow,10,ink,'GAIN',0.6);
+      textSpaced(d,.70*W,.255*H,F.barlow,10,ink,'TONE',0.6);
+      ledDot(d,W*.50,H*.135,true,224,52,46);
+      // black logo panel
+      rr(c,W*.085,H*.315,W*.83,H*.42,10*s); c.fillStyle=rgb(18,18,20); c.fill();
+      rr(c,W*.085,H*.315,W*.83,H*.42,10*s); c.strokeStyle=rgb(44,44,48); c.lineWidth=1.4*s; c.stroke();
+      // red wordmark + π symbol (Big Muff style)
+      outlineText(d,.5*W,.43*H,F.anton,46,red,rgb(244,232,228),'BIG BUZZ',3);
+      const px=W*.50, py=H*.585, pw=46*s, ph=40*s;
+      c.fillStyle=red;
+      c.fillRect(px-pw/2, py-ph/2, pw, 8*s);
+      c.fillRect(px-pw/2+6*s, py-ph/2+8*s, 9*s, ph-8*s);
+      c.fillRect(px+pw/2-15*s, py-ph/2+8*s, 9*s, ph-8*s);
+      // footswitch + brand
+      footRound(d,W*.50,H*.815,20*s);
+      textC(d,.30*W,.935*H,F.crete,14,ink,'quimical-harmony');
+      textSpaced(d,.66*W,.935*H,F.barlow,8,ink,'USA',0.5); } };
 
   // Super-Buzz — copper/blue octave-fuzz face inspired by the local schematic.
   // Param order: Gain0 Tone1.
@@ -316,6 +445,72 @@
   P.bz1 = chiefSpec(300,480,[188,191,196],
     [{id:0,cx:.33,lbl:'GAIN'},{id:1,cx:.67,lbl:'TONE'}],
     'Fuzz',null,'BZ-1');
+
+  // Chorus — Boss CE-2-style: Chief (Boss-compact) body, CE-2 cyan blue.
+  // RS knob names. 3 RS knobs: Rate0 Depth1 Mix2.
+  P.chorus = chiefSpec(300,480,[66,178,210],
+    [{id:0,cx:.25,lbl:'RATE'},{id:1,cx:.50,lbl:'DEPTH'},{id:2,cx:.75,lbl:'MIX'}],
+    'Chorus',null,'CH-2');
+
+  // Digital Chorus — Boss CE-5-style: Chief body in the CE-5 pale powder-blue,
+  // 5 small knobs (RS exposes more than the CE-5's 4). RS knob names.
+  // Rate0 Depth1 LoFilter2 HiFilter3 Mix4.
+  P.digitalchorus = { w:300,h:480, knobs:[
+      {id:0,cx:.130,cy:.235,r:.052,style:'boss'},
+      {id:1,cx:.315,cy:.235,r:.052,style:'boss'},
+      {id:2,cx:.500,cy:.235,r:.052,style:'boss'},
+      {id:3,cx:.685,cy:.235,r:.052,style:'boss'},
+      {id:4,cx:.870,cy:.235,r:.052,style:'boss'}],
+    ptr:rgb(238,240,242),
+    draw(d){ chiefBody(d,150,196,222); const w=rgb(238,240,242);
+      textSpaced(d,.130*d.W,.135*d.H,F.barlow,6.5,w,'RATE',0.1);
+      textSpaced(d,.315*d.W,.135*d.H,F.barlow,6.5,w,'DEPTH',0.1);
+      textSpaced(d,.500*d.W,.135*d.H,F.barlow,5.5,w,'LO FILTER',0.1);
+      textSpaced(d,.685*d.W,.135*d.H,F.barlow,5.5,w,'HI FILTER',0.1);
+      textSpaced(d,.870*d.W,.135*d.H,F.barlow,6.5,w,'MIX',0.1);
+      chiefName(d,'Chorus','Ensemble','CH-5'); } };
+
+  // Classic Flanger — Boss BF-2-style: Chief body in the BF-2 purple.
+  // RS knob names. 3 RS knobs: Rate0 Depth1 Mix2.
+  P.classicflanger = chiefSpec(300,480,[116,50,126],
+    [{id:0,cx:.25,lbl:'RATE'},{id:1,cx:.50,lbl:'DEPTH'},{id:2,cx:.75,lbl:'MIX'}],
+    'Flanger',null,'FL-2');
+
+  // Vintage Chorus — MXR Stereo Chorus-style: yellow landscape box, three black
+  // knobs in outlined cells, the parody 'NYR' logo box + 'stereo chorus' tag,
+  // round footswitch, side jack legends. RS knob names. Rate0 Depth1 Mix2.
+  // (Pedal_VintageChorus → AnalogChorus.vst3.)
+  P.analogchorus = { w:460,h:330, knobs:[
+      {id:0,cx:.205,cy:.275,r:.080,style:'davies'},
+      {id:1,cx:.500,cy:.275,r:.080,style:'davies'},
+      {id:2,cx:.795,cy:.275,r:.080,style:'davies'}],
+    tick:rgb(40,38,30), ptr:rgb(244,244,240),
+    draw(d){ const {ctx:c,W,H,s}=d; const ink=rgb(28,26,20), m=7*s;
+      // yellow enclosure (no face screws — MXR-style folded box)
+      c.fillStyle=rgb(12,12,10); c.fillRect(0,0,W,H);
+      const g=c.createLinearGradient(0,m,0,H-m); g.addColorStop(0,rgb(246,214,52)); g.addColorStop(1,rgb(214,182,30));
+      rr(c,m,m,W-2*m,H-2*m,12*s); c.fillStyle=g; c.fill();
+      rr(c,m,m,W-2*m,H-2*m,12*s); c.strokeStyle='rgba(0,0,0,0.4)'; c.lineWidth=2*s; c.stroke();
+      // black pinstripe border
+      c.strokeStyle=ink; c.lineWidth=2*s; rr(c,W*.035,H*.06,W*.93,H*.88,10*s); c.stroke();
+      // three outlined knob cells
+      const cellY=H*.10, cellH=H*.50;
+      [[.05,.30],[.35,.30],[.65,.30]].forEach(p=>{ rr(c,W*p[0],cellY,W*p[1],cellH,8*s); c.strokeStyle=ink; c.lineWidth=1.6*s; c.stroke(); });
+      // knob labels (RS names)
+      textSpaced(d,.205*W,.540*H,F.barlow,12,ink,'RATE',0.5);
+      textSpaced(d,.500*W,.540*H,F.barlow,12,ink,'DEPTH',0.5);
+      textSpaced(d,.795*W,.540*H,F.barlow,12,ink,'MIX',0.5);
+      // NYR logo box (bottom-left)
+      rr(c,W*.06,H*.735,W*.215,H*.155,8*s); c.strokeStyle=ink; c.lineWidth=2.6*s; c.stroke();
+      textC(d,W*.1675,H*.815,F.anton,30,ink,'NYR');
+      // round footswitch (centre)
+      footRound(d,W*.50,H*.805,16*s);
+      // 'stereo chorus' tag (bottom-right, lowercase)
+      textC(d,W*.755,H*.775,F.barlow,23,ink,'stereo');
+      textC(d,W*.755,H*.850,F.barlow,23,ink,'chorus');
+      // side jack legends (rotated, right edge)
+      c.save(); c.translate(W*.965,H*.40); c.rotate(Math.PI/2); textSpaced(d,0,0,F.barlow,8,ink,'OUT',0.4); c.restore();
+      c.save(); c.translate(W*.965,H*.66); c.rotate(Math.PI/2); textSpaced(d,0,0,F.barlow,8,ink,'IN',0.4); c.restore(); } };
 
   // Buzz-Tone - gold wedge-style vintage two-knob fuzz face.
   // Param order: Gain0 Tone1.
@@ -426,21 +621,35 @@
 
   // Dyna Compress — Dyna Comp-style optical compressor. MXR-inspired look
   // (red box + cursive logo) recreated, not branded. Param order: Comp0 Attack1 Release2.
+  // Dyna Comp — MXR Dyna Comp-style: vivid-red box, black knobs, the parody
+  // 'NYR' logo box, vertical jack legends, red LED, footswitch, 'dyna comp'
+  // tag. RS knob names (RS exposes 3, the real pedal has 2). Comp0 Attack1 Release2.
   P.dynamicscompression = { w:300, h:460, knobs:[
-      {id:0,cx:.25,cy:.235,r:.080,style:'davies',cap:[26,26,28]},
-      {id:1,cx:.50,cy:.235,r:.080,style:'davies',cap:[26,26,28]},
-      {id:2,cx:.75,cy:.235,r:.080,style:'davies',cap:[26,26,28]}],
-    tick:rgb(122,30,28), ptr:rgb(242,236,224),
-    draw(d){ const {W,H,s}=d; box(d,172,48,44); const cream=rgb(242,236,224);
-      const ly=(.235+0.080*1.45+0.014)*H;
-      textSpaced(d,.25*W,ly,F.barlow,10,cream,'COMP',0.6);
-      textSpaced(d,.50*W,ly,F.barlow,10,cream,'ATTACK',0.6);
-      textSpaced(d,.75*W,ly,F.barlow,9,cream,'RELEASE',0.4);
-      // Cursive logo, staggered down-right like the original's script.
-      textC(d,.46*W,.565*H,F.crete,44,cream,'Dyna');
-      textC(d,.56*W,.665*H,F.crete,40,cream,'Compress');
-      ledDot(d,W*.5,H*.775,true,224,60,50);
-      footRound(d,W*.5,H*.885,23*s); } };
+      {id:0,cx:.22,cy:.165,r:.078,style:'davies'},
+      {id:1,cx:.50,cy:.165,r:.078,style:'davies'},
+      {id:2,cx:.78,cy:.165,r:.078,style:'davies'}],
+    tick:rgb(60,16,14), ptr:rgb(244,244,240),
+    draw(d){ const {ctx:c,W,H,s}=d; const ink=rgb(24,20,18), m=7*s;
+      // vivid red enclosure (no face screws)
+      c.fillStyle=rgb(10,8,8); c.fillRect(0,0,W,H);
+      const g=c.createLinearGradient(0,m,0,H-m); g.addColorStop(0,rgb(214,46,42)); g.addColorStop(1,rgb(186,28,26));
+      rr(c,m,m,W-2*m,H-2*m,13*s); c.fillStyle=g; c.fill();
+      rr(c,m,m,W-2*m,H-2*m,13*s); c.strokeStyle='rgba(0,0,0,0.4)'; c.lineWidth=2*s; c.stroke();
+      // knob labels (RS names)
+      textSpaced(d,.22*W,.275*H,F.barlow,9.5,ink,'COMP',0.4);
+      textSpaced(d,.50*W,.275*H,F.barlow,9,ink,'ATTACK',0.4);
+      textSpaced(d,.78*W,.275*H,F.barlow,8.5,ink,'RELEASE',0.3);
+      // vertical jack legends
+      c.save(); c.translate(W*.085,H*.405); c.rotate(-Math.PI/2); textSpaced(d,0,0,F.barlow,8.5,ink,'OUTPUT',0.4); c.restore();
+      c.save(); c.translate(W*.915,H*.405); c.rotate(-Math.PI/2); textSpaced(d,0,0,F.barlow,8.5,ink,'INPUT',0.4); c.restore();
+      // NYR logo box
+      rr(c,W*.30,H*.385,W*.40,H*.085,7*s); c.strokeStyle=ink; c.lineWidth=2.4*s; c.stroke();
+      textC(d,W*.50,H*.385+H*.085*0.54,F.anton,30,ink,'NYR');
+      // red LED
+      ledDot(d,W*.50,H*.555,true,224,52,46);
+      // footswitch + 'dyna comp' tag
+      footRound(d,W*.50,H*.700,22*s);
+      textC(d,W*.50,H*.875,F.barlow,28,ink,'dyna comp'); } };
 
   // Holy Spring — Holy Grail-style spring reverb. Bright chrome box + ornate
   // serif logo (EHX-inspired, recreated brand-free). Params: Time0 Mix1 Depth2.
@@ -518,6 +727,171 @@
       // bypass footswitch
       footRound(d,W*.205,H*.730,20*s);
       textSpaced(d,.205*W,.910*H,F.barlow,8,wt,'BYPASS',0.6); } };
+
+  // Acoustic Guitar Pedal — Rockman-style acoustic simulator: black box, 4 top
+  // knobs with tick scales, the iconic glowing blue window + bold white wordmark.
+  // Recreated brand-free. Params: Tone0 MidShift1 Body2 Mid3.
+  P.acousticsimulator = { w:300, h:360, knobs:[
+      {id:0,cx:.145,cy:.160,r:.078,style:'pointer',cap:[32,32,34]},
+      {id:1,cx:.385,cy:.160,r:.078,style:'pointer',cap:[32,32,34]},
+      {id:2,cx:.625,cy:.160,r:.078,style:'pointer',cap:[32,32,34]},
+      {id:3,cx:.865,cy:.160,r:.078,style:'pointer',cap:[32,32,34]}],
+    tick:rgb(150,152,158), ptr:rgb(238,240,244),
+    draw(d){ const {ctx:c,W,H,s}=d; box(d,22,22,24); const wt=rgb(236,238,242);
+      // knob labels
+      textSpaced(d,.145*W,.282*H,F.barlow,8.5,wt,'TONE',0.3);
+      textSpaced(d,.385*W,.282*H,F.barlow,7,wt,'MIDSHIFT',0.2);
+      textSpaced(d,.625*W,.282*H,F.barlow,8.5,wt,'BODY',0.3);
+      textSpaced(d,.865*W,.282*H,F.barlow,8.5,wt,'MID',0.3);
+      // status legends (parody of the Rockman's printed text)
+      textSpaced(d,.20*W,.350*H,F.barlow,6.5,rgb(150,152,158),'LOW BATTERY',0.2);
+      textSpaced(d,.80*W,.350*H,F.barlow,6.5,rgb(150,152,158),'EFFECT ON',0.2);
+      // blue rectangular push-button (the bypass switch, raised/glossy)
+      const bx=W*.32, by=H*.405, bw=W*.36, bh=H*.140;
+      rr(c,bx-3*s,by-3*s,bw+6*s,bh+6*s,8*s); c.fillStyle=rgb(8,8,10); c.fill();   // recess
+      const bg=c.createLinearGradient(0,by,0,by+bh);
+      bg.addColorStop(0,rgb(96,196,255)); bg.addColorStop(.5,rgb(42,150,228)); bg.addColorStop(1,rgb(20,94,168));
+      rr(c,bx,by,bw,bh,6*s); c.fillStyle=bg; c.fill();
+      rr(c,bx,by,bw,bh,6*s); c.strokeStyle=rgb(12,44,80); c.lineWidth=1.6*s; c.stroke();
+      rr(c,bx+5*s,by+4*s,bw-10*s,bh*0.30,4*s); c.fillStyle=rgb(255,255,255,0.26); c.fill();   // gloss
+      // bold white wordmark
+      textC(d,.5*W,.690*H,F.anton,42,wt,'ACOUSTIC');
+      textSpaced(d,.5*W,.785*H,F.anton,18,wt,'GUITAR  PEDAL',1.5); } };
+
+  // Carl Unlimited — Chandler Germanium Drive-style: royal-blue enclosure, gold
+  // pinstripe frames, two yellow pointer knobs (white scale ticks), two 3-way
+  // mode toggles, gold serif logo, red LED in a chrome bezel, footswitch.
+  // Recreated brand-free. Params: Gain0 Tone1.
+  P.germaniumdrive = { w:300, h:500, knobs:[
+      {id:0,cx:.32,cy:.250,r:.105,style:'pointer',cap:[230,202,74]},
+      {id:1,cx:.70,cy:.250,r:.105,style:'pointer',cap:[230,202,74]}],
+    tick:rgb(234,238,244), ptr:rgb(36,38,44),
+    draw(d){ const {ctx:c,W,H,s}=d; box(d,40,54,132); const gold=rgb(216,178,68), wt=rgb(236,238,244);
+      // two gold pinstripe frames (controls section + footswitch section)
+      c.strokeStyle=gold; c.lineWidth=1.5*s;
+      rr(c,W*.055,H*.095,W*.89,H*.625,9*s); c.stroke();
+      rr(c,W*.055,H*.745,W*.89,H*.205,9*s); c.stroke();
+      // top I/O legends
+      textSpaced(d,.135*W,.062*H,F.barlow,9,gold,'OUT',0.5);
+      textSpaced(d,.865*W,.062*H,F.barlow,9,gold,'IN',0.5);
+      // scale numbers ('goes to 11' nod on the left knob)
+      textC(d,.455*W,.150*H,F.barlow,8.5,wt,'11');
+      textC(d,.79*W,.150*H,F.barlow,8.5,wt,'5');
+      // gold italic knob labels
+      textC(d,.32*W,.392*H,F.crete,17,gold,'Gain');
+      textC(d,.70*W,.392*H,F.crete,17,gold,'Tone');
+      // two decorative 3-way mode toggles
+      const tog=(tx,ty)=>{ const w0=11*s,h0=25*s;
+        rr(c,tx-w0/2,ty-h0/2,w0,h0,4*s); c.fillStyle=rgb(18,20,28); c.fill();
+        rr(c,tx-w0/2,ty-h0/2,w0,h0,4*s); c.strokeStyle=rgb(8,9,14); c.lineWidth=1*s; c.stroke();
+        const g=c.createLinearGradient(tx-5*s,ty-8*s,tx+5*s,ty+8*s); g.addColorStop(0,rgb(232,234,240)); g.addColorStop(1,rgb(150,153,162));
+        rr(c,tx-5*s,ty-9*s,10*s,15*s,3*s); c.fillStyle=g; c.fill();
+        rr(c,tx-5*s,ty-9*s,10*s,15*s,3*s); c.strokeStyle=rgb(70,72,80); c.lineWidth=0.8*s; c.stroke(); };
+      tog(.135*W,.435*H); tog(.865*W,.435*H);
+      textC(d,.135*W,.498*H,F.crete,13,gold,'Highs');
+      textC(d,.865*W,.498*H,F.crete,13,gold,'Boost');
+      // gold serif logo
+      textC(d,.5*W,.560*H,F.crete,30,gold,'CARL');
+      textC(d,.5*W,.610*H,F.crete,30,gold,'UNLIMITED');
+      // red status LED in a chrome bezel
+      const lx=W*.5, ly=H*.672;
+      const cr=c.createRadialGradient(lx-3*s,ly-3*s,1,lx,ly,9*s); cr.addColorStop(0,rgb(228,230,236)); cr.addColorStop(1,rgb(120,124,132));
+      c.beginPath(); c.arc(lx,ly,9*s,0,7); c.fillStyle=cr; c.fill(); c.strokeStyle=rgb(70,72,80); c.lineWidth=1*s; c.stroke();
+      ledDot(d,lx,ly,true,228,52,46);
+      // footswitch + bottom name
+      footRound(d,W*.5,H*.825,23*s);
+      textC(d,.5*W,.908*H,F.anton,17,gold,'GERMANIUM');
+      textC(d,.5*W,.940*H,F.anton,17,gold,'DRIVE'); } };
+
+  // Ibañez LF6 "Lo Fi" — Ibanez LF7-style lo-fi filter on the Tonelok body.
+  // Labels use the RS knob names. Params: FilterType0 Mix1.
+  P.lofifilter = ibanezSpec(280,460,
+    [{id:0,cx:.32,r:.090,lbl:'FILTER TYPE',lblPx:7},{id:1,cx:.68,r:.090,lbl:'MIX'}],
+    'LF6','LO FI');
+
+  // Foog FM107 — Moog MF107 (moogerfooger)-style: dark granite face + wood side
+  // panels, big metallic knobs, foogerfooger/foog parody. RS knob names
+  // (Modern Flanger has 4). Rate0 Depth1 Regen2 Mix3.
+  P.modernflanger = foogSpec(300,420,
+    [{id:0,cx:.33,cy:.30,lbl:'RATE'},{id:1,cx:.67,cy:.30,lbl:'DEPTH'},
+     {id:2,cx:.33,cy:.62,lbl:'REGEN'},{id:3,cx:.67,cy:.62,lbl:'MIX'}],
+    'FM107');
+
+  // 80s Flanger — MXR M117R-style: hammered-grey landscape box, black knobs,
+  // POWER label, 'NYR' logo box + 'flanger' tag, side jacks. RS knob names
+  // (EightiesFlanger exposes 3). Rate0 Depth1 Mix2.
+  P.eightiesflanger = { w:460,h:320, knobs:[
+      {id:0,cx:.25,cy:.255,r:.075,style:'davies'},
+      {id:1,cx:.50,cy:.255,r:.075,style:'davies'},
+      {id:2,cx:.75,cy:.255,r:.075,style:'davies'}],
+    ptr:rgb(244,244,240),
+    draw(d){ const {ctx:c,W,H,s}=d; const lt=rgb(228,230,234), m=7*s;
+      c.fillStyle=rgb(10,10,12); c.fillRect(0,0,W,H);
+      const g=c.createLinearGradient(0,m,0,H-m); g.addColorStop(0,rgb(112,114,120)); g.addColorStop(.5,rgb(92,94,100)); g.addColorStop(1,rgb(74,76,82));
+      rr(c,m,m,W-2*m,H-2*m,12*s); c.fillStyle=g; c.fill();
+      // hammered speckle
+      c.save(); rr(c,m,m,W-2*m,H-2*m,12*s); c.clip();
+      c.fillStyle=rgb(255,255,255,0.05);
+      for(let i=0;i<260;i++){ c.fillRect(m+((i*71)%Math.floor(W-2*m)),m+((i*131)%Math.floor(H-2*m)),1.4*s,1.4*s); }
+      c.fillStyle=rgb(0,0,0,0.07);
+      for(let i=0;i<260;i++){ c.fillRect(m+((i*97)%Math.floor(W-2*m)),m+((i*53)%Math.floor(H-2*m)),1.4*s,1.4*s); }
+      c.restore();
+      // silver frame
+      c.strokeStyle=rgb(178,180,186); c.lineWidth=2*s; rr(c,W*.035,H*.06,W*.93,H*.88,9*s); c.stroke();
+      // POWER label + knob labels (RS names)
+      textSpaced(d,.50*W,.105*H,F.barlow,7.5,lt,'POWER',1.2);
+      textSpaced(d,.25*W,.435*H,F.barlow,11,lt,'RATE',0.5);
+      textSpaced(d,.50*W,.435*H,F.barlow,11,lt,'DEPTH',0.5);
+      textSpaced(d,.75*W,.435*H,F.barlow,11,lt,'MIX',0.5);
+      // red LED
+      ledDot(d,W*.50,H*.555,true,224,52,46);
+      // NYR logo box + footswitch + 'flanger'
+      rr(c,W*.06,H*.705,W*.215,H*.16,7*s); c.strokeStyle=lt; c.lineWidth=2.4*s; c.stroke();
+      textC(d,W*.1675,H*.787,F.anton,30,lt,'NYR');
+      footRound(d,W*.50,H*.79,16*s);
+      textC(d,W*.77,H*.79,F.barlow,26,lt,'flanger');
+      // side jack legends (OUTPUT left, INPUT right)
+      c.save(); c.translate(W*.04,H*.40); c.rotate(-Math.PI/2); textSpaced(d,0,0,F.barlow,7.5,lt,'OUTPUT',0.4); c.restore();
+      c.save(); c.translate(W*.965,H*.40); c.rotate(-Math.PI/2); textSpaced(d,0,0,F.barlow,7.5,lt,'INPUT',0.4); c.restore(); } };
+
+  // Deluxe Servant — EH Deluxe Electric Mistress-style: brushed-silver landscape
+  // box, black diagonal wedge with the retro logo, 3 black knobs in a right
+  // column. Parody (quimical-harmony / DELUXE SERVANT). RS knob names.
+  // Rate0 Depth1 Mix2.  (Pedal_VintageFlanger → VintageFlanger.vst3.)
+  P.vintageflanger = { w:480,h:360, knobs:[
+      {id:0,cx:.815,cy:.335,r:.058,style:'davies'},
+      {id:1,cx:.815,cy:.575,r:.058,style:'davies'},
+      {id:2,cx:.815,cy:.815,r:.058,style:'davies'}],
+    tick:rgb(150,152,158), ptr:rgb(244,244,240),
+    draw(d){ const {ctx:c,W,H,s}=d; const m=7*s, ink=rgb(30,30,34), wt=rgb(234,236,240);
+      c.fillStyle=rgb(10,10,12); c.fillRect(0,0,W,H);
+      const g=c.createLinearGradient(0,m,0,H-m); g.addColorStop(0,rgb(200,202,207)); g.addColorStop(.5,rgb(178,180,186)); g.addColorStop(1,rgb(158,160,166));
+      rr(c,m,m,W-2*m,H-2*m,10*s); c.fillStyle=g; c.fill();
+      c.save(); rr(c,m,m,W-2*m,H-2*m,10*s); c.clip();
+      c.strokeStyle=rgb(150,153,160,0.18); c.lineWidth=1;
+      for(let y=m;y<H-m;y+=3*s){ c.beginPath(); c.moveTo(m,y); c.lineTo(W-m,y); c.stroke(); }
+      // black diagonal wedge (upper-left)
+      c.beginPath(); c.moveTo(m,m); c.lineTo(W*.66,m); c.lineTo(W*.30,H*.74); c.lineTo(m,H*.74); c.closePath();
+      c.fillStyle=rgb(20,20,22); c.fill(); c.restore();
+      rr(c,m,m,W-2*m,H-2*m,10*s); c.strokeStyle='rgba(0,0,0,0.4)'; c.lineWidth=2*s; c.stroke();
+      // top jack legends
+      textSpaced(d,.22*W,.075*H,F.barlow,6.5,ink,'FLANGED OUT',0.2);
+      textSpaced(d,.44*W,.075*H,F.barlow,6.5,ink,'DIRECT OUT',0.2);
+      textSpaced(d,.61*W,.075*H,F.barlow,6.5,ink,'INPUT',0.2);
+      textSpaced(d,.85*W,.075*H,F.barlow,6.5,ink,'FILTER MATRIX',0.2);
+      // retro logo on the black wedge
+      textSpaced(d,.295*W,.205*H,F.bebas,22,wt,'DELUXE',1.0);
+      textC(d,.295*W,.355*H,F.bebas,52,wt,'SERVANT');
+      textSpaced(d,.295*W,.470*H,F.barlow,8,wt,'FLANGER / FILTER MATRIX',0.3);
+      // knob labels (RS names)
+      // knob labels (RS names) to the LEFT of each knob, vertically centred
+      textC(d,.71*W,.335*H,F.barlow,11,ink,'RATE','right');
+      textC(d,.71*W,.575*H,F.barlow,11,ink,'DEPTH','right');
+      textC(d,.71*W,.815*H,F.barlow,11,ink,'MIX','right');
+      // footswitch + bottom legends
+      footRound(d,W*.145,H*.70,15*s);
+      textC(d,.30*W,.885*H,F.crete,15,ink,'quimical-harmony');
+      textSpaced(d,.62*W,.895*H,F.barlow,6.5,ink,'MADE IN NEW YORK CITY  U.S.A.',0.2); } };
 
   // Eden WTDI — landscape gold-panel bass preamp (mirrors eden_wtdi/EdenWtdi_ui.cpp).
   // Param order: Gain0 Enhance1 Comp2 Master3 Bass4 Mid5 Treble6 BassBoost7 MidShift8.
