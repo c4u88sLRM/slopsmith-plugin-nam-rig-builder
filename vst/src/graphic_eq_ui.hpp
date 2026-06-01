@@ -36,8 +36,8 @@ class GraphicEqUI : public UI
 
     float scale()  const { return getWidth() / (float)DISTRHO_UI_DEFAULT_WIDTH; }
     // centred fader plate (Boss = portrait/tall; Mesa = landscape/wide)
-    float plateX() const { return getWidth()  * (EQ_STYLE==1 ? 0.195f : 0.085f); }
-    float plateW() const { return getWidth()  * (EQ_STYLE==1 ? 0.610f : 0.830f); }
+    float plateX() const { return getWidth()  * (EQ_STYLE==1 ? 0.100f : 0.085f); }
+    float plateW() const { return getWidth()  * (EQ_STYLE==1 ? 0.800f : 0.830f); }
     float plateY() const { return getHeight() * (EQ_STYLE==1 ? 0.170f : 0.135f); }
     float plateH() const { return getHeight() * (EQ_STYLE==1 ? 0.440f : 0.305f); }
     // fader columns sit to the right of the dB scale, inside the plate
@@ -151,10 +151,7 @@ protected:
         }
 
         if (mesa) {
-            // two decorative rotary knobs at the top corners (Output / Input level)
-            miniKnob(W*0.095f, H*0.30f, "OUTPUT");
-            miniKnob(W*0.905f, H*0.30f, "INPUT");
-            // white nameplate + footswitch at the bottom
+            // white nameplate + footswitch at the bottom (no rotary knobs)
             beginPath(); roundedRect(W*0.30f, H*0.66f, W*0.40f, H*0.135f, 5*f); fillColor(Color(236,237,240)); fill();
             engrave(0.5f, 0.727f, 22, EQ_PLUGIN_LABEL, Color(20,20,24));
             beginPath(); circle(W*0.5f, H*0.905f, 15*f); fillColor(Color(150,153,159)); fill();
@@ -165,12 +162,14 @@ protected:
             beginPath(); roundedRect(tx, tyTop, tw, tBot - tyTop, 12*f); fillPaint(tre); fill();
             beginPath(); roundedRect(tx, tyTop, tw, 10*f, 12*f); fillColor(Color(255,255,255,20)); fill();
             beginPath(); roundedRect(tx, tyTop, tw, tBot - tyTop, 12*f); strokeColor(Color(0,0,0,120)); strokeWidth(1.6f*f); stroke();
-            beginPath(); roundedRect(tx+12*f, H*0.865f, tw-24*f, tBot-9*f-H*0.865f, 9*f); fillColor(Color(20,20,22)); fill();
+            // black step pad = LOWER HALF of the treadle
+            const float padT = tyTop + (tBot - tyTop) * 0.50f;
+            beginPath(); roundedRect(tx+12*f, padT, tw-24*f, tBot - padT - 9*f, 9*f); fillColor(Color(20,20,22)); fill();
 #if defined(EQ_NAME1) && defined(EQ_NAME2)
-            engrave(0.30f, 0.595f, 42, EQ_NAME1, Color(16,16,20));
-            engrave(0.61f, 0.705f, 34, EQ_NAME2, Color(16,16,20));
+            engrave(0.30f, 0.575f, 42, EQ_NAME1, Color(16,16,20));
+            engrave(0.61f, 0.675f, 34, EQ_NAME2, Color(16,16,20));
 #else
-            engrave(0.5f, 0.655f, 40, EQ_PLUGIN_LABEL, Color(16,16,20));
+            engrave(0.5f, 0.625f, 40, EQ_PLUGIN_LABEL, Color(16,16,20));
 #endif
         }
     }
