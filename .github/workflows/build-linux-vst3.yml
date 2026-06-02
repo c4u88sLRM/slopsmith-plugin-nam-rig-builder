@@ -46,8 +46,11 @@ jobs:
             libgl1-mesa-dev libdbus-1-dev \
             libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxinerama-dev
 
-      - name: Clone DPF
-        run: git clone --depth 1 --branch "${{ github.event.inputs.dpf_ref }}" https://github.com/DISTRHO/DPF.git "$GITHUB_WORKSPACE/dpf"
+      - name: Clone DPF (with submodules — pugl is needed for the DGL UI)
+        run: |
+          git clone --depth 1 --branch "${{ github.event.inputs.dpf_ref }}" \
+            https://github.com/DISTRHO/DPF.git "$GITHUB_WORKSPACE/dpf"
+          git -C "$GITHUB_WORKSPACE/dpf" submodule update --init --recursive
 
       - name: Build every VST3 for Linux
         run: |

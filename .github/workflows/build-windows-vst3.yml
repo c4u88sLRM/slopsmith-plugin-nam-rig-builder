@@ -38,8 +38,11 @@ jobs:
             mingw-w64-x86_64-gcc
             mingw-w64-x86_64-pkgconf
 
-      - name: Clone DPF
-        run: git clone --depth 1 --branch "${{ github.event.inputs.dpf_ref }}" https://github.com/DISTRHO/DPF.git "$GITHUB_WORKSPACE/dpf"
+      - name: Clone DPF (with submodules — pugl is needed for the DGL UI)
+        run: |
+          git clone --depth 1 --branch "${{ github.event.inputs.dpf_ref }}" \
+            https://github.com/DISTRHO/DPF.git "$GITHUB_WORKSPACE/dpf"
+          git -C "$GITHUB_WORKSPACE/dpf" submodule update --init --recursive
 
       - name: Build every VST3 for Windows
         run: |
