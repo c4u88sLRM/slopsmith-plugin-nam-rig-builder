@@ -1830,7 +1830,7 @@
       sec(.120,'PRE DELAY'); sec(.270,'MODULATION'); sec(.540,'EFFECT');
       // knob sub-labels
       [[.120,'TIME'],[.230,'RATE'],[.310,'DEPTH'],[.420,'LO FILTER'],[.500,'HI FILTER'],[.580,'STEREO'],[.660,'MIX']]
-        .forEach(p=> textC(d,p[0]*W,.815*H,F.barlow,10,dim,p[1]));
+        .forEach(p=> textC(d,p[0]*W,.820*H,F.barlow,12,wt,p[1]));
       // slide switch helper
       const slide=(cx,cy)=>{ rr(c,cx-.011*W,cy-.05*H,.022*W,.10*H,3); c.fillStyle=rgb(26,27,29); c.fill();
         rr(c,cx-.011*W,cy-.05*H,.022*W,.10*H,3); c.strokeStyle=rgb(70,72,75); c.lineWidth=1; c.stroke();
