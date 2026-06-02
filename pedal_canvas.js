@@ -547,6 +547,44 @@
     [{id:0,cx:.33,lbl:'LIMIT'},{id:1,cx:.67,lbl:'RATE'}],
     'Limiter',null,'LM-2');
 
+  // Line Drive — Boss OS-2-style: custom Chief body in OS-2 yellow (the long
+  // 'OverDrive/Distortion' name needs its own wordmark sizing). RS knob names.
+  // 2 RS knobs: Gain0 Tone1.
+  P.linedrive = { w:300,h:480, knobs:[
+      {id:0,cx:.33,cy:.235,r:.072,style:'boss'},
+      {id:1,cx:.67,cy:.235,r:.072,style:'boss'}],
+    ptr:rgb(238,240,242),
+    draw(d){ chiefBody(d,245,205,30); const wc=rgb(238,240,242), dk=rgb(26,22,10);
+      textSpaced(d,.33*d.W,.135*d.H,F.barlow,9,wc,'GAIN',0.2);
+      textSpaced(d,.67*d.W,.135*d.H,F.barlow,9,wc,'TONE',0.2);
+      textC(d,.45*d.W,.535*d.H,F.crete,34,dk,'OverDrive');
+      textC(d,.44*d.W,.610*d.H,F.crete,28,dk,'Distortion');
+      textC(d,.74*d.W,.645*d.H,F.barlow,22,dk,'OS-2'); } };
+
+  // Super Drive — Boss SD-1-style: Chief body in the SD-1 amber/golden yellow.
+  // RS knob names. 2 RS knobs: Gain0 Tone1.
+  P.superdrive = chiefSpec(300,480,[242,180,44],
+    [{id:0,cx:.33,lbl:'GAIN'},{id:1,cx:.67,lbl:'TONE'}],
+    'Super','OverDrive','SD-1');
+
+  // Standard Distortion — Boss DS-1-style: Chief body in the DS-1 vivid orange.
+  // RS knob names. 2 RS knobs: Gain0 Tone1.
+  P.standarddistortion = chiefSpec(300,480,[240,120,34],
+    [{id:0,cx:.33,lbl:'GAIN'},{id:1,cx:.67,lbl:'TONE'}],
+    'Distortion',null,'DS-1');
+
+  // Metal Distortion — Boss HM-2 Heavy Metal-style: custom Chief in dark charcoal
+  // with ORANGE knobs + orange name/labels (the HM-2 signature). RS knob names.
+  // 2 RS knobs: Gain0 Tone1.
+  P.alloydistortion = { w:300,h:480, knobs:[
+      {id:0,cx:.33,cy:.235,r:.072,style:'pointer',cap:[236,142,42]},
+      {id:1,cx:.67,cy:.235,r:.072,style:'pointer',cap:[236,142,42]}],
+    tick:rgb(120,100,60), ptr:rgb(38,28,12),
+    draw(d){ chiefBody(d,52,54,60); const or=rgb(238,146,46);
+      textSpaced(d,.33*d.W,.135*d.H,F.barlow,9,or,'GAIN',0.2);
+      textSpaced(d,.67*d.W,.135*d.H,F.barlow,9,or,'TONE',0.2);
+      chiefName(d,'Heavy','Metal','HM-2',0,0,or); } };
+
   // Vintage Chorus — MXR Stereo Chorus-style: yellow landscape box, three black
   // knobs in outlined cells, the parody 'NYR' logo box + 'stereo chorus' tag,
   // round footswitch, side jack legends. RS knob names. Rate0 Depth1 Mix2.
@@ -583,43 +621,37 @@
       c.save(); c.translate(W*.965,H*.40); c.rotate(Math.PI/2); textSpaced(d,0,0,F.barlow,8,ink,'OUT',0.4); c.restore();
       c.save(); c.translate(W*.965,H*.66); c.rotate(Math.PI/2); textSpaced(d,0,0,F.barlow,8,ink,'IN',0.4); c.restore(); } };
 
-  // Buzz-Tone - gold wedge-style vintage two-knob fuzz face.
-  // Param order: Gain0 Tone1.
-  P.buzztone = { w:470,h:300, knobs:[
-      {id:0,cx:.355,cy:.285,r:.073,style:'davies'},
-      {id:1,cx:.645,cy:.285,r:.073,style:'davies'}],
-    tick:rgb(72,42,24), ptr:rgb(238,230,204),
-    draw(d){ const {ctx:c,W,H,s}=d;
-      c.fillStyle=rgb(10,10,12); c.fillRect(0,0,W,H);
-      const x0=W*.075, x1=W*.925, y0=H*.105, y1=H*.875;
-      const topInset=W*.070, botInset=W*.020;
-      const body=c.createLinearGradient(0,y0,0,y1);
-      body.addColorStop(0,rgb(188,142,68)); body.addColorStop(.48,rgb(151,102,46)); body.addColorStop(1,rgb(86,59,34));
-      c.beginPath();
-      c.moveTo(x0+topInset,y0); c.lineTo(x1-topInset,y0);
-      c.lineTo(x1-botInset,y1); c.lineTo(x0+botInset,y1); c.closePath();
-      c.fillStyle=body; c.fill();
-      c.strokeStyle=rgb(48,34,24); c.lineWidth=2.2*s; c.stroke();
-      c.save();
-      c.clip();
-      const glow=c.createLinearGradient(x0,y0,x1,y1);
-      glow.addColorStop(0,rgb(245,207,118,0.22)); glow.addColorStop(.55,rgb(255,232,150,0.035)); glow.addColorStop(1,rgb(34,24,18,0.22));
-      c.fillStyle=glow; c.fillRect(x0,y0,x1-x0,y1-y0);
-      c.strokeStyle=rgb(208,154,76,0.28); c.lineWidth=1.2*s;
-      for(let i=0;i<9;i++){ const yy=y0+(y1-y0)*(i+1)/10; c.beginPath(); c.moveTo(x0+topInset*.65,yy); c.lineTo(x1-topInset*.65,yy+2*s); c.stroke(); }
+  // Buzz-Tone — Maestro Fuzz-Tone FZ-1A-style: brown box, two gold knobs poking
+  // from the top, white script + shadowed wordmark, big chrome footswitch button,
+  // maker text. Parody (Master Buzz-Tone / Hudson). RS knob names. Gain0 Tone1.
+  P.buzztone = { w:300,h:480, knobs:[
+      {id:0,cx:.28,cy:.095,r:.082,style:'pointer',cap:[206,168,92]},
+      {id:1,cx:.72,cy:.095,r:.082,style:'pointer',cap:[206,168,92]}],
+    tick:rgb(120,92,50), ptr:rgb(40,28,18),
+    draw(d){ const {ctx:c,W,H,s}=d; const m=8*s, cream=rgb(232,224,210);
+      c.fillStyle=rgb(8,7,6); c.fillRect(0,0,W,H);
+      const bg=c.createLinearGradient(0,m,0,H-m); bg.addColorStop(0,rgb(104,76,56)); bg.addColorStop(1,rgb(74,52,38));
+      rr(c,m,m,W-2*m,H-2*m,12*s); c.fillStyle=bg; c.fill();
+      rr(c,m,m,W-2*m,H-2*m,12*s); c.strokeStyle='rgba(0,0,0,0.45)'; c.lineWidth=2*s; c.stroke();
+      // knob labels (RS names)
+      textSpaced(d,.28*W,.205*H,F.barlow,9,cream,'GAIN',0.4);
+      textSpaced(d,.72*W,.205*H,F.barlow,9,cream,'TONE',0.4);
+      // 'Master' script + 'Buzz-Tone' shadowed wordmark (parody of Maestro Fuzz-Tone)
+      textC(d,.50*W,.315*H,F.ink,40,cream,'Master');
+      c.save(); c.translate(.50*W,.420*H); c.transform(1,0,-0.08,1,0,0);
+      outlineText(d,0,0,F.anton,44,cream,rgb(46,32,22),'Buzz-Tone',2);
       c.restore();
-      screw(d,W*.155,H*.170); screw(d,W*.845,H*.170); screw(d,W*.180,H*.805); screw(d,W*.820,H*.805);
-      const panelY=H*.170; c.beginPath(); c.moveTo(W*.250,panelY); c.lineTo(W*.750,panelY);
-      c.strokeStyle=rgb(70,42,26); c.lineWidth=1.4*s; c.stroke();
-      textSpaced(d,.355*W,.475*H,F.barlow,10.5,rgb(42,30,22),'GAIN',1.2);
-      textSpaced(d,.645*W,.475*H,F.barlow,10.5,rgb(42,30,22),'TONE',1.2);
-      c.save();
-      c.translate(W*.5,H*.640); c.transform(1,0,-0.10,1,0,0);
-      outlineText(d,0,0,F.anton,50,rgb(235,211,139),rgb(64,38,25),'BUZZ-TONE',4.0);
-      c.restore();
-      textSpaced(d,.50*W,.735*H,F.barlow,9,rgb(226,190,118),'GERMANIUM  FUZZ',2.3);
-      ledDot(d,W*.50,H*.800,true,224,56,45);
-      footRound(d,W*.50,H*.885,18*s); } };
+      // Maestro-style footswitch button (black ring + chrome dome)
+      const fx=.50*W, fy=.595*H, R=24*s;
+      c.beginPath(); c.arc(fx,fy,R*1.28,0,7); c.fillStyle=rgb(20,20,22); c.fill();
+      c.strokeStyle=rgb(8,8,10); c.lineWidth=1.5*s; c.stroke();
+      const cg=c.createRadialGradient(fx-R*.3,fy-R*.3,R*.1,fx,fy,R); cg.addColorStop(0,rgb(234,236,240)); cg.addColorStop(1,rgb(150,153,160));
+      c.beginPath(); c.arc(fx,fy,R*0.80,0,7); c.fillStyle=cg; c.fill();
+      c.beginPath(); c.arc(fx-R*.26,fy-R*.30,R*.30,0,7); c.fillStyle='rgba(255,255,255,0.5)'; c.fill();
+      // maker text (Gibson -> Hudson)
+      textC(d,.50*W,.805*H,F.crete,16,cream,'Hudson');
+      textSpaced(d,.50*W,.850*H,F.barlow,7,cream,'KALAMAZOO  MICHIGAN',0.3);
+      textSpaced(d,.50*W,.890*H,F.barlow,7.5,cream,'MODEL BZ-1A',0.4); } };
 
   function chiefSpec(w,h,col,knobIds,n1,n2,code,plate){
     const lum=0.299*col[0]+0.587*col[1]+0.114*col[2], ink=lum>120?rgb(16,16,20):rgb(232,234,238);
@@ -1558,6 +1590,233 @@
     [{id:0,cx:.32,cy:.33,lbl:'TIME'},{id:1,cx:.68,cy:.33,lbl:'FEEDBACK',lblPx:7.5},
      {id:2,cx:.50,cy:.63,lbl:'MIX'}],
     'FM104');
+
+  // Bob Filter — Moog MF-105 MuRF-style: custom foog layout (not the simple
+  // foogSpec box) — two knob rows, decorative LFO/FREQ slide switches, the
+  // signature 8-band FILTERS slider bank, an LED row + foog logo + stomp.
+  // Parody (foogermooger / FM105). RS knob names. Sens0 Attack1 Release2 Mix3 Filter4.
+  P.bobfilter = { w:320,h:480, knobs:[
+      {id:0,cx:.22,cy:.165,r:.072,style:'moog'},
+      {id:3,cx:.50,cy:.165,r:.072,style:'moog'},
+      {id:1,cx:.30,cy:.345,r:.072,style:'moog'},
+      {id:2,cx:.70,cy:.345,r:.072,style:'moog'}],
+    switches:[{id:4,cx:.78,cy:.175,hs:.036}],
+    tick:rgb(150,152,158), ptr:rgb(238,240,244),
+    draw(d,values){ const {ctx:c,W,H,s}=d; foogBody(d); const wt=rgb(226,228,232), dim=rgb(150,152,158);
+      // brand + model
+      textC(d,.34*W,.052*H,F.crete,17,wt,'foogermooger');
+      textC(d,.74*W,.052*H,F.crete,15,wt,'FM105');
+      // knob labels (RS names) above each knob
+      const KL=[['SENS',.22,.165],['MIX',.50,.165],['ATTACK',.30,.345],['RELEASE',.70,.345]];
+      KL.forEach(k=> textSpaced(d,k[1]*W,(k[2]-.072-.018)*H,F.barlow,8,wt,k[0],0.3));
+      // FILTER is a 2-mode selector (engine draws the toggle via `switches`):
+      // WAH sweep (value<0.5) vs voiced MuRF BANK (>=0.5). Active label brightens.
+      const fv=(values&&values[4]!=null)?values[4]:1;
+      textSpaced(d,.78*W,(.165-.072-.018)*H,F.barlow,8,wt,'FILTER',0.3);
+      textSpaced(d,.78*W,.252*H,F.barlow,6.5,fv<0.5?wt:dim,'WAH',0.2);
+      textSpaced(d,.78*W,.286*H,F.barlow,6.5,fv>=0.5?wt:dim,'BANK',0.2);
+      // decorative slide switches (LFO OFF/ON, FREQ BASS/MIDS) between the 2nd-row knobs
+      const slide=(sx,on,lbl)=>{ const sw=15*s, sh=8*s, sy=.345*H;
+        rr(c,sx-sw/2,sy-sh/2,sw,sh,3*s); c.fillStyle=rgb(38,38,42); c.fill();
+        rr(c,sx-sw/2,sy-sh/2,sw,sh,3*s); c.strokeStyle=rgb(10,10,12); c.lineWidth=0.8*s; c.stroke();
+        rr(c,sx+(on?1:-1)*sw*0.18-sw*0.16,sy-sh/2+1.2*s,sw*0.32,sh-2.4*s,2*s); c.fillStyle=rgb(228,230,234); c.fill();
+        textSpaced(d,sx,(.345-.030)*H,F.barlow,5.5,wt,lbl,0.2); };
+      slide(.445*W,true,'LFO'); slide(.560*W,false,'FREQ');
+      // FILTERS slider bank (decorative, MuRF signature)
+      const bx=W*.105, bw=W*.81, by=H*.45, bh=H*.20;
+      rr(c,bx,by,bw,bh,7*s); c.strokeStyle=wt; c.lineWidth=1.6*s; c.stroke();
+      c.save(); c.translate(bx+10*s,by+bh/2); c.rotate(-Math.PI/2); textSpaced(d,0,0,F.barlow,8,wt,'FILTERS',0.6); c.restore();
+      const caps=[.30,.60,.25,.82,.18,.48,.70,.38], n=8, tx0=W*.24, tx1=W*.86, tTop=by+bh*0.20, tBot=by+bh*0.86;
+      for(let i=0;i<n;i++){ const x=tx0+i*(tx1-tx0)/(n-1);
+        c.strokeStyle=rgb(150,152,158); c.lineWidth=1.4*s; c.beginPath(); c.moveTo(x,tTop); c.lineTo(x,tBot); c.stroke();
+        const cy2=tTop+caps[i]*(tBot-tTop);
+        const cg=c.createRadialGradient(x-2*s,cy2-2*s,1*s,x,cy2,7*s); cg.addColorStop(0,rgb(238,240,244)); cg.addColorStop(1,rgb(150,153,160));
+        rr(c,x-6*s,cy2-4*s,12*s,8*s,2.5*s); c.fillStyle=cg; c.fill();
+        rr(c,x-6*s,cy2-4*s,12*s,8*s,2.5*s); c.strokeStyle=rgb(40,42,46); c.lineWidth=0.8*s; c.stroke(); }
+      // LED row + labels
+      [['DRIVE',.30],['BYPASS',.50],['RATE',.70]].forEach(p=>{ ledDot(d,p[1]*W,.695*H,true,150,196,255); textSpaced(d,p[1]*W,.730*H,F.barlow,6.5,wt,p[0],0.2); });
+      // foog logo + footswitch
+      textC(d,.50*W,.795*H,F.crete,22,wt,'foog');
+      footRound(d,W*.50,H*.885,18*s); } };
+
+  // Auto Filter — Mu-Tron III-style: brushed-silver box, blue control panel with
+  // black scaled knobs, rainbow maker logo + a red POWER lever, wordmark + brand
+  // + chrome stomp. Parody (Bu-Tron III / auditronics). RS knob names.
+  // FilterType0 Res1 Sens2 Attack3 Release4.
+  P.autofilter = { w:300,h:470, knobs:[
+      {id:1,cx:.22,cy:.290,r:.058,style:'pointer',cap:[26,26,28]},
+      {id:2,cx:.22,cy:.440,r:.058,style:'pointer',cap:[26,26,28]},
+      {id:3,cx:.55,cy:.180,r:.058,style:'pointer',cap:[26,26,28]},
+      {id:4,cx:.55,cy:.360,r:.058,style:'pointer',cap:[26,26,28]}],
+    sw3:[{id:0,cx:.185,cy:.150}],
+    tick:rgb(200,210,230), ptr:rgb(240,242,246),
+    draw(d){ const {ctx:c,W,H,s}=d; const m=8*s, wt=rgb(238,240,244), dk=rgb(30,30,34);
+      // brushed-silver box
+      c.fillStyle=rgb(8,8,10); c.fillRect(0,0,W,H);
+      const bg=c.createLinearGradient(0,m,0,H-m); bg.addColorStop(0,rgb(196,198,202)); bg.addColorStop(1,rgb(162,164,170));
+      rr(c,m,m,W-2*m,H-2*m,12*s); c.fillStyle=bg; c.fill();
+      c.save(); rr(c,m,m,W-2*m,H-2*m,12*s); c.clip(); c.strokeStyle='rgba(255,255,255,0.10)'; c.lineWidth=1;
+      for(let y=m;y<H*.58;y+=3*s){ c.beginPath(); c.moveTo(m,y); c.lineTo(W-m,y); c.stroke(); } c.restore();
+      rr(c,m,m,W-2*m,H-2*m,12*s); c.strokeStyle='rgba(0,0,0,0.4)'; c.lineWidth=2*s; c.stroke();
+      // blue control panel
+      rr(c,W*.07,H*.05,W*.86,H*.505,8*s); c.fillStyle=rgb(34,70,150); c.fill();
+      rr(c,W*.07,H*.05,W*.86,H*.505,8*s); c.strokeStyle='rgba(0,0,0,0.4)'; c.lineWidth=1.4*s; c.stroke();
+      // rainbow maker logo (top-right of panel)
+      const lx=W*.74, ly=H*.085, bw=6*s, bh=20*s;
+      [[214,52,52],[70,176,90],[64,120,212]].forEach((col,i)=>{ rr(c,lx+i*(bw+2*s),ly,bw,bh,1.5*s); c.fillStyle=rgb(col[0],col[1],col[2]); c.fill(); });
+      // knob labels (RS names) below each knob
+      [['RES',.22,.290,8],['SENS',.22,.440,8],['ATTACK',.55,.180,7.5],['RELEASE',.55,.360,7.5]]
+        .forEach(k=> textSpaced(d,k[1]*W,(k[2]+.085)*H,F.barlow,k[3],wt,k[0],0.2));
+      // FilterType 3-way MODE selector (LP/BP/HP) — lever drawn by engine via sw3
+      textSpaced(d,.185*W,.072*H,F.barlow,7,wt,'MODE',0.3);
+      textSpaced(d,.305*W,.118*H,F.barlow,6.5,wt,'HP',0.2);
+      textSpaced(d,.305*W,.150*H,F.barlow,6.5,wt,'BP',0.2);
+      textSpaced(d,.305*W,.182*H,F.barlow,6.5,wt,'LP',0.2);
+      // decorative POWER lever (red, ON) lower-right of panel
+      const px=W*.80, py=H*.40;
+      rr(c,px-9*s,py-7*s,18*s,14*s,3*s); c.fillStyle=rgb(28,30,38); c.fill();
+      rr(c,px+1*s,py-9*s,8*s,13*s,2*s); c.fillStyle=rgb(206,44,44); c.fill();
+      textSpaced(d,px,py+15*s,F.barlow,6,wt,'POWER',0.2);
+      textSpaced(d,px-16*s,py,F.barlow,5,wt,'OFF',0.1); textSpaced(d,px+16*s,py,F.barlow,5,wt,'ON',0.1);
+      // wordmark + chrome stomp + brand
+      textSpaced(d,.42*W,.625*H,F.anton,24,dk,'BU-TRON III',0.5);
+      footRound(d,W*.50,H*.79,22*s);
+      textSpaced(d,.78*W,.93*H,F.barlow,8.5,dk,'auditronics',0.2); } };
+
+  // Custom Drive — Fulltone OCD-style: cream box, two black knobs, an HP/LP voice
+  // toggle + blue LED, fat black wordmark + script brand. Parody (ExtraTone / CDO).
+  // RS knob names; Voice is the binary HP/LP selector. Gain0 Tone1 Voice2.
+  P.customdrive = { w:280,h:480, knobs:[
+      {id:0,cx:.26,cy:.215,r:.082,style:'davies'},
+      {id:1,cx:.74,cy:.215,r:.082,style:'davies'}],
+    switches:[{id:2,cx:.50,cy:.150,hs:.030}],
+    ptr:rgb(240,240,242),
+    draw(d,values){ const {ctx:c,W,H,s}=d; const m=8*s, dk=rgb(30,28,22), dim=rgb(150,146,132);
+      c.fillStyle=rgb(8,8,9); c.fillRect(0,0,W,H);
+      const bg=c.createLinearGradient(0,m,0,H-m); bg.addColorStop(0,rgb(224,214,186)); bg.addColorStop(1,rgb(198,188,160));
+      rr(c,m,m,W-2*m,H-2*m,14*s); c.fillStyle=bg; c.fill();
+      rr(c,m,m,W-2*m,H-2*m,14*s); c.strokeStyle='rgba(0,0,0,0.3)'; c.lineWidth=2*s; c.stroke();
+      // knob labels (RS names, OCD-style script)
+      textC(d,.26*W,.105*H,F.crete,17,dk,'Gain');
+      textC(d,.74*W,.105*H,F.crete,17,dk,'Tone');
+      // HP/LP voice selector (toggle drawn by engine via switches) + blue LED
+      const vv=(values&&values[2]!=null)?values[2]:0;
+      textSpaced(d,.50*W,.082*H,F.barlow,8,vv>=0.5?dk:dim,'HP',0.3);
+      textSpaced(d,.50*W,.218*H,F.barlow,8,vv<0.5?dk:dim,'LP',0.3);
+      ledDot(d,.50*W,.278*H,true,70,150,234);
+      // fat wordmark + footswitch + script brand
+      textC(d,.50*W,.500*H,F.anton,78,rgb(18,16,12),'CDO');
+      footRound(d,W*.50,H*.715,22*s);
+      textC(d,.50*W,.855*H,F.ink,24,dk,'ExtraTone');
+      textSpaced(d,.50*W,.905*H,F.barlow,7,dk,'Built in the USA',0.3); } };
+
+  // Marshall GV-2 Guv'nor Plus-style: cream Marshall-compact body, five gold
+  // knobs, black oval gold-edged badge, gold stomp, script brand. Parody
+  // (Regis / GM-2 Guvnor Minus). RS knob names. Gain0 Bass1 Mid2 Treble3 Deep4.
+  P.marshallguvnorplus = { w:300,h:470, knobs:[
+      {id:0,cx:.12,cy:.150,r:.052,style:'pointer',cap:[200,164,84]},
+      {id:1,cx:.31,cy:.150,r:.052,style:'pointer',cap:[200,164,84]},
+      {id:2,cx:.50,cy:.150,r:.052,style:'pointer',cap:[200,164,84]},
+      {id:3,cx:.69,cy:.150,r:.052,style:'pointer',cap:[200,164,84]},
+      {id:4,cx:.88,cy:.150,r:.052,style:'pointer',cap:[200,164,84]}],
+    tick:rgb(150,140,110), ptr:rgb(40,36,26),
+    draw(d){ const {ctx:c,W,H,s}=d; const m=8*s, dk=rgb(40,36,26), gold=rgb(202,166,86);
+      c.fillStyle=rgb(8,8,9); c.fillRect(0,0,W,H);
+      const bg=c.createLinearGradient(0,m,0,H-m); bg.addColorStop(0,rgb(224,216,196)); bg.addColorStop(1,rgb(198,190,168));
+      rr(c,m,m,W-2*m,H-2*m,14*s); c.fillStyle=bg; c.fill();
+      rr(c,m,m,W-2*m,H-2*m,14*s); c.strokeStyle='rgba(0,0,0,0.3)'; c.lineWidth=2*s; c.stroke();
+      // red CHECK LED + knob labels (RS names)
+      ledDot(d,W*.50,H*.045,true,224,40,40);
+      [['GAIN',.12],['BASS',.31],['MID',.50],['TREBLE',.69,6.5],['DEEP',.88]].forEach(k=>
+        textSpaced(d,k[1]*W,.235*H,F.barlow,k[2]||7.5,dk,k[0],0.2));
+      // black oval gold-edged badge: GM-2 / GUVNOR / MINUS
+      const ox=.50*W, oy=.46*H, orx=W*.27, ory=H*.105;
+      c.save(); c.translate(ox,oy); c.scale(1,ory/orx); c.beginPath(); c.arc(0,0,orx,0,7); c.restore();
+      c.fillStyle=rgb(18,18,18); c.fill(); c.strokeStyle=gold; c.lineWidth=2.6*s; c.stroke();
+      c.strokeStyle=rgb(120,96,40); c.lineWidth=0.8*s; c.stroke();
+      textSpaced(d,ox,oy-ory*0.52,F.barlow,8,gold,'GM-2',0.4);
+      textC(d,ox,oy+ory*0.02,F.anton,30,gold,'GUVNOR');
+      textSpaced(d,ox,oy+ory*0.58,F.barlow,8,gold,'MINUS',1.0);
+      // gold footswitch
+      const fx=.50*W, fy=.69*H, R=20*s;
+      const fg=c.createRadialGradient(fx,fy,R*0.4,fx,fy,R*1.15); fg.addColorStop(0,rgb(232,200,120)); fg.addColorStop(1,rgb(166,130,58));
+      c.beginPath(); c.arc(fx,fy,R*1.12,0,7); c.fillStyle=fg; c.fill(); c.strokeStyle=rgb(116,90,38); c.lineWidth=2*s; c.stroke();
+      c.beginPath(); c.arc(fx,fy,R*0.78,0,7); c.fillStyle=rgb(212,178,98); c.fill();
+      c.beginPath(); c.arc(fx-R*0.25,fy-R*0.3,R*0.34,0,7); c.fillStyle='rgba(255,242,205,0.45)'; c.fill();
+      // script brand (parody)
+      textC(d,.50*W,.885*H,F.ink,26,dk,'Regis'); } };
+
+  // Range Booster — Dallas Rangemaster Treble Booster-style: wide silver chassis
+  // with a folded chrome lip, bold wordmark, ascending music staff, OFF/ON toggle,
+  // a single BOOST/SET knob and a GUITAR input jack. Recreated brand-free. Boost0.
+  P.rangebooster = { w:520,h:330, knobs:[
+      {id:0,cx:.50,cy:.655,r:.072,style:'boss'}],
+    ptr:rgb(238,240,244),
+    draw(d){ const {ctx:c,W,H,s}=d; const m=8*s, ink=rgb(20,20,22);
+      c.fillStyle=rgb(6,6,7); c.fillRect(0,0,W,H);
+      // chrome chassis
+      const og=c.createLinearGradient(0,m,0,H-m); og.addColorStop(0,rgb(214,216,220)); og.addColorStop(1,rgb(168,170,176));
+      rr(c,m,m,W-2*m,H-2*m,10*s); c.fillStyle=og; c.fill();
+      rr(c,m,m,W-2*m,H-2*m,10*s); c.strokeStyle='rgba(0,0,0,0.4)'; c.lineWidth=2*s; c.stroke();
+      // folded top lip
+      rr(c,m,m,W-2*m,H*.085,8*s); c.fillStyle=rgb(150,152,158); c.fill();
+      // grey face inset
+      rr(c,W*.035,H*.135,W*.93,H*.80,6*s); c.fillStyle=rgb(210,210,208); c.fill();
+      rr(c,W*.035,H*.135,W*.93,H*.80,6*s); c.strokeStyle='rgba(0,0,0,0.18)'; c.lineWidth=1.2*s; c.stroke();
+      // wordmark
+      textSpaced(d,.275*W,.265*H,F.bebas,36,ink,'RANGEMASTER',1.0);
+      textSpaced(d,.225*W,.405*H,F.bebas,20,ink,'TREBLE BOOSTER',1.0);
+      // ascending music staff + notes
+      c.strokeStyle=ink; c.lineWidth=1.3*s;
+      for(let i=0;i<5;i++){ const lift=i*8*s; c.beginPath(); c.moveTo(W*.55,H*.47-lift); c.lineTo(W*.93,H*.37-lift); c.stroke(); }
+      [[.63,.41],[.71,.38],[.79,.345],[.86,.315],[.905,.295]].forEach(p=>{
+        c.beginPath(); c.arc(p[0]*W,p[1]*H,4*s,0,7); c.fillStyle=ink; c.fill();
+        c.beginPath(); c.moveTo(p[0]*W+3.6*s,p[1]*H); c.lineTo(p[0]*W+3.6*s,p[1]*H-16*s); c.strokeStyle=ink; c.lineWidth=1.4*s; c.stroke(); });
+      // OFF/ON toggle (knurled) + screws
+      screw(d,.105*W,.40*H); screw(d,.105*W,.86*H);
+      const tx=.105*W, ty=.63*H, tw=14*s, th=30*s;
+      rr(c,tx-tw/2,ty-th/2,tw,th,4*s); c.fillStyle=rgb(24,24,26); c.fill();
+      rr(c,tx-tw/2,ty-th/2,tw,th,4*s); c.strokeStyle=rgb(6,6,8); c.lineWidth=1*s; c.stroke();
+      c.strokeStyle='rgba(255,255,255,0.12)'; c.lineWidth=0.8*s;
+      for(let y=ty-th/2+3*s;y<ty+th/2;y+=3*s){ c.beginPath(); c.moveTo(tx-tw/2+2*s,y); c.lineTo(tx+tw/2-2*s,y); c.stroke(); }
+      textSpaced(d,.105*W,.505*H,F.barlow,8,ink,'OFF',0.3);
+      textSpaced(d,.105*W,.765*H,F.barlow,8,ink,'ON',0.3);
+      // BOOST / SET knob labels (RS knob = Boost)
+      textC(d,.405*W,.655*H,F.bebas,20,ink,'BOOST','right');
+      textC(d,.595*W,.655*H,F.bebas,20,ink,'SET','left');
+      // GUITAR input jack
+      const gx=.84*W, gy=.605*H, R=18*s;
+      const jg=c.createRadialGradient(gx-R*.3,gy-R*.3,R*.1,gx,gy,R); jg.addColorStop(0,rgb(222,224,228)); jg.addColorStop(1,rgb(140,142,148));
+      c.beginPath(); c.arc(gx,gy,R,0,7); c.fillStyle=jg; c.fill(); c.strokeStyle=rgb(80,82,88); c.lineWidth=1.6*s; c.stroke();
+      c.beginPath(); c.arc(gx,gy,R*0.42,0,7); c.fillStyle=rgb(28,28,30); c.fill();
+      textSpaced(d,.84*W,.79*H,F.bebas,18,ink,'GUITAR',0.5); } };
+
+  // Vintage Distortion — DOD 250 Overdrive Preamp-style: mustard-yellow box, two
+  // chrome knobs, lowercase logo, 'Overdrive Preamp/250' text, the horizontal vent
+  // grille + footswitch. Parody (sos 250). RS knob names. Gain0 Tone1.
+  P.vintagedistortion = { w:280,h:470, knobs:[
+      {id:0,cx:.28,cy:.210,r:.078,style:'boss'},
+      {id:1,cx:.72,cy:.210,r:.078,style:'boss'}],
+    ptr:rgb(238,240,242),
+    draw(d){ const {ctx:c,W,H,s}=d; const m=8*s, ink=rgb(28,26,16);
+      c.fillStyle=rgb(8,8,7); c.fillRect(0,0,W,H);
+      const bg=c.createLinearGradient(0,m,0,H-m); bg.addColorStop(0,rgb(238,198,58)); bg.addColorStop(1,rgb(214,172,36));
+      rr(c,m,m,W-2*m,H-2*m,14*s); c.fillStyle=bg; c.fill();
+      rr(c,m,m,W-2*m,H-2*m,14*s); c.strokeStyle='rgba(0,0,0,0.35)'; c.lineWidth=2*s; c.stroke();
+      // lowercase brand logo (parody) + knob labels (RS names)
+      textC(d,.50*W,.072*H,F.anton,22,ink,'sos');
+      textSpaced(d,.28*W,.115*H,F.barlow,8,ink,'GAIN',0.3);
+      textSpaced(d,.72*W,.115*H,F.barlow,8,ink,'TONE',0.3);
+      // model text
+      textC(d,.50*W,.395*H,F.crete,30,ink,'Overdrive');
+      textC(d,.53*W,.460*H,F.crete,22,ink,'Preamp/250');
+      // horizontal vent grille
+      const gx=W*.27, gw=W*.46, gy=H*.525, gh=H*.155;
+      rr(c,gx,gy,gw,gh,4*s); c.strokeStyle=ink; c.lineWidth=1.2*s; c.stroke();
+      c.lineWidth=2.2*s;
+      for(let y=gy+6*s;y<gy+gh-3*s;y+=6.5*s){ c.beginPath(); c.moveTo(gx+5*s,y); c.lineTo(gx+gw-5*s,y); c.stroke(); }
+      // footswitch
+      footRound(d,W*.50,H*.815,22*s); } };
 
   // 80s Flanger — MXR M117R-style: hammered-grey landscape box, black knobs,
   // POWER label, 'NYR' logo box + 'flanger' tag, side jacks. RS knob names
