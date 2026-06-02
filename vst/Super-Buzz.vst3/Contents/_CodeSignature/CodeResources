@@ -18,6 +18,20 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
+		<key>x86_64-linux/SuperBuzz.so</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			PybpW5lNOeAakUjQF2Apnp2IACMjj/7CAHJEXotP4k4=
+			</data>
+		</dict>
+		<key>x86_64-win/SuperBuzz.vst3</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			F0j8BV0AouG1/PCu5ZhUwtTa9JNhyg4MdCw9XkQYrvs=
+			</data>
+		</dict>
 	</dict>
 	<key>rules</key>
 	<dict>

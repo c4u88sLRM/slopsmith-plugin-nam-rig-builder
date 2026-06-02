@@ -6,6 +6,7 @@
  */
 #include "DistrhoPlugin.hpp"
 #include "SuperBuzzParams.h"
+#include "../_shared/automakeup.hpp"
 #include <cmath>
 
 START_NAMESPACE_DISTRHO
@@ -197,6 +198,8 @@ class SuperBuzzPlugin : public Plugin
 {
     SuperBuzzCore left;
     SuperBuzzCore right;
+    RBAutoMakeup makeupL;
+    RBAutoMakeup makeupR;
     float params[kParamCount];
 
     void applyAll()
@@ -215,6 +218,8 @@ public:
             params[i] = kSuperBuzzDef[i];
         left.setSampleRate((float)getSampleRate());
         right.setSampleRate((float)getSampleRate());
+        makeupL.setSampleRate((float)getSampleRate());
+        makeupR.setSampleRate((float)getSampleRate());
         applyAll();
     }
 
@@ -249,12 +254,16 @@ protected:
             return;
         params[index] = clamp01(value);
         applyAll();
+        makeupL.snap();
+        makeupR.snap();
     }
 
     void sampleRateChanged(double newSampleRate) override
     {
         left.setSampleRate((float)newSampleRate);
         right.setSampleRate((float)newSampleRate);
+        makeupL.setSampleRate((float)newSampleRate);
+        makeupR.setSampleRate((float)newSampleRate);
         applyAll();
     }
 
@@ -266,8 +275,10 @@ protected:
         float* outR = outputs[1];
         for (uint32_t i = 0; i < frames; ++i)
         {
-            outL[i] = left.process(inL[i]);
-            outR[i] = right.process(inR[i]);
+            // Auto makeup-gain: match output loudness to the dry input so the
+            // drive's controls change only the amount of clip, not the level.
+            outL[i] = makeupL.process(inL[i], left.process(inL[i]));
+            outR[i] = makeupR.process(inR[i], right.process(inR[i]));
         }
     }
 
