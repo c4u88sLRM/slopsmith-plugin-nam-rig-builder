@@ -38,16 +38,33 @@ jobs:
             mingw-w64-x86_64-gcc
             mingw-w64-x86_64-pkgconf
 
-      - name: Clone DPF
-        run: git clone --depth 1 --branch "${{ github.event.inputs.dpf_ref }}" https://github.com/DISTRHO/DPF.git "$GITHUB_WORKSPACE/dpf"
+      - name: Clone DPF (with submodules — pugl is needed for the DGL UI)
+        run: |
+          git clone --depth 1 --branch "${{ github.event.inputs.dpf_ref }}" \
+            https://github.com/DISTRHO/DPF.git "$GITHUB_WORKSPACE/dpf"
+          git -C "$GITHUB_WORKSPACE/dpf" submodule update --init --recursive
 
       - name: Build every VST3 for Windows
         run: |
           set +e
           DPF="$GITHUB_WORKSPACE/dpf"
+          # Seven effect Makefiles hardcode `include ../../DPF/...` (ignoring
+          # DPF_PATH), so expose DPF at the relative path they expect: vst/DPF.
+          # Without this, ampeq/basseq8/eq5/eq8/studiocomp/studioeq/studiographiceq
+          # can't find DPF and fail to build.
+          ln -sfn "$DPF" "$GITHUB_WORKSPACE/vst/DPF"
           cd "$GITHUB_WORKSPACE/vst/src"
           fail=""
-          build() { ( cd "$1" && make -j2 DPF_PATH="$DPF" vst3 ) || fail="$fail $1"; }
+          # Set DPF_BUILD_DIR/DPF_TARGET_DIR explicitly: with an absolute
+          # DPF_PATH, DPF's BASE_PATH heuristic mis-resolves the default output
+          # dir, so the built bundle never lands at bin/<Name>.vst3/Contents/
+          # x86_64-win and the inject step finds nothing. Pin both to a writable
+          # per-effect location (bin/<Name>.vst3), matching the Linux workflow.
+          build() {
+            ( cd "$1" && rm -rf build bin \
+                && make -j2 DPF_PATH="$DPF" DPF_BUILD_DIR="$PWD/build" DPF_TARGET_DIR="$PWD/bin" vst3 ) \
+              || fail="$fail $1"
+          }
           # root Makefile builds AutoSweep (the QTron envelope filter)
           [ -f Makefile ] && build .
           for mk in */Makefile; do
@@ -56,6 +73,7 @@ jobs:
             echo "==== building $d ===="
             build "$d"
           done
+          rm -f "$GITHUB_WORKSPACE/vst/DPF"
           echo "FAILED DIRS:$fail"
 
       - name: Inject x86_64-win binaries into the committed bundles
