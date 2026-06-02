@@ -18,6 +18,20 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
+		<key>x86_64-linux/MarshallGuvnorPlus.so</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			scCM0/kUkpCL369Unu3arsD+TUWrtuhi+4jJFUN8eZs=
+			</data>
+		</dict>
+		<key>x86_64-win/MarshallGuvnorPlus.vst3</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			0B26+ENkYQqXro7toYbLMI7he5Sk7Wadgz9mOqs+tB8=
+			</data>
+		</dict>
 	</dict>
 	<key>rules</key>
 	<dict>

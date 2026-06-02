@@ -18,6 +18,20 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
+		<key>x86_64-linux/AlloyDistortion.so</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			DSeTuNPZ5RXpi8isiKomoXN06pPtU+L86NpmP+ca8rM=
+			</data>
+		</dict>
+		<key>x86_64-win/AlloyDistortion.vst3</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			WLzde8Ump/Af33xZESzr2u5tyHfrbyCZtDFQ54QCzf8=
+			</data>
+		</dict>
 	</dict>
 	<key>rules</key>
 	<dict>

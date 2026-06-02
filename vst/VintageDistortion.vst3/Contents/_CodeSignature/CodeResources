@@ -18,6 +18,20 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
+		<key>x86_64-linux/VintageDistortion.so</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			BKjVQovx4riIUVejAxjoQwUua/czu6Su8YV0TWNTBi8=
+			</data>
+		</dict>
+		<key>x86_64-win/VintageDistortion.vst3</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			ynCcsfPe6Wz8Zq6cXaTX+GgtGp+am0azkZI0UJDAF2k=
+			</data>
+		</dict>
 	</dict>
 	<key>rules</key>
 	<dict>

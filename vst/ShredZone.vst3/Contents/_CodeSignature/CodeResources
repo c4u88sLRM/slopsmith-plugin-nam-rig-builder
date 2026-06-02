@@ -18,6 +18,20 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
+		<key>x86_64-linux/ShredZone.so</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			qhgoo2b4zMH0FnfrixEbxFTXEXniKyTWJ4fZKugDV9g=
+			</data>
+		</dict>
+		<key>x86_64-win/ShredZone.vst3</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			HX9d30s7YE4DXWwSQnd9m1YZFa4cT/n603J+vyx8ZHc=
+			</data>
+		</dict>
 	</dict>
 	<key>rules</key>
 	<dict>

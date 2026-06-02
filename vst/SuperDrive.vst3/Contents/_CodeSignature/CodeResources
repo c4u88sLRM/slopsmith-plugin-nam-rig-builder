@@ -18,6 +18,20 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
+		<key>x86_64-linux/SuperDrive.so</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			chTQa7vjWXlAQZ/A4kYjVjJSLArWuqjEImd1thSquKM=
+			</data>
+		</dict>
+		<key>x86_64-win/SuperDrive.vst3</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			g2qyo5jadmWnzufZl1dJS8ybckMg/GC9FPb9Vj2lbJM=
+			</data>
+		</dict>
 	</dict>
 	<key>rules</key>
 	<dict>

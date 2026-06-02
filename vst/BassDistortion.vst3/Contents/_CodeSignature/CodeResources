@@ -18,6 +18,20 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
+		<key>x86_64-linux/BassDistortion.so</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			u1jA65S6375tvDKBdR9LA2xtRmhKsICpRT+YvA9w0SY=
+			</data>
+		</dict>
+		<key>x86_64-win/BassDistortion.vst3</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			sxWKbnCKbEqj3k6aYJmd89+BQ0ucQ84fxK13Il8LSFg=
+			</data>
+		</dict>
 	</dict>
 	<key>rules</key>
 	<dict>

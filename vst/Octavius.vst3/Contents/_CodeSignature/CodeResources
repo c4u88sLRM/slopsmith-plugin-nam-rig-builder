@@ -18,6 +18,20 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
+		<key>x86_64-linux/Octavius.so</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			vkpKXkf8maDkY2AuWEtiyTOyh43WrxpbZx7yeC8Tk9Y=
+			</data>
+		</dict>
+		<key>x86_64-win/Octavius.vst3</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			zWGfLf0Ht5ohSsk9G6BOyJnGwX6kDDDDVsAgCjf325E=
+			</data>
+		</dict>
 	</dict>
 	<key>rules</key>
 	<dict>

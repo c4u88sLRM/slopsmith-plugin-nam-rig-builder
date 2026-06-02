@@ -18,6 +18,20 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
+		<key>x86_64-linux/LineDrive.so</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			M+yiuK8nhrrOusE13Spik8rNZr+AYAzyvNjJ6kRMq3Y=
+			</data>
+		</dict>
+		<key>x86_64-win/LineDrive.vst3</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			PLUjjHEzxJkaSXTN5lgcVaqTFC0SrBgdISGiv58Jan4=
+			</data>
+		</dict>
 	</dict>
 	<key>rules</key>
 	<dict>

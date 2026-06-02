@@ -18,6 +18,20 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
+		<key>x86_64-linux/BassOverdrive.so</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			S5H9n24RDR1YQheK8tWSQc1C3fNJk2sxyHe/4mfG4fo=
+			</data>
+		</dict>
+		<key>x86_64-win/BassOverdrive.vst3</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			FILUv2MFI30151v2W6gc/hKyKHk7p9QPg26ux3fY8n0=
+			</data>
+		</dict>
 	</dict>
 	<key>rules</key>
 	<dict>

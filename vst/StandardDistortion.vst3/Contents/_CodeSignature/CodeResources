@@ -18,6 +18,20 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
+		<key>x86_64-linux/StandardDistortion.so</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			4JWJmSMWv2OcUrL9BlSGyXrqNk7Ek/9pHyPukG5YtGE=
+			</data>
+		</dict>
+		<key>x86_64-win/StandardDistortion.vst3</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			XVjzTjslKsg6YGe55iweS5T46H8skj94GHT8KWajUVQ=
+			</data>
+		</dict>
 	</dict>
 	<key>rules</key>
 	<dict>

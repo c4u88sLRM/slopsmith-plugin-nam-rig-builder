@@ -18,6 +18,20 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
+		<key>x86_64-linux/GermaniumDrive.so</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			Dr7UE/hkClOWcdQ7VYYiDfQ9Bg8gey0f5ohrKmDFcAs=
+			</data>
+		</dict>
+		<key>x86_64-win/GermaniumDrive.vst3</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			XVQpATxfmAgv9ir+IXFDVOl7rS0OPgJpa8UUovdmNK0=
+			</data>
+		</dict>
 	</dict>
 	<key>rules</key>
 	<dict>

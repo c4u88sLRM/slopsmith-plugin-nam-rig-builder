@@ -18,6 +18,20 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
+		<key>x86_64-linux/BassFuzz.so</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			ElzuRyBgeQr41GAdpFEFZlHLvOeQQ90CS404hmlA+C0=
+			</data>
+		</dict>
+		<key>x86_64-win/BassFuzz.vst3</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			vISJkKtubVqUVj1WWL+iV3inJUSLu8YHnszmlxd5XNs=
+			</data>
+		</dict>
 	</dict>
 	<key>rules</key>
 	<dict>
