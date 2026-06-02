@@ -1915,10 +1915,10 @@
   P.tapeecho = { w:960, h:300,
     knobs:[
       {id:0,cx:.380,cy:.530,r:.060,style:'moog'},          // Time  (= MODE SELECTOR, chrome)
-      {id:1,cx:.610,cy:.495,r:.040,style:'boss'},          // Feedback (= INTENSITY)
-      {id:2,cx:.700,cy:.495,r:.040,style:'boss'},          // Filter   (= BASS/TREBLE)
-      {id:3,cx:.790,cy:.495,r:.040,style:'boss'},          // Stereo
-      {id:4,cx:.880,cy:.495,r:.040,style:'boss'}],         // Mix      (= ECHO VOLUME)
+      {id:1,cx:.590,cy:.495,r:.040,style:'boss'},          // Feedback (= INTENSITY)
+      {id:2,cx:.670,cy:.495,r:.040,style:'boss'},          // Filter   (= BASS/TREBLE)
+      {id:3,cx:.750,cy:.495,r:.040,style:'boss'},          // Stereo
+      {id:4,cx:.830,cy:.495,r:.040,style:'boss'}],         // Mix      (= ECHO VOLUME)
     tick:rgb(60,80,52), ptr:rgb(232,234,230),
     draw(d){ const {ctx:c,W,H}=d, m=7;
       // body
@@ -1931,26 +1931,26 @@
       textC(d,.155*W,.135*H,F.bebas,24,wt,'GALAXY ECHO','left');
       textC(d,.155*W,.205*H,F.barlow,12,dim,'TE-102','left');
       textC(d,.905*W,.135*H,F.bebas,22,rgb(206,64,42),'TOPLAND','right');
-      // VU meter (top-left) — analog meter: silver bezel, pale-green face, red zone
-      const vux=.045*W, vuy=.285*H, vuw=.105*W, vuh=.215*H;
-      ledDot(d,.055*W,.250*H,false,210,50,40); textC(d,.116*W,.253*H,F.barlow,7.5,dim,'PEAK LEVEL','left');
+      // VU meter (top-left) — big analog meter filling the left space
+      const vux=.05*W, vuy=.31*H, vuw=.155*W, vuh=.34*H;
+      ledDot(d,.062*W,.275*H,false,210,50,40); textC(d,.128*W,.278*H,F.barlow,8.5,dim,'PEAK LEVEL','left');
       rr(c,vux-5,vuy-5,vuw+10,vuh+10,4); const bzl=c.createLinearGradient(0,vuy-5,0,vuy+vuh+5);
       bzl.addColorStop(0,rgb(208,210,214)); bzl.addColorStop(1,rgb(148,150,154)); c.fillStyle=bzl; c.fill();
       rr(c,vux-5,vuy-5,vuw+10,vuh+10,4); c.strokeStyle=rgb(68,70,74); c.lineWidth=1; c.stroke();
       const vg=c.createLinearGradient(0,vuy,0,vuy+vuh); vg.addColorStop(0,rgb(216,226,198)); vg.addColorStop(1,rgb(186,200,168));
       rr(c,vux,vuy,vuw,vuh,2); c.fillStyle=vg; c.fill();
       rr(c,vux,vuy,vuw,vuh,2); c.strokeStyle=rgb(118,126,108); c.lineWidth=1; c.stroke();
-      const vcx=vux+vuw/2, vcy=vuy+vuh*1.28, vR=vuh*1.02, va0=Math.PI*1.27, va1=Math.PI*1.73, vk=0.70;
+      const vcx=vux+vuw/2, vcy=vuy+vuh*1.22, vR=vuh*0.98, va0=Math.PI*1.28, va1=Math.PI*1.72, vk=0.70;
       c.lineWidth=2; c.strokeStyle=rgb(42,46,40); c.beginPath(); c.arc(vcx,vcy,vR,va0,va0+(va1-va0)*vk); c.stroke();
       c.strokeStyle=rgb(182,42,34); c.beginPath(); c.arc(vcx,vcy,vR,va0+(va1-va0)*vk,va1); c.stroke();
-      for(let i=0;i<=8;i++){ const t=va0+(va1-va0)*(i/8); c.strokeStyle=(i/8)>=vk?rgb(182,42,34):rgb(42,46,40); c.lineWidth=1.1;
-        c.beginPath(); c.moveTo(vcx+Math.cos(t)*(vR-4),vcy+Math.sin(t)*(vR-4)); c.lineTo(vcx+Math.cos(t)*vR,vcy+Math.sin(t)*vR); c.stroke(); }
+      for(let i=0;i<=8;i++){ const t=va0+(va1-va0)*(i/8); c.strokeStyle=(i/8)>=vk?rgb(182,42,34):rgb(42,46,40); c.lineWidth=1.2;
+        c.beginPath(); c.moveTo(vcx+Math.cos(t)*(vR-6),vcy+Math.sin(t)*(vR-6)); c.lineTo(vcx+Math.cos(t)*vR,vcy+Math.sin(t)*vR); c.stroke(); }
       [['20',0.04],['10',0.30],['0',0.60],['+',0.90]].forEach(p=>{ const t=va0+(va1-va0)*p[1];
-        textC(d,vcx+Math.cos(t)*(vR-12),vcy+Math.sin(t)*(vR-12)+3,F.barlow,6,p[1]>=vk?rgb(182,42,34):rgb(42,46,40),p[0]); });
-      textC(d,vcx,vuy+vuh*0.74,F.barlow,8,rgb(50,54,46),'VU');
-      const vnt=va0+(va1-va0)*0.42; c.strokeStyle=rgb(28,30,26); c.lineWidth=1.6;
+        textC(d,vcx+Math.cos(t)*(vR-17),vcy+Math.sin(t)*(vR-17)+3,F.barlow,8,p[1]>=vk?rgb(182,42,34):rgb(42,46,40),p[0]); });
+      textC(d,vcx,vuy+vuh*0.72,F.barlow,11,rgb(50,54,46),'VU');
+      const vnt=va0+(va1-va0)*0.42; c.strokeStyle=rgb(28,30,26); c.lineWidth=1.8;
       c.beginPath(); c.moveTo(vcx,vcy); c.lineTo(vcx+Math.cos(vnt)*vR*0.96,vcy+Math.sin(vnt)*vR*0.96); c.stroke();
-      c.beginPath(); c.arc(vcx,vcy,2.4,0,7); c.fillStyle=rgb(28,30,26); c.fill();
+      c.beginPath(); c.arc(vcx,vcy,2.8,0,7); c.fillStyle=rgb(28,30,26); c.fill();
       // green panel behind MODE SELECTOR
       const gp=(x,y,wd,ht)=>{ rr(c,x,y,wd,ht,5); c.fillStyle=rgb(grn[0],grn[1],grn[2]); c.fill();
         rr(c,x,y,wd,ht,5); c.strokeStyle=rgb(34,46,28); c.lineWidth=1.5; c.stroke(); };
@@ -1962,13 +1962,15 @@
       for(let i=0;i<12;i++){ const ta=Math.PI*0.75+(Math.PI*1.5)*(i/11);
         textC(d,sx+Math.cos(ta)*sR,sy+Math.sin(ta)*sR+3,F.barlow,8,rgb(226,232,222),String(i+1)); }
       // green panel behind the echo knobs (right)
-      gp(.555*W,.275*H,.380*W,.50*H);
-      ['FEEDBACK','FILTER','STEREO','MIX'].forEach((t,i)=>{ const kx=(.610+i*.090)*W;
-        textC(d,kx,.355*H,F.barlow,10.5,rgb(232,238,228),t); });
-      // POWER button (far right)
-      textC(d,.905*W,.78*H,F.barlow,9,dim,'POWER');
-      rr(c,.882*W,.66*H,.046*W,.085*H,3); c.fillStyle=rgb(40,40,42); c.fill();
-      c.beginPath(); c.arc(.905*W,.702*H,.014*W,0,7); c.fillStyle=rgb(206,58,40); c.fill();
+      gp(.540*W,.270*H,.335*W,.50*H);
+      ['FEEDBACK','FILTER','STEREO','MIX'].forEach((t,i)=>{ const kx=(.590+i*.080)*W;
+        textC(d,kx,.350*H,F.barlow,10.5,rgb(232,238,228),t); });
+      // POWER (dark body, right of the green panel — as on the real unit)
+      textC(d,.920*W,.405*H,F.barlow,10,dim,'POWER');
+      rr(c,.898*W,.460*H,.044*W,.120*H,3); c.fillStyle=rgb(40,40,42); c.fill();
+      rr(c,.898*W,.460*H,.044*W,.120*H,3); c.strokeStyle=rgb(70,72,72); c.lineWidth=1; c.stroke();
+      c.beginPath(); c.arc(.920*W,.520*H,.013*W,0,7); c.fillStyle=rgb(206,58,40); c.fill();
+      textC(d,.920*W,.640*H,F.barlow,7,dim,'ON');
       // bottom switch strip (decorative input switches + echo cancel)
       const sy2=.875*H;
       ['MIC','FROM P.A.','INSTRUMENT','MODE','OUT/IN'].forEach((t,i)=>{ const jx=(.055+i*.085)*W;
