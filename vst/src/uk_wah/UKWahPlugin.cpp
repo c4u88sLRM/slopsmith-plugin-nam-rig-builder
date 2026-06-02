@@ -198,6 +198,8 @@ protected:
         {
             params[index] = value;
             recalc();
+            makeupL.snap();
+            makeupR.snap();
         }
     }
 

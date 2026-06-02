@@ -52,7 +52,7 @@ protected:
         p.name=kStudioWahFilterNames[i]; p.symbol=kStudioWahFilterSymbols[i];
         p.ranges.min=kStudioWahFilterMin[i]; p.ranges.max=kStudioWahFilterMax[i]; p.ranges.def=kStudioWahFilterDef[i]; }
     float getParameterValue(uint32_t i) const override { return (i<(uint32_t)kParamCount)?fParams[i]:0.f; }
-    void setParameterValue(uint32_t i, float v) override { if(i<(uint32_t)kParamCount){fParams[i]=v;recalc();} }
+    void setParameterValue(uint32_t i, float v) override { if(i<(uint32_t)kParamCount){fParams[i]=v;recalc();makeupL.snap();makeupR.snap();} }
     void sampleRateChanged(double) override { L.setSampleRate((float)getSampleRate());R.setSampleRate((float)getSampleRate());makeupL.setSampleRate((float)getSampleRate());makeupR.setSampleRate((float)getSampleRate());recalc(); }
     void run(const float** in, float** out, uint32_t frames) override {
         const float* iL=in[0];const float* iR=in[1];float* oL=out[0];float* oR=out[1];

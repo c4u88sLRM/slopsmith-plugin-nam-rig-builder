@@ -107,7 +107,7 @@ protected:
         p.ranges.min = kBassWahMin[i]; p.ranges.max = kBassWahMax[i]; p.ranges.def = kBassWahDef[i];
     }
     float getParameterValue(uint32_t i) const override { return (i < (uint32_t)kParamCount) ? fParams[i] : 0.f; }
-    void  setParameterValue(uint32_t i, float v) override { if (i < (uint32_t)kParamCount) { fParams[i] = v; recalc(); } }
+    void  setParameterValue(uint32_t i, float v) override { if (i < (uint32_t)kParamCount) { fParams[i] = v; recalc(); makeupL.snap(); makeupR.snap(); } }
     void  sampleRateChanged(double r) override { L.setSampleRate((float)r); R.setSampleRate((float)r); makeupL.setSampleRate((float)r); makeupR.setSampleRate((float)r); L.reset(); R.reset(); recalc(); }
 
     void run(const float** in, float** out, uint32_t frames) override {

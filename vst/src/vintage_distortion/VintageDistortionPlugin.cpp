@@ -289,6 +289,8 @@ protected:
             return;
         params[index] = clamp01(value);
         applyAll();
+        makeupL.snap();
+        makeupR.snap();
     }
 
     void sampleRateChanged(double newSampleRate) override
