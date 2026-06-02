@@ -1915,10 +1915,10 @@
   P.tapeecho = { w:960, h:300,
     knobs:[
       {id:0,cx:.380,cy:.530,r:.060,style:'moog'},          // Time  (= MODE SELECTOR, chrome)
-      {id:1,cx:.590,cy:.495,r:.040,style:'boss'},          // Feedback (= INTENSITY)
+      {id:1,cx:.585,cy:.495,r:.040,style:'boss'},          // Feedback (= INTENSITY)
       {id:2,cx:.670,cy:.495,r:.040,style:'boss'},          // Filter   (= BASS/TREBLE)
-      {id:3,cx:.750,cy:.495,r:.040,style:'boss'},          // Stereo
-      {id:4,cx:.830,cy:.495,r:.040,style:'boss'}],         // Mix      (= ECHO VOLUME)
+      {id:3,cx:.755,cy:.495,r:.040,style:'boss'},          // Stereo
+      {id:4,cx:.840,cy:.495,r:.040,style:'boss'}],         // Mix      (= ECHO VOLUME)
     tick:rgb(60,80,52), ptr:rgb(232,234,230),
     draw(d){ const {ctx:c,W,H}=d, m=7;
       // body
@@ -1927,6 +1927,12 @@
       rr(c,m,m,W-2*m,H-2*m,10); c.fillStyle=bg; c.fill();
       rr(c,m,m,W-2*m,H-2*m,10); c.strokeStyle=rgb(8,9,8); c.lineWidth=2; c.stroke();
       const wt=rgb(232,234,230), dim=rgb(176,180,176), grn=[74,98,62];
+      // brushed-silver trim strips (top & bottom of the front panel)
+      const trim=(y)=>{ const tg=c.createLinearGradient(0,y,0,y+H*0.05);
+        tg.addColorStop(0,rgb(216,218,222)); tg.addColorStop(.5,rgb(150,152,158)); tg.addColorStop(1,rgb(198,200,206));
+        c.fillStyle=tg; c.fillRect(m+2,y,W-2*m-4,H*0.05);
+        c.strokeStyle=rgb(80,82,86); c.lineWidth=1; c.strokeRect(m+2.5,y+.5,W-2*m-5,H*0.05-1); };
+      trim(m+3); trim(H-m-3-H*0.05);
       // title + brand
       textC(d,.155*W,.135*H,F.bebas,24,wt,'GALAXY ECHO','left');
       textC(d,.155*W,.205*H,F.barlow,12,dim,'TE-102','left');
@@ -1954,25 +1960,25 @@
       // green panel behind MODE SELECTOR
       const gp=(x,y,wd,ht)=>{ rr(c,x,y,wd,ht,5); c.fillStyle=rgb(grn[0],grn[1],grn[2]); c.fill();
         rr(c,x,y,wd,ht,5); c.strokeStyle=rgb(34,46,28); c.lineWidth=1.5; c.stroke(); };
-      gp(.262*W,.250*H,.242*W,.560*H);
-      textC(d,.383*W,.290*H,F.barlow,11,rgb(232,238,228),'MODE SELECTOR');
-      textC(d,.383*W,.792*H,F.barlow,9,rgb(224,230,218),'TIME / REPEAT');
+      gp(.262*W,.250*H,.242*W,.520*H);
+      textC(d,.383*W,.272*H,F.barlow,11,rgb(232,238,228),'MODE SELECTOR');
+      textC(d,.383*W,.748*H,F.barlow,9,rgb(224,230,218),'TIME / REPEAT');
       // number ring (1-12) around the selector
       const sx=.380*W, sy=.530*H, sR=.060*W*1.30;
       for(let i=0;i<12;i++){ const ta=Math.PI*0.75+(Math.PI*1.5)*(i/11);
         textC(d,sx+Math.cos(ta)*sR,sy+Math.sin(ta)*sR+3,F.barlow,8,rgb(226,232,222),String(i+1)); }
       // green panel behind the echo knobs (right)
-      gp(.540*W,.270*H,.335*W,.50*H);
-      ['FEEDBACK','FILTER','STEREO','MIX'].forEach((t,i)=>{ const kx=(.590+i*.080)*W;
+      gp(.535*W,.270*H,.350*W,.50*H);
+      ['FEEDBACK','FILTER','STEREO','MIX'].forEach((t,i)=>{ const kx=(.585+i*.085)*W;
         textC(d,kx,.350*H,F.barlow,10.5,rgb(232,238,228),t); });
       // POWER (dark body, right of the green panel — as on the real unit)
-      textC(d,.920*W,.405*H,F.barlow,10,dim,'POWER');
-      rr(c,.898*W,.460*H,.044*W,.120*H,3); c.fillStyle=rgb(40,40,42); c.fill();
-      rr(c,.898*W,.460*H,.044*W,.120*H,3); c.strokeStyle=rgb(70,72,72); c.lineWidth=1; c.stroke();
-      c.beginPath(); c.arc(.920*W,.520*H,.013*W,0,7); c.fillStyle=rgb(206,58,40); c.fill();
-      textC(d,.920*W,.640*H,F.barlow,7,dim,'ON');
+      textC(d,.934*W,.405*H,F.barlow,10,dim,'POWER');
+      rr(c,.913*W,.460*H,.042*W,.120*H,3); c.fillStyle=rgb(40,40,42); c.fill();
+      rr(c,.913*W,.460*H,.042*W,.120*H,3); c.strokeStyle=rgb(70,72,72); c.lineWidth=1; c.stroke();
+      c.beginPath(); c.arc(.934*W,.520*H,.013*W,0,7); c.fillStyle=rgb(206,58,40); c.fill();
+      textC(d,.934*W,.640*H,F.barlow,7,dim,'ON');
       // bottom switch strip (decorative input switches + echo cancel)
-      const sy2=.875*H;
+      const sy2=.825*H;
       ['MIC','FROM P.A.','INSTRUMENT','MODE','OUT/IN'].forEach((t,i)=>{ const jx=(.055+i*.085)*W;
         rr(c,jx,sy2-.035*H,.05*W,.07*H,2); c.fillStyle=rgb(30,31,30); c.fill();
         rr(c,jx+.012*W,sy2-.02*H,.026*W,.04*H,1); c.fillStyle=rgb(120,122,124); c.fill();
