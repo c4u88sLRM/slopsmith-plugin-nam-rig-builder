@@ -2646,7 +2646,73 @@
     return { w:760, h:172, knobs, ptr:rgb(238,240,242), draw(d){ rackFace(d,o,knobs); } };
   }
   P.rotavibe        = rackSpec({title:'ROTA VIBE',         accent:[205,135,120], names:['Rate','Depth','Mix','Balance']});
-  P.stereoanalogvibe= rackSpec({title:'STEREO VIBRATO',    accent:[140,135,195], names:['Speed','Waveform','Mix']});
+  // Stereo Vibrato — Shin-ei Uni-Vibe look: grey metal chassis, black control
+  // plate, cursive script logo, black knobs w/ MIN-MAX scales, red CHORUS/VIBRATO
+  // slider, red jewel lamp, bottom jack row + POWER SW. Parody "Astro-Vibe".
+  // RS params (3 knobs): Speed0 Waveform1 Mix2.
+  P.stereoanalogvibe = { w:900, h:290,
+    knobs:[
+      {id:0,cx:.140,cy:.42,r:.052,style:'davies'},  // Speed
+      {id:1,cx:.440,cy:.42,r:.052,style:'davies'},  // Waveform
+      {id:2,cx:.580,cy:.42,r:.052,style:'davies'}], // Mix
+    tick:rgb(150,150,150), ptr:rgb(226,226,222),
+    draw(d){ const {ctx:c,W,H}=d, m=7;
+      // grey metal chassis
+      const cg=c.createLinearGradient(0,0,0,H); cg.addColorStop(0,rgb(172,172,170)); cg.addColorStop(1,rgb(120,120,118));
+      c.fillStyle=cg; c.fillRect(0,0,W,H);
+      c.strokeStyle=rgb(70,70,68); c.lineWidth=2; c.strokeRect(1,1,W-2,H-2);
+      // black control plate
+      const px=.035*W, py=.12*H, pw=.93*W, ph=.76*H;
+      rr(c,px,py,pw,ph,5); c.fillStyle=rgb(20,20,22); c.fill();
+      rr(c,px,py,pw,ph,5); c.strokeStyle=rgb(5,5,7); c.lineWidth=1.5; c.stroke();
+      [[px+12,py+12],[px+pw-12,py+12],[px+12,py+ph-12],[px+pw-12,py+ph-12]].forEach(p=>screw(d,p[0],p[1]));
+      const wt=rgb(230,230,228), dim=rgb(170,172,174);
+      // cursive script logo (parody)
+      textC(d,.42*W,.235*H,F.ink,32,wt,'Astro-Vibe');
+      // knob MIN-MAX tick scales
+      [.140,.440,.580].forEach(cx=>{ const KX=cx*W, KY=.42*H, R=.052*W*1.5;
+        c.strokeStyle=dim; c.lineWidth=1;
+        for(let i=0;i<=10;i++){ const an=(135+i/10*270)*Math.PI/180;
+          c.beginPath(); c.moveTo(KX+Math.cos(an)*R,KY+Math.sin(an)*R); c.lineTo(KX+Math.cos(an)*(R+5),KY+Math.sin(an)*(R+5)); c.stroke(); }
+        textC(d,KX-R*0.78,(KY+R*0.72),F.barlow,7,dim,'MIN'); textC(d,KX+R*0.78,(KY+R*0.72),F.barlow,7,dim,'MAX'); });
+      textC(d,.140*W,.585*H,F.barlow,11.5,wt,'SPEED');
+      textC(d,.440*W,.585*H,F.barlow,11.5,wt,'WAVEFORM');
+      textC(d,.580*W,.585*H,F.barlow,11.5,wt,'MIX');
+      // CHORUS / VIBRATO red slider
+      const swx=.290*W, swy=.40*H;
+      rr(c,swx-.024*W,swy-.016*H,.048*W,.032*H,3); c.fillStyle=rgb(42,42,44); c.fill();
+      rr(c,swx-.024*W,swy-.016*H,.048*W,.032*H,3); c.strokeStyle=rgb(80,82,84); c.lineWidth=1; c.stroke();
+      rr(c,swx-.022*W,swy-.013*H,.020*W,.026*H,2); c.fillStyle=rgb(202,42,38); c.fill();
+      textC(d,swx-.012*W,.50*H,F.barlow,8,dim,'CHORUS');
+      textC(d,swx+.030*W,.50*H,F.barlow,8,dim,'VIBRATO');
+      // big socket + red jewel lamp (right)
+      c.beginPath(); c.arc(.710*W,.42*H,.030*W,0,7); c.fillStyle=rgb(24,24,26); c.fill();
+      c.strokeStyle=rgb(70,72,74); c.lineWidth=2; c.stroke();
+      c.beginPath(); c.arc(.820*W,.40*H,.020*W,0,7); c.fillStyle=rgb(208,46,40); c.fill();
+      c.strokeStyle=rgb(120,40,36); c.lineWidth=2; c.stroke();
+      const hl=c.createRadialGradient(.815*W,.385*H,1,.820*W,.40*H,.020*W);
+      hl.addColorStop(0,'rgba(255,180,170,0.85)'); hl.addColorStop(1,'rgba(255,180,170,0)');
+      c.beginPath(); c.arc(.820*W,.40*H,.020*W,0,7); c.fillStyle=hl; c.fill();
+      // bottom jack row
+      const jack=(cx,lbl)=>{ const JX=cx*W, JY=.72*H;
+        c.beginPath(); c.arc(JX,JY,.023*W,0,7); c.fillStyle=rgb(150,152,154); c.fill();
+        c.strokeStyle=rgb(88,90,92); c.lineWidth=1.5; c.stroke();
+        c.beginPath(); c.arc(JX,JY,.012*W,0,7); c.fillStyle=rgb(18,18,20); c.fill();
+        textC(d,JX,(.72+.10)*H,F.barlow,9,dim,lbl); };
+      jack(.150,'INSTRUMENTS'); jack(.320,'OUTPUT');
+      // foot-control multipin
+      const fx=.520*W, fy=.72*H; c.beginPath(); c.arc(fx,fy,.030*W,0,7); c.fillStyle=rgb(38,38,40); c.fill();
+      c.strokeStyle=rgb(120,122,124); c.lineWidth=1.5; c.stroke();
+      for(let i=0;i<5;i++){ const an=i/5*Math.PI*2-Math.PI/2; c.beginPath();
+        c.arc(fx+Math.cos(an)*.014*W,fy+Math.sin(an)*.014*W,.003*W,0,7); c.fillStyle=rgb(155,157,159); c.fill(); }
+      textC(d,fx,(.72+.10)*H,F.barlow,9,dim,'FOOT CONTROL');
+      // POWER SW. toggle (right)
+      const pwx=.840*W, pwy=.70*H;
+      rr(c,pwx-.013*W,pwy-.045*H,.026*W,.09*H,3); c.fillStyle=rgb(28,28,30); c.fill();
+      rr(c,pwx-.013*W,pwy-.045*H,.026*W,.09*H,3); c.strokeStyle=rgb(80,82,84); c.lineWidth=1; c.stroke();
+      rr(c,pwx-.010*W,pwy-.042*H,.020*W,.040*H,2); c.fillStyle=rgb(158,160,162); c.fill();
+      textC(d,pwx,(pwy-.075)*H,F.barlow,8,dim,'ON');
+      textC(d,pwx,(.72+.10)*H,F.barlow,9,dim,'POWER SW.'); } };
   P.stereophaser    = rackSpec({title:'STEREO PHASER',     accent:[90,175,178],  names:['Rate','Depth','Mix']});
   P.stereotubetrem  = rackSpec({title:'STEREO TUBE TREM',  accent:[150,180,160], names:['Speed','Mix','Waveform']});
   P.studiochamber   = rackSpec({title:'STUDIO CHAMBER',    accent:[140,175,200], names:['Time','Tone','Depth','Mix']});
