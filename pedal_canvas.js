@@ -944,6 +944,115 @@
       c.save(); c.translate(W*.07,H*.40); c.rotate(-Math.PI/2); textSpaced(d,0,0,F.barlow,5.5,ink,'STEREO OUT MONO',0.1); c.restore();
       c.save(); c.translate(W*.93,H*.40); c.rotate(-Math.PI/2); textSpaced(d,0,0,F.barlow,5.5,ink,'STEREO IN MONO',0.1); c.restore(); } };
 
+  // US Wah — Dunlop Cry Baby-style wah treadle: black ribbed rocker tread + a
+  // top control strip (AUTO toggle + 3 knobs) + a logo badge. Parody (cry man).
+  // RS knob names. Auto0 Pedal1 Sens2 Speed3.
+  P.uswah = { w:280,h:480,
+    knobs:[
+      {id:1,cx:.38,cy:.160,r:.052,style:'boss'},
+      {id:2,cx:.60,cy:.160,r:.052,style:'boss'},
+      {id:3,cx:.82,cy:.160,r:.052,style:'boss'}],
+    switches:[{id:0,cx:.15,cy:.155,hs:.030}],
+    ptr:rgb(238,240,242),
+    draw(d,values){ const {ctx:c,W,H,s}=d; const m=8*s, wt=rgb(236,238,242);
+      c.fillStyle=rgb(6,6,7); c.fillRect(0,0,W,H);
+      const bg=c.createLinearGradient(0,m,0,H-m); bg.addColorStop(0,rgb(34,34,36)); bg.addColorStop(1,rgb(20,20,22));
+      rr(c,m,m,W-2*m,H-2*m,14*s); c.fillStyle=bg; c.fill();
+      rr(c,m,m,W-2*m,H-2*m,14*s); c.strokeStyle='rgba(0,0,0,0.5)'; c.lineWidth=2*s; c.stroke();
+      // top control panel
+      rr(c,W*.06,H*.04,W*.88,H*.255,8*s); c.fillStyle=rgb(16,16,18); c.fill();
+      rr(c,W*.06,H*.04,W*.88,H*.255,8*s); c.strokeStyle=rgb(6,6,8); c.lineWidth=1.2*s; c.stroke();
+      // control labels (RS names); AUTO label brightens with its toggle state
+      const av=(values&&values[0]!=null)?values[0]:1;
+      textSpaced(d,.15*W,.245*H,F.barlow,7,av>=0.5?wt:rgb(150,150,156),'AUTO',0.2);
+      textSpaced(d,.38*W,.245*H,F.barlow,7,wt,'PEDAL',0.2);
+      textSpaced(d,.60*W,.245*H,F.barlow,7,wt,'SENS',0.2);
+      textSpaced(d,.82*W,.245*H,F.barlow,7,wt,'SPEED',0.2);
+      // ribbed treadle (the iconic Cry Baby tread)
+      const tx0=.10*W, tx1=.90*W, ty0=.335*H, ty1=.95*H;
+      rr(c,tx0,ty0,tx1-tx0,ty1-ty0,10*s); c.fillStyle=rgb(24,24,26); c.fill();
+      rr(c,tx0,ty0,tx1-tx0,ty1-ty0,10*s); c.strokeStyle=rgb(8,8,10); c.lineWidth=1.5*s; c.stroke();
+      c.save(); rr(c,tx0,ty0,tx1-tx0,ty1-ty0,10*s); c.clip();
+      for(let y=ty0+7*s;y<ty1;y+=7*s){ c.beginPath(); c.moveTo(tx0,y-1*s); c.lineTo(tx1,y-1*s); c.strokeStyle='rgba(255,255,255,0.06)'; c.lineWidth=2.4*s; c.stroke();
+        c.beginPath(); c.moveTo(tx0,y+2*s); c.lineTo(tx1,y+2*s); c.strokeStyle='rgba(0,0,0,0.45)'; c.lineWidth=1.4*s; c.stroke(); }
+      c.restore();
+      // 'cry man' badge
+      const bx=W*.23, by=H*.555, bw=W*.54, bh=H*.105;
+      rr(c,bx,by,bw,bh,4*s); c.fillStyle=rgb(10,10,12); c.fill();
+      rr(c,bx,by,bw,bh,4*s); c.strokeStyle=rgb(70,70,74); c.lineWidth=1*s; c.stroke();
+      textC(d,.50*W,by+bh*0.42,F.crete,26,wt,'cry man');
+      textSpaced(d,.50*W,by+bh*0.80,F.barlow,7.5,wt,'WAH 535',1.5); } };
+
+  // UK Wah — Vox V847-style wah: black treadle with a chrome frame + big chrome
+  // 'BOX' letters down the ribbed tread. Parody (BOX). RS knob names.
+  // Auto0 Pedal1 Sens2 Speed3.
+  P.ukwah = { w:280,h:480,
+    knobs:[
+      {id:1,cx:.38,cy:.160,r:.052,style:'boss'},
+      {id:2,cx:.60,cy:.160,r:.052,style:'boss'},
+      {id:3,cx:.82,cy:.160,r:.052,style:'boss'}],
+    switches:[{id:0,cx:.15,cy:.155,hs:.030}],
+    ptr:rgb(238,240,242),
+    draw(d,values){ const {ctx:c,W,H,s}=d; const m=8*s, wt=rgb(236,238,242), chrome=rgb(214,216,220);
+      c.fillStyle=rgb(6,6,7); c.fillRect(0,0,W,H);
+      const bg=c.createLinearGradient(0,m,0,H-m); bg.addColorStop(0,rgb(40,40,44)); bg.addColorStop(1,rgb(24,24,28));
+      rr(c,m,m,W-2*m,H-2*m,14*s); c.fillStyle=bg; c.fill();
+      rr(c,m,m,W-2*m,H-2*m,14*s); c.strokeStyle='rgba(0,0,0,0.5)'; c.lineWidth=2*s; c.stroke();
+      rr(c,W*.06,H*.04,W*.88,H*.255,8*s); c.fillStyle=rgb(16,16,18); c.fill();
+      rr(c,W*.06,H*.04,W*.88,H*.255,8*s); c.strokeStyle=rgb(6,6,8); c.lineWidth=1.2*s; c.stroke();
+      const av=(values&&values[0]!=null)?values[0]:1;
+      textSpaced(d,.15*W,.245*H,F.barlow,7,av>=0.5?wt:rgb(150,150,156),'AUTO',0.2);
+      textSpaced(d,.38*W,.245*H,F.barlow,7,wt,'PEDAL',0.2);
+      textSpaced(d,.60*W,.245*H,F.barlow,7,wt,'SENS',0.2);
+      textSpaced(d,.82*W,.245*H,F.barlow,7,wt,'SPEED',0.2);
+      // chrome frame + ribbed black tread
+      const tx0=.13*W, tx1=.87*W, ty0=.335*H, ty1=.95*H;
+      rr(c,tx0-5*s,ty0-5*s,(tx1-tx0)+10*s,(ty1-ty0)+10*s,12*s);
+      const fg=c.createLinearGradient(tx0,ty0,tx1,ty1); fg.addColorStop(0,rgb(234,236,240)); fg.addColorStop(.5,rgb(168,170,176)); fg.addColorStop(1,rgb(212,214,218));
+      c.fillStyle=fg; c.fill();
+      rr(c,tx0,ty0,tx1-tx0,ty1-ty0,9*s); c.fillStyle=rgb(22,22,24); c.fill();
+      c.save(); rr(c,tx0,ty0,tx1-tx0,ty1-ty0,9*s); c.clip();
+      for(let y=ty0+7*s;y<ty1;y+=7*s){ c.beginPath(); c.moveTo(tx0,y-1*s); c.lineTo(tx1,y-1*s); c.strokeStyle='rgba(255,255,255,0.06)'; c.lineWidth=2.4*s; c.stroke();
+        c.beginPath(); c.moveTo(tx0,y+2*s); c.lineTo(tx1,y+2*s); c.strokeStyle='rgba(0,0,0,0.45)'; c.lineWidth=1.4*s; c.stroke(); }
+      c.restore();
+      ['B','O','X'].forEach((ch,i)=> outlineText(d,.50*W,(.475+i*.145)*H,F.anton,52,chrome,rgb(18,18,20),ch,0));
+      c.save(); c.translate(.175*W,.64*H); c.rotate(-Math.PI/2); textSpaced(d,0,0,F.barlow,6,wt,'MUTE',0.3); c.restore();
+      c.save(); c.translate(.825*W,.64*H); c.rotate(-Math.PI/2); textSpaced(d,0,0,F.barlow,6,wt,'WAH',0.3); c.restore(); } };
+
+  // Modern Wah — Morley Bad Horsie-style wah: all-black treadle, big white-outline
+  // 'JOCKEY' down the ribbed tread + red 'Bad' script, red labels. Parody (Jockey).
+  // RS knob names. Auto0 Pedal1 Sens2 Speed3.
+  P.modernwah = { w:280,h:480,
+    knobs:[
+      {id:1,cx:.38,cy:.160,r:.052,style:'boss'},
+      {id:2,cx:.60,cy:.160,r:.052,style:'boss'},
+      {id:3,cx:.82,cy:.160,r:.052,style:'boss'}],
+    switches:[{id:0,cx:.15,cy:.155,hs:.030}],
+    ptr:rgb(238,240,242),
+    draw(d,values){ const {ctx:c,W,H,s}=d; const m=8*s, wt=rgb(238,240,244), red=rgb(216,42,46);
+      c.fillStyle=rgb(6,6,7); c.fillRect(0,0,W,H);
+      const bg=c.createLinearGradient(0,m,0,H-m); bg.addColorStop(0,rgb(26,26,28)); bg.addColorStop(1,rgb(14,14,16));
+      rr(c,m,m,W-2*m,H-2*m,14*s); c.fillStyle=bg; c.fill();
+      rr(c,m,m,W-2*m,H-2*m,14*s); c.strokeStyle='rgba(0,0,0,0.5)'; c.lineWidth=2*s; c.stroke();
+      rr(c,W*.06,H*.04,W*.88,H*.255,8*s); c.fillStyle=rgb(14,14,16); c.fill();
+      rr(c,W*.06,H*.04,W*.88,H*.255,8*s); c.strokeStyle=rgb(60,60,64); c.lineWidth=1.2*s; c.stroke();
+      const av=(values&&values[0]!=null)?values[0]:1;
+      textSpaced(d,.15*W,.245*H,F.barlow,7,av>=0.5?red:rgb(120,58,60),'AUTO',0.2);
+      textSpaced(d,.38*W,.245*H,F.barlow,7,red,'PEDAL',0.2);
+      textSpaced(d,.60*W,.245*H,F.barlow,7,red,'SENS',0.2);
+      textSpaced(d,.82*W,.245*H,F.barlow,7,red,'SPEED',0.2);
+      const tx0=.12*W, tx1=.88*W, ty0=.335*H, ty1=.95*H;
+      rr(c,tx0,ty0,tx1-tx0,ty1-ty0,9*s); c.fillStyle=rgb(18,18,20); c.fill();
+      rr(c,tx0,ty0,tx1-tx0,ty1-ty0,9*s); c.strokeStyle=rgb(60,60,64); c.lineWidth=1.5*s; c.stroke();
+      c.save(); rr(c,tx0,ty0,tx1-tx0,ty1-ty0,9*s); c.clip();
+      for(let y=ty0+7*s;y<ty1;y+=7*s){ c.beginPath(); c.moveTo(tx0,y-1*s); c.lineTo(tx1,y-1*s); c.strokeStyle='rgba(255,255,255,0.05)'; c.lineWidth=2.4*s; c.stroke();
+        c.beginPath(); c.moveTo(tx0,y+2*s); c.lineTo(tx1,y+2*s); c.strokeStyle='rgba(0,0,0,0.5)'; c.lineWidth=1.4*s; c.stroke(); }
+      c.translate(.50*W,.64*H); c.rotate(-Math.PI/2);
+      outlineText(d,0,0,F.anton,46,rgb(18,18,20),wt,'JOCKEY',3);
+      c.restore();
+      textC(d,.50*W,.385*H,F.ink,22,red,'Bad');
+      textSpaced(d,.50*W,.925*H,F.barlow,7,wt,'CONTOUR WAH',1.0); } };
+
   function chiefSpec(w,h,col,knobIds,n1,n2,code,plate){
     const lum=0.299*col[0]+0.587*col[1]+0.114*col[2], ink=lum>120?rgb(16,16,20):rgb(232,234,238);
     return { w,h, knobs: knobIds.map(k=>({id:k.id,cx:k.cx,cy:.235,r:.072,style:'boss'})),
