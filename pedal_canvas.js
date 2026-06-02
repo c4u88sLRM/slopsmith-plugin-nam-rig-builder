@@ -2005,11 +2005,16 @@
       textC(d,.64*W,.062*H,F.bebas,30,blu,'G-550');
       // bands
       const bands=[['HIGH',.165],['HI-MID',.310],['MID',.455],['LO-MID',.600],['LOW',.745]];
-      const fl=['20k','10k','1k','400','100'];
-      bands.forEach((b,i)=>{ textC(d,.075*W,b[1]*H,F.barlow,11.5,wt,b[0],'left');
-        textC(d,.40*W,(b[1]-.078)*H,F.barlow,9,dim,'0');
-        textC(d,.255*W,b[1]*H,F.barlow,10,dim,'−'); textC(d,.545*W,b[1]*H,F.barlow,10,dim,'+');
-        textC(d,.78*W,(b[1]+.064)*H,F.barlow,9,blu,fl[i]+' Hz'); });
+      const frng=['2.5k–20k','800–12.5k','300–5k','75–1k','30–400'];
+      // boost/cut scale (dB): 0 at top, ±2/4/6/9/12 down each side — matches ang()
+      const gscale=[[.5,'0'],[.4,'2'],[.3,'4'],[.2,'6'],[.1,'9'],[0,'12'],[.6,'2'],[.7,'4'],[.8,'6'],[.9,'9'],[1,'12']];
+      const gr=.090*W*1.52;
+      bands.forEach((b,i)=>{ const cy=b[1]*H;
+        textC(d,.072*W,cy,F.barlow,11.5,wt,b[0],'left');
+        gscale.forEach(s=>{ const an=(135+s[0]*270)*Math.PI/180;
+          textC(d,.40*W+Math.cos(an)*gr, cy+Math.sin(an)*gr+2, F.barlow,7.5, s[1]==='0'?wt:dim, s[1]); });
+        // frequency range under the small freq knob (blue)
+        textC(d,.78*W,(b[1]+.060)*H,F.barlow,8.5,blu,frng[i]+' Hz'); });
       // HF / LF peak-shelf toggles
       const tog=(cy,lbl)=>{ rr(c,.895*W,(cy-.022)*H,.06*W,.05*H,2); c.fillStyle=rgb(28,29,32); c.fill();
         rr(c,.895*W,(cy-.022)*H,.06*W,.05*H,2); c.strokeStyle=rgb(70,72,76); c.lineWidth=1; c.stroke();
