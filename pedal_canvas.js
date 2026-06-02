@@ -1908,7 +1908,67 @@
   P.studioflanger   = rackSpec({title:'STUDIO FLANGER',    accent:[205,170,75],  names:['Rate','Depth','Regen','Tone','Mix']});
   P.studiowahfilter = rackSpec({title:'STUDIO WAH FILTER', accent:[130,180,155], names:['Sens','Attack','Release','Pedal','Auto']});
   P.synthfilter     = rackSpec({title:'SYNTH FILTER',      accent:[150,185,130], names:['Sens','Attack','Release','Type','Mix']});
-  P.tapeecho        = rackSpec({title:'TAPE ECHO',         accent:[135,170,130], names:['Time','Feedback','Filter','Stereo','Mix']});
+  // Tape Echo — Roland RE-201 Space Echo look: dark body, VU + PEAK top-left,
+  // big chrome MODE SELECTOR centre (Time), green panel of echo knobs right,
+  // red POWER, bottom switch strip. Parody brand TOPLAND / "STARDUST ECHO TE-102".
+  // RS params (5 knobs): Time0 Feedback1 Filter2 Stereo3 Mix4.
+  P.tapeecho = { w:960, h:300,
+    knobs:[
+      {id:0,cx:.375,cy:.525,r:.078,style:'moog'},          // Time  (= MODE SELECTOR, chrome)
+      {id:1,cx:.610,cy:.495,r:.040,style:'boss'},          // Feedback (= INTENSITY)
+      {id:2,cx:.700,cy:.495,r:.040,style:'boss'},          // Filter   (= BASS/TREBLE)
+      {id:3,cx:.790,cy:.495,r:.040,style:'boss'},          // Stereo
+      {id:4,cx:.880,cy:.495,r:.040,style:'boss'}],         // Mix      (= ECHO VOLUME)
+    tick:rgb(60,80,52), ptr:rgb(232,234,230),
+    draw(d){ const {ctx:c,W,H}=d, m=7;
+      // body
+      c.fillStyle=rgb(20,21,20); c.fillRect(0,0,W,H);
+      const bg=c.createLinearGradient(0,0,0,H); bg.addColorStop(0,rgb(40,42,40)); bg.addColorStop(1,rgb(24,25,24));
+      rr(c,m,m,W-2*m,H-2*m,10); c.fillStyle=bg; c.fill();
+      rr(c,m,m,W-2*m,H-2*m,10); c.strokeStyle=rgb(8,9,8); c.lineWidth=2; c.stroke();
+      const wt=rgb(232,234,230), dim=rgb(176,180,176), grn=[74,98,62];
+      // title + brand
+      textC(d,.155*W,.135*H,F.bebas,24,wt,'STARDUST ECHO','left');
+      textC(d,.155*W,.205*H,F.barlow,12,dim,'TE-102','left');
+      textC(d,.905*W,.135*H,F.bebas,22,rgb(206,64,42),'TOPLAND','right');
+      // VU meter (top-left) + PEAK LEVEL led
+      const vux=.045*W, vuy=.30*H, vuw=.085*W, vuh=.20*H;
+      ledDot(d,.052*W,.255*H,false,210,50,40); textC(d,.105*W,.258*H,F.barlow,7.5,dim,'PEAK LEVEL','left');
+      rr(c,vux-3,vuy-3,vuw+6,vuh+6,3); c.fillStyle=rgb(14,14,13); c.fill();
+      const vg=c.createLinearGradient(0,vuy,0,vuy+vuh); vg.addColorStop(0,rgb(232,222,196)); vg.addColorStop(1,rgb(208,196,166));
+      rr(c,vux,vuy,vuw,vuh,2); c.fillStyle=vg; c.fill();
+      const vcx=vux+vuw/2, vcy=vuy+vuh*1.05, vR=vuh*0.85, va0=Math.PI*1.25, va1=Math.PI*1.75;
+      c.strokeStyle=rgb(40,42,46); c.lineWidth=1.2; c.beginPath(); c.arc(vcx,vcy,vR,va0,va1); c.stroke();
+      const vnt=va0+(va1-va0)*0.40; c.strokeStyle=rgb(30,30,34); c.lineWidth=1.4;
+      c.beginPath(); c.moveTo(vcx,vcy); c.lineTo(vcx+Math.cos(vnt)*vR*0.95,vcy+Math.sin(vnt)*vR*0.95); c.stroke();
+      textC(d,vcx,vuy+vuh*0.82,F.barlow,7,rgb(60,62,66),'VU');
+      // green panel behind MODE SELECTOR
+      const gp=(x,y,wd,ht)=>{ rr(c,x,y,wd,ht,5); c.fillStyle=rgb(grn[0],grn[1],grn[2]); c.fill();
+        rr(c,x,y,wd,ht,5); c.strokeStyle=rgb(34,46,28); c.lineWidth=1.5; c.stroke(); };
+      gp(.275*W,.275*H,.205*W,.50*H);
+      textC(d,.378*W,.335*H,F.barlow,11,rgb(232,238,228),'MODE SELECTOR');
+      textC(d,.378*W,.815*H,F.barlow,9.5,rgb(232,238,228),'TIME / REPEAT');
+      // number ring (1-12) around the selector
+      const sx=.375*W, sy=.525*H, sR=.078*W*1.42;
+      for(let i=0;i<12;i++){ const ta=Math.PI*0.75+(Math.PI*1.5)*(i/11);
+        textC(d,sx+Math.cos(ta)*sR,sy+Math.sin(ta)*sR+3,F.barlow,7.5,rgb(224,230,220),String(i+1)); }
+      // green panel behind the echo knobs (right)
+      gp(.555*W,.275*H,.380*W,.50*H);
+      ['FEEDBACK','FILTER','STEREO','MIX'].forEach((t,i)=>{ const kx=(.610+i*.090)*W;
+        textC(d,kx,.355*H,F.barlow,10.5,rgb(232,238,228),t); });
+      // POWER button (far right)
+      textC(d,.905*W,.78*H,F.barlow,9,dim,'POWER');
+      rr(c,.882*W,.66*H,.046*W,.085*H,3); c.fillStyle=rgb(40,40,42); c.fill();
+      c.beginPath(); c.arc(.905*W,.702*H,.014*W,0,7); c.fillStyle=rgb(206,58,40); c.fill();
+      // bottom switch strip (decorative input switches + echo cancel)
+      const sy2=.875*H;
+      ['MIC','FROM P.A.','INSTRUMENT','MODE','OUT/IN'].forEach((t,i)=>{ const jx=(.055+i*.085)*W;
+        rr(c,jx,sy2-.035*H,.05*W,.07*H,2); c.fillStyle=rgb(30,31,30); c.fill();
+        rr(c,jx+.012*W,sy2-.02*H,.026*W,.04*H,1); c.fillStyle=rgb(120,122,124); c.fill();
+        textC(d,jx+.025*W,sy2+.058*H,F.barlow,6.5,dim,t); });
+      rr(c,.86*W,sy2-.04*H,.075*W,.08*H,3); c.fillStyle=rgb(36,37,36); c.fill();
+      rr(c,.86*W,sy2-.04*H,.075*W,.08*H,3); c.strokeStyle=rgb(70,72,72); c.lineWidth=1; c.stroke();
+      textC(d,.8975*W,sy2+.004*H,F.barlow,7,dim,'ECHO CANCEL'); } };
 
   // ── render / attach ────────────────────────────────────────────────────
   function makeCtx(canvas, spec) {
