@@ -6266,9 +6266,7 @@ function rbRenderCatalogCardCompact(g) {
         ${photo}
         ${status}
         <div class="min-w-0 flex-1">
-            <div class="text-gray-200 truncate text-xs"><strong>${rbEsc(g.real_name)}</strong>
-                <span class="text-gray-500 text-[10px]">${rbEsc(g.rs_gear)}</span>
-            </div>
+            <div class="text-gray-200 truncate text-xs"><strong>${rbEsc(g.real_name)}</strong></div>
             ${file}
         </div>
         ${g.file ? `<button id="${btnId}" onclick="rbAuditionFile(${JSON.stringify(g.file)},${JSON.stringify(g.kind || 'nam')},'${btnId}',undefined,${JSON.stringify(g.rs_gear || '')})"
@@ -6499,7 +6497,6 @@ function rbRenderCatalogCard(g) {
                 ${photoBlock}
                 <div class="min-w-0 flex-1">
                     <div class="text-gray-100 font-medium leading-tight break-words" title="${rbEsc(g.real_name)}">${rbEsc(g.real_name)}</div>
-                    <div class="text-[11px] text-gray-500 font-mono break-all">${rbEsc(g.rs_gear)}</div>
                 </div>
                 <div class="flex items-center gap-1 flex-shrink-0 mt-0.5">
                     ${t3kHeaderLink}
