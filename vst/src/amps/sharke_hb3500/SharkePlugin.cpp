@@ -107,14 +107,12 @@ struct Tube {
         double e1 = (vpk/KP)*std::log(1.0 + std::exp(KP*(1.0/MU + vgk/std::sqrt(KVB + vpk*vpk))));
         if (e1 < 0) e1 = 0; return std::pow(e1, EX)/KG1*2.0; }
     inline double process(double vin) {        // vin = grid drive; returns AC plate swing
-        const double Bp=300, Rp=100000, Rk=1500, Ck=1e-6, h=1e-4;
-        const double Geq=2*Ck/T, Ieq=Geq*ckv+cki;
+        const double Bp=300, Rp=100000, Rk=1500, h=1e-4;
         double G=vG, P=vP, K=vK;
         for (int it=0; it<12; ++it) {
             Mna m; m.init(4, 2);                // 1 B+, 2 grid, 3 plate, 4 cathode
             m.Vsrc(1, Bp, 0); m.Vsrc(2, vin, 1);
-            m.R(3, 1, Rp); m.R(4, 0, Rk);
-            m.stampG(4, 0, Geq); m.Isrc(0, 4, Ieq);     // cathode bypass cap
+            m.R(3, 1, Rp); m.R(4, 0, Rk);       // unbypassed cathode -> flat response, tube clip
             const double vgk=G-K, vpk=P-K, ip=Ip(vgk,vpk);
             const double gmv=(Ip(vgk+h,vpk)-ip)/h, gp=(Ip(vgk,vpk+h)-ip)/h;
             m.gm(3,0,2,0,gmv); m.gm(3,0,3,0,gp); m.gm(3,0,4,0,-(gmv+gp));
@@ -127,10 +125,9 @@ struct Tube {
             if (err<1e-6) break;
         }
         if (!std::isfinite(P)) { reset(); return 0.0; }
-        const double ci=Geq*(K-ckv)-cki; cki=ci; ckv=K;     // advance cathode cap
         vG=G; vP=P; vK=K;
         dcAvg += 0.0008*(P-dcAvg);
-        return (P - dcAvg) * (1.0/100.0);                   // DC-blocked, ~unity small-signal
+        return (P - dcAvg) * (1.0/40.0);                    // DC-blocked, ~unity small-signal
     }
 };
 
@@ -146,59 +143,111 @@ struct SsPre {
     }
 };
 
+// ── One-pole RC filter (LP/HP) solved nodally — the Low/High-pass tone filters ─
+struct RC1 {
+    double C=1e-9, Rr=10000.0, vp=0.0, ip=0.0, T=1.0/48000.0; bool hp=false;
+    void setT(float fs) { T = 1.0/((fs>0.f)?fs:48000.0); }
+    void set(double fc, bool isHp) { hp=isHp; Rr=10000.0; C=1.0/(6.2831853*fc*Rr); }
+    void reset() { vp=0.0; ip=0.0; }
+    inline double proc(double in) {
+        const double Geq=2.0*C/T, Ieq=Geq*vp+ip;
+        Mna m; m.init(2,1); m.Vsrc(1,in,0);
+        if (!hp) { m.R(1,2,Rr); m.stampG(2,0,Geq); m.Isrc(0,2,Ieq); }
+        else     { m.stampG(1,2,Geq); m.Isrc(2,1,Ieq); m.R(2,0,Rr); }
+        if (!m.solve()) return 0.0;
+        const double vo=m.x[1], vc = hp ? (m.x[0]-m.x[1]) : m.x[1];
+        const double i=Geq*(vc-vp)-ip; ip=i; vp=vc; return vo;
+    }
+};
+
+// ── Multiple-feedback band-pass — one graphic-EQ band, solved nodally ─────────
+// One op-amp + 2 caps + 3 R = a constant-Q band-pass at fc. The graphic EQ sums
+// dry + (gain-1)*band per slider, so each fader peaks/notches its frequency.
+struct MFB {
+    double R1=1, R2=1, R3=1, Cc=1e-8, c1v=0, c1i=0, c2v=0, c2i=0, T=1.0/48000.0;
+    void setT(float fs) { T = 1.0/((fs>0.f)?fs:48000.0); }
+    void set(double fc, double Q, double C) { Cc=C; const double w=6.2831853*fc;
+        R1=Q/(w*C); R2=Q/((2*Q*Q-1.0)*w*C); R3=2*Q/(w*C); }
+    void reset() { c1v=c1i=c2v=c2i=0; }
+    inline double proc(double in) {
+        const double G=2.0*Cc/T, I1=G*c1v+c1i, I2=G*c2v+c2i;
+        Mna m; m.init(4,2);                            // 1 in, 2 n1, 3 out, 4 VG
+        m.Vsrc(1,in,0); m.R(1,2,R1); m.R(2,0,R2); m.R(3,4,R3);
+        m.stampG(2,4,G); m.Isrc(4,2,I1);               // C1 n1->VG
+        m.stampG(2,3,G); m.Isrc(3,2,I2);               // C2 n1->out
+        m.OpAmp(0,4,3,1);
+        if (!m.solve()) return 0.0;
+        const double out=m.x[2];
+        { const double v=m.x[1]-m.x[3], i=G*(v-c1v)-c1i; c1i=i; c1v=v; }
+        { const double v=m.x[1]-m.x[2], i=G*(v-c2v)-c2i; c2i=i; c2v=v; }
+        return out;
+    }
+};
+
 class HartkeChannel {
     float fs = 48000.f;
-    Biquad eq[kNumEq];
-    Biquad lpf, hpf;
     Tube tube; SsPre ss;                 // nodal dual preamp: real 12AX7 + op-amp SS
     float tubeDrive=1, ssDrive=1, master=1;
-    bool  eqIn=true, lpfOn=false, hpfOn=false;
-    // compressor (behavioral envelope follower — the gain-cell is not yet nodal)
-    bool compOn=false; float compThr=1, compRatio=1, compMk=1, env=0, atk=0, rel=0;
+    // compressor: envelope detector -> JFET voltage-controlled-resistor gain cell
+    bool compOn=false; float env=0, atk=0, rel=0, compThr=1, compAmt=0, compMk=1;
     static inline float msC(float ms, float fs){ return std::exp(-1.f/(0.001f*ms*fs)); }
+    MFB eq[kNumEq];  float eqG[kNumEq];  bool eqIn=true;   // nodal 10-band graphic EQ
+    RC1 hpf, lpf;    bool hpfOn=false, lpfOn=false;        // nodal low/high-pass
 public:
-    void setSampleRate(float s){ fs=(s>0)?s:48000.f; atk=msC(6.f,fs); rel=msC(120.f,fs); tube.setT(s); }
-    void reset(){ tube.reset(); for(int i=0;i<kNumEq;++i) eq[i].reset(); lpf.reset(); hpf.reset(); env=0; }
+    void setSampleRate(float s){ fs=(s>0)?s:48000.f; atk=msC(4.f,fs); rel=msC(120.f,fs);
+        tube.setT(s); hpf.setT(s); lpf.setT(s); hpf.set(30.0,true); lpf.set(8000.0,false);
+        for (int i=0;i<kNumEq;++i){ eq[i].setT(s); eq[i].set(kEqFreqs[i], 1.4, 1e-8); eqG[i]=1.f; } }
+    void reset(){ tube.reset(); for (int i=0;i<kNumEq;++i) eq[i].reset(); hpf.reset(); lpf.reset(); env=0; }
 
     void setParams(const float* p) {
         const float padActive = (p[kActive] > 0.5f) ? 0.20f : 1.0f;   // Active jack ~ -14 dB
         tubeDrive = p[kTube]  * 2.0f * padActive;   // grid drive into the 12AX7
         ssDrive   = p[kSolid] * 2.0f * padActive;   // drive into the SS op-amp
 
-        compOn = p[kComp] > 0.001f;
-        compThr = 1.0f - p[kComp]*0.6f; compRatio = 1.0f + p[kComp]*5.0f; compMk = 1.0f + p[kComp]*0.7f;
+        compOn  = p[kComp] > 0.001f;
+        compThr = 0.35f - p[kComp]*0.28f;           // threshold drops with Compression
+        compAmt = p[kComp];                          // how hard the FET is driven
+        compMk  = 1.0f + p[kComp]*0.35f;             // gentle make-up gain
 
         eqIn = p[kEqIn] > 0.5f;
-        for (int i=0;i<kNumEq;++i) {
-            if (eqIn) eq[i].setPeak(kEqFreqs[i], (p[kFirstEq+i]-0.5f)*24.f, 1.4f, fs);
-            else      eq[i].setBypass();
-        }
+        for (int i=0;i<kNumEq;++i)
+            eqG[i] = eqIn ? std::pow(10.f, (p[kFirstEq+i]-0.5f)*24.f/20.f) : 1.f;
+
         // High Pass: 20 .. 200 Hz (0 = open/off). Low Pass: 2k .. 20k (1 = open/off).
-        hpfOn = p[kHighPass] > 0.02f;
-        if (hpfOn) hpf.setHighPass(20.f * std::pow(10.f, p[kHighPass]), 0.707f, fs); else hpf.setBypass();
-        lpfOn = p[kLowPass] < 0.98f;
-        if (lpfOn) lpf.setLowPass(2000.f * std::pow(10.f, p[kLowPass]), 0.707f, fs); else lpf.setBypass();
+        hpfOn = p[kHighPass] > 0.02f;  if (hpfOn) hpf.set(20.0   * std::pow(10.0,(double)p[kHighPass]), true);
+        lpfOn = p[kLowPass]  < 0.98f;  if (lpfOn) lpf.set(2000.0 * std::pow(10.0,(double)p[kLowPass]),  false);
 
         master = p[kVolume] / 0.7f;
     }
 
     inline float process(float x) {
-        // dual preamp blend — real 12AX7 (nodal triode) + solid-state (nodal op-amp)
-        float s = (float)(tube.process((double)(tubeDrive * x)) + ss.process((double)(ssDrive * x))) * 0.6f;
-        // compressor (downward, peak-following)
+        // 1-2-3. dual preamp blend — real 12AX7 (nodal triode) + solid-state (nodal op-amp)
+        double s = (tube.process((double)(tubeDrive * x)) + ss.process((double)(ssDrive * x))) * 4.5;
+
+        // 4. COMPRESSOR — envelope detector drives a JFET VCR (Rds) in a divider:
+        //    bigger envelope -> FET conducts -> Rds drops -> more attenuation.
         if (compOn) {
-            const float a = std::fabs(s);
-            const float c = (a > env) ? atk : rel;
-            env = c*env + (1.f-c)*a;
-            if (env > compThr) s *= (compThr + (env-compThr)/compRatio) / (env + 1e-9f);
-            s *= compMk;
+            const double a = std::fabs(s);
+            const double c = (a > env) ? atk : rel;
+            env = c*env + (1.0-c)*a;
+            const double over = (env > compThr) ? (env - compThr) : 0.0;
+            const double ctl  = over * compAmt * 5.0;       // FET drive
+            double gain = 1.0;
+            if (ctl > 1e-6) { const double Ron=400.0, Rs=4700.0; double rds = Ron*3.0/ctl;
+                if (rds < Ron) rds = Ron; gain = rds/(Rs+rds); }   // JFET+Rs divider
+            s = s * gain * compMk;
         }
-        // graphic EQ
-        for (int i=0;i<kNumEq;++i) s = eq[i].process(s);
-        // tone filters
-        s = hpf.process(s);
-        s = lpf.process(s);
-        return s * master;
+
+        // 5. GRAPHIC EQ — parallel nodal MFB bands summed onto the dry signal.
+        //    The MFB band-pass is inverting (peak ~ -dry), so subtract to get a
+        //    proper boost when the fader is up and a cut when it's down.
+        if (eqIn) { const double dry=s; double sum=dry;
+            for (int i=0;i<kNumEq;++i) sum -= (eqG[i]-1.0) * eq[i].proc(dry); s = sum; }
+
+        // 6. LOW / HIGH-PASS tone filters (nodal RC)
+        if (hpfOn) s = hpf.proc(s);
+        if (lpfOn) s = lpf.proc(s);
+        return (float)(s * master);
     }
 };
 
