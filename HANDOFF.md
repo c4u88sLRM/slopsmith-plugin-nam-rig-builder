@@ -59,6 +59,12 @@ participants at runtime when `rbInit()` runs:
 - `audio-effects`: `rig_builder.effects` reports the current NAM/VST/IR
   chain route (`desktop-main`) using only safe summaries: stage counts,
   type buckets, bypass counts, master pre/post counts, dependency status.
+- `playback`: `rig_builder.playback-observer` observes playback v1
+  `ready`/`stopped`/`ended` lifecycle events. `ready` records the safe
+  playback `settingsKey` when present and uses the local filename only as the
+  existing backend compatibility input for mega-chain builds. Legacy
+  `song:loaded`/`song:unloaded` hooks remain as fallback while the backend is
+  still filename-keyed.
 - `jobs`: `rig_builder.jobs` wraps batch mapping, curated preloads,
   candidate downloads, extraction, export, purge, and similar long-running
   backend work with safe job labels/progress/completion. The real work still
@@ -77,8 +83,11 @@ fields, or settings objects into capability hosts.
 Migration gates still expected:
 
 - The fetch patch for `nam_tone/native-preset/{id}` records the
-  `audio-effects.legacy-nam-routing` bridge until Slopsmith has a native
-  effects-route selection point for the NAM player.
+  `audio-effects.legacy-nam-routing` bridge until Slopsmith's 015
+  `audio-effects` host has an executable provider chain-resolution path and
+  `nam_tone` playback uses it. The 015 `select-chain` command is currently a
+  safe control-plane/diagnostics record; it does not call providers or return
+  private NAM/VST/IR chain payloads.
 - Long-running routes are attributed through `jobs` but not moved into a
   first-class job queue yet; removing `jobs.legacy-*` bridge hits requires the
   backend routes to accept job IDs / cancellation directly.
@@ -101,7 +110,8 @@ may remain as the implementation behind native capability handlers.
 |---|---|---|
 | UI navigation/screens | Manifest + runtime native `ui.navigation` / `ui.plugin-screens` records exist. | Legacy `nav`/`screen` fields are compatibility only, with native records owning inspector output. |
 | Library | Manifest + runtime `library` requester/observer exists; Songs tab uses `/api/library?provider=...`; provider refresh/selection/sync go through the `library` owner command. | Keep all song search/sync flows on the library owner/provider contract; do not reintroduce a Rig Builder local song scanner. |
-| Audio effects | `audio-effects` participant reports safe chain summaries; full-chain playback still uses the `nam_tone/native-preset` fetch redirect bridge. | NAM player asks `audio-effects` for the active Rig Builder chain/route directly; no fetch monkey-patch. |
+| Playback | Manifest + runtime `playback` observer exists; playback v1 `ready`/`stopped`/`ended` events keep mega-chain lifecycle aligned when local filename fallback is available. | Persist/read Rig Builder mappings by playback `settingsKey` first, with filename as legacy fallback, so playback observers do not need raw filenames. |
+| Audio effects | `audio-effects` participant reports safe chain summaries through Slopsmith 015; full-chain playback still uses the `nam_tone/native-preset` fetch redirect bridge because 015 `select-chain` does not execute provider chain resolution. | NAM player asks the selected 015 `audio-effects` provider for the active Rig Builder chain/route directly, keeps provider-private chain payloads out of diagnostics, and falls back to the existing 2-stage preset path; no fetch monkey-patch. |
 | Jobs | Long-running UI actions are wrapped with job labels/progress where possible; backend routes still execute the real work. | Batch, preload, extraction, export, purge, and downloads are dispatched through `jobs` provider handlers with job IDs, cancellation, and safe recovery refs. |
 | Privileged work | Backend routes, tone3000, media import/export, and extractors are inventoried in `privileged-capabilities`. | Privileged operations are authorized and audited through the host before route execution, then linked to `jobs` when long-running. |
 | Diagnostics | Safe summaries are emitted for chains/jobs/privileged outcomes; avoid paths, filenames, tokens, model names, route payloads. | Support snapshots explain all capability state and bridge hits without exposing provider-private data. |
@@ -112,7 +122,7 @@ may remain as the implementation behind native capability handlers.
 
 2. **Library migration is complete for Rig Builder.** Songs tab search stays on `/api/library?provider=<id>` for local and remote sources. Provider refresh/selection/sync use `library` owner commands, with `window.slopsmith.libraryProviders` only as the in-page provider cache. Remote rows must return a local `filename` / `localFilename` before Rig Builder parses tones. The legacy `rbListSongsLegacy()` fallback and `/api/plugins/rig_builder/list_songs` route have been removed; do not add plugin-local library listing back.
 
-3. **Replace the NAM fetch bridge.** Add a core/native audio-effects selection point used by `nam_tone` playback. Rig Builder should expose a route/provider handler that returns the full NAM/VST/IR chain for a preset or current song tone, and `nam_tone` should request that handler instead of Rig Builder monkey-patching `window.fetch`. Removal gate: normal song playback, Listen preview, mega-chain/preloader mode, bypass toggles, and fallback-to-2-stage all work with zero `audio-effects.legacy-nam-routing` bridge hits.
+3. **Replace the NAM fetch bridge.** Extend/use Slopsmith 015 `audio-effects` with an executable provider chain-resolution command used by `nam_tone` playback. Rig Builder should expose a route/provider handler that returns the full NAM/VST/IR chain for a preset or current song tone, and `nam_tone` should request that handler instead of Rig Builder monkey-patching `window.fetch`. Core must store only safe summaries/outcomes, not raw returned chain payloads. Removal gate: normal song playback, Listen preview, mega-chain/preloader mode, bypass toggles, and fallback-to-2-stage all work with zero `audio-effects.legacy-nam-routing` bridge hits.
 
 4. **Move long-running work behind `jobs`.** Convert each expensive action into a job-capable backend entry point: batch map, curated preload, candidate download/audition, song auto-download, Rocksmith extraction, default export, library purge, and any future VST scan/import work. The UI should enqueue through `jobs`, receive a job ID, update progress through the host, and support cancellation where the backend can safely stop. Route responses should expose safe summaries only, never raw file paths, tone3000 URLs, model names, or subprocess command lines.
 

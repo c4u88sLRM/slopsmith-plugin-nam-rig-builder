@@ -638,11 +638,16 @@ const RB_PLUGIN_ID = 'rig_builder';
 const RB_EFFECTS_PARTICIPANT_ID = 'rig_builder.effects';
 const RB_EFFECTS_ROUTE_KEY = 'desktop-main';
 const RB_JOBS_PROVIDER_ID = 'rig_builder.jobs';
+const RB_PLAYBACK_OBSERVER_ID = 'rig_builder.playback-observer';
 
 function rbSlopsmith() { return window.slopsmith || null; }
 function rbCapabilitiesApi() { const s = rbSlopsmith(); return s && s.capabilities; }
 function rbCandidateDomainsApi() { const s = rbSlopsmith(); return s && s.candidateDomains; }
 function rbJobsApi() { const s = rbSlopsmith(); return s && s.jobs; }
+function rbPlaybackApi() {
+    const s = rbSlopsmith();
+    return s && s.playback && s.playback.version === 1 ? s.playback : null;
+}
 function rbLibraryProvidersApi() {
     const s = rbSlopsmith();
     const api = s && s.libraryProviders;
@@ -818,6 +823,35 @@ function rbRegisterLibraryCapability() {
     });
 }
 
+function rbRegisterPlaybackCapability() {
+    const caps = rbCapabilitiesApi();
+    if (caps && typeof caps.registerParticipant === 'function') {
+        caps.registerParticipant(RB_PLUGIN_ID, {
+            playback: {
+                roles: ['observer'],
+                kind: 'lifecycle',
+                observes: ['ready', 'stopped', 'ended'],
+                mode: 'active',
+                compatibility: 'shim-allowed',
+                ownership: 'observer-only',
+                safety: 'safe',
+                version: 1,
+                runtime: true,
+                description: 'Observes playback readiness for Rig Builder full-chain and mega-chain routing.',
+            },
+        });
+    }
+    const playback = rbPlaybackApi();
+    if (playback && typeof playback.registerObserver === 'function') {
+        playback.registerObserver({
+            observerId: RB_PLAYBACK_OBSERVER_ID,
+            kind: 'plugin',
+            observes: ['ready', 'stopped', 'ended'],
+            status: 'available',
+        });
+    }
+}
+
 function rbRegisterPrivilegedCapabilities() {
     const participants = [
         { participantId: 'rig_builder.backend_routes', surface: 'backend-route', roles: ['provider', 'observer'], operationClasses: ['route.inspect', 'route.mutate', 'status'], riskClasses: ['local-data', 'external-service', 'subprocess'], label: 'Rig Builder backend routes', confirmationRequirement: 'not-required-for-inspection', compatibilityMode: 'native' },
@@ -838,12 +872,14 @@ function rbRegisterCapabilities() {
         if (caps && typeof caps.registerParticipant === 'function') {
             caps.registerParticipant(RB_PLUGIN_ID, {
                 'audio-effects': { roles: ['provider', 'requester', 'observer'], commands: ['select-chain', 'bypass', 'restore', 'fallback', 'inspect-route'], safety: 'sensitive', compatibility: 'shim-allowed', ownership: 'multi-provider', version: 1, runtime: true },
+                playback: { roles: ['observer'], kind: 'lifecycle', observes: ['ready', 'stopped', 'ended'], safety: 'safe', compatibility: 'shim-allowed', ownership: 'observer-only', version: 1, runtime: true },
                 jobs: { roles: ['provider', 'observer'], operations: ['job.enqueue', 'job.status', 'job.cancel'], safety: 'privileged', compatibility: 'shim-allowed', ownership: 'multi-provider', version: 1, runtime: true },
                 'privileged-capabilities': { roles: ['provider', 'requester', 'observer'], requests: ['inspect', 'record-outcome', 'record-bridge-hit', 'link-job'], safety: 'privileged', compatibility: 'shim-allowed', ownership: 'privileged', version: 1, runtime: true },
             });
         }
         rbRegisterUiCapabilities();
         rbRegisterLibraryCapability();
+        rbRegisterPlaybackCapability();
         rbRegisterAudioEffectsCapability();
         rbRegisterJobsCapability();
         rbRegisterPrivilegedCapabilities();
@@ -964,6 +1000,19 @@ function rbRecordPrivilegedOutcome(operation, status, reason) {
         status: rbSafeCapabilityId(status || 'handled', 'handled'),
         safeReason: rbShortSafeText(reason || ''),
     });
+}
+
+function rbPlaybackTargetFromDetail(detail) {
+    const payload = detail && typeof detail === 'object' ? detail : {};
+    const target = payload.target && typeof payload.target === 'object' ? payload.target : {};
+    const current = window.slopsmith && window.slopsmith.currentSong || {};
+    const filename = payload.filename || target.filename || current.filename || window._currentSongFile || rbState.currentSongFile || '';
+    return {
+        filename: String(filename || ''),
+        settingsKey: String(target.settingsKey || payload.settingsKey || ''),
+        targetId: String(target.targetId || payload.targetId || ''),
+        sourceKind: String(target.sourceKind || payload.sourceKind || ''),
+    };
 }
 
 function rbLibraryProviderSnapshot() {
@@ -1830,6 +1879,36 @@ const RbMegaChain = (function () {
         if (!window.slopsmith || typeof window.slopsmith.on !== 'function') {
             setTimeout(hook, 500);
             return;
+        }
+        function installPlaybackLifecycle() {
+            rbRegisterPlaybackCapability();
+            const playback = rbPlaybackApi();
+            if (!playback || window.__rbPlaybackLifecycleInstalled || !window.slopsmith || typeof window.slopsmith.on !== 'function') return;
+            window.__rbPlaybackLifecycleInstalled = true;
+            window.slopsmith.on('playback:ready', (event) => {
+                const target = rbPlaybackTargetFromDetail(event && event.detail || {});
+                if (target.settingsKey) window.__rbPlaybackSettingsKey = target.settingsKey;
+                if (!target.filename) {
+                    console.log('[rig_builder mega-chain] playback:ready observed but no local filename is available; waiting for legacy/currentSong fallback');
+                    return;
+                }
+                if (target.filename === _lastSeenFile) return;
+                _lastSeenFile = target.filename;
+                triggerBuild(target.filename, target.settingsKey ? 'playback:ready event (settingsKey present)' : 'playback:ready event');
+            });
+            window.slopsmith.on('playback:stopped', () => {
+                _lastSeenFile = null;
+                if (RbMegaChain.isActive()) RbMegaChain.teardown(false).catch(() => {});
+            });
+            window.slopsmith.on('playback:ended', () => {
+                _lastSeenFile = null;
+                if (RbMegaChain.isActive()) RbMegaChain.teardown(false).catch(() => {});
+            });
+        }
+        installPlaybackLifecycle();
+        if (!rbPlaybackApi() && !window.__rbPlaybackLifecycleReadyListenerPending) {
+            window.__rbPlaybackLifecycleReadyListenerPending = true;
+            window.addEventListener('slopsmith:capabilities:ready', installPlaybackLifecycle, { once: true });
         }
         window.slopsmith.on('song:loaded', (info) => {
             // Some Slopsmith builds emit song:loaded with no payload (or a

@@ -69,6 +69,17 @@
       "version": 1,
       "description": "Coordinates Rocksmith tone chains into native NAM/VST/IR audio-effects routes while keeping model, IR, preset, and path internals private."
     },
+    "playback": {
+      "roles": ["observer"],
+      "kind": "lifecycle",
+      "observes": ["ready", "stopped", "ended"],
+      "mode": "active",
+      "compatibility": "shim-allowed",
+      "ownership": "observer-only",
+      "safety": "safe",
+      "version": 1,
+      "description": "Observes playback readiness to keep Rig Builder full-chain and mega-chain state aligned with playback v1 while retaining legacy song-event fallbacks."
+    },
     "jobs": {
       "roles": ["provider", "observer"],
       "operations": ["job.enqueue", "job.status", "job.cancel"],
