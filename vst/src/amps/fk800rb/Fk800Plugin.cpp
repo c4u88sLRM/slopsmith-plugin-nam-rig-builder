@@ -139,16 +139,17 @@ struct Mna {
 
 // ── GK 800RB INPUT/PREAMP stage — true component-level (nodal) model ─────────
 // Bob Gallien sheet 60045A, U1: non-inverting amp, Rg=R2 4.7K, Rf=R3 1M
-// (DC gain 1+R3/R2 ~ 214), C2 100pF across R3 = the warm HF voicing, and the
-// op-amp output saturating at the +/-supply rails = the GK growl. Each R, C and
-// the op-amp are solved as real circuit elements per sample (no tanh).
+// (DC gain 1+R3/R2 ~ 214, matching the manual's 2 mV sensitivity), C2 across R3
+// (stability/HF cap, ~22pF -> gentle ~7 kHz softening) and the op-amp output
+// saturating at the +/-supply rails = the GK growl. Each R, C and the op-amp
+// are solved as real circuit elements per sample (no tanh).
 struct FkPreamp {
     float fs = 48000.f; double T = 1.0/48000.0;
     double c2v = 0.0, c2i = 0.0;            // C2 trapezoidal companion state
     void setFs(float s) { fs = (s > 0.f) ? s : 48000.f; T = 1.0 / fs; }
     void reset() { c2v = 0.0; c2i = 0.0; }
     inline float process(double vin) {
-        const double R2 = 4700.0, R3 = 1.0e6, C2 = 100.0e-12, Vrail = 13.5;
+        const double R2 = 4700.0, R3 = 1.0e6, C2 = 22.0e-12, Vrail = 13.5;
         const double Geq = 2.0*C2/T, Ieq = Geq*c2v + c2i;
         Mna m; m.init(3, 2);                                  // nodes: 1 in, 2 inv, 3 out
         m.Vsrc(1, vin, 0); m.R(2, 0, R2); m.R(3, 2, R3);
@@ -169,32 +170,62 @@ struct FkPreamp {
     }
 };
 
+// ── One-pole RC filter, solved nodally (R and C as real circuit elements) ────
+// LP: in-R-out, C from out to gnd. HP: in-C-out, R from out to gnd. R fixed at
+// 10k; C = 1/(2*pi*fc*R) sets the corner. Shelves/peaks are built by summing
+// these (the EQ's summing op-amps): low shelf = HP + g*LP, high shelf = LP +
+// g*HP, peak = dry + (g-1)*bandpass, with g = the pot's +/-dB.
+struct RC1 {
+    double C = 1e-9, Rr = 10000.0, vp = 0.0, ip = 0.0, T = 1.0/48000.0; bool hp = false;
+    void setT(float fs) { T = 1.0 / ((fs > 0.f) ? fs : 48000.0); }
+    void set(double fc, bool isHp) { hp = isHp; Rr = 10000.0; C = 1.0 / (6.2831853 * fc * Rr); }
+    void reset() { vp = 0.0; ip = 0.0; }
+    inline double proc(double in) {
+        const double Geq = 2.0*C/T, Ieq = Geq*vp + ip;
+        Mna m; m.init(2, 1); m.Vsrc(1, in, 0);
+        if (!hp) { m.R(1, 2, Rr); m.stampG(2, 0, Geq); m.Isrc(0, 2, Ieq); }
+        else     { m.stampG(1, 2, Geq); m.Isrc(2, 1, Ieq); m.R(2, 0, Rr); }
+        if (!m.solve()) return 0.0;
+        const double vo = m.x[1];
+        const double vc = hp ? (m.x[0] - m.x[1]) : m.x[1];   // capacitor voltage
+        const double i = Geq*(vc - vp) - ip; ip = i; vp = vc;
+        return vo;
+    }
+};
+
 class Gk800Channel {
     float fs = 48000.f;
-    Biquad loCut;                          // voicing: bass roll-off
-    Biquad contour;                        // voicing: ~500 Hz notch
-    Biquad hiBoost;                        // voicing: presence
-    Biquad bqBass, bqLoMid, bqHiMid, bqTreble;   // 4-band active EQ
-    // 2nd-order Butterworth (cascaded biquads, Q=0.707 then ~0.541) for a
-    // 4th-order-ish crossover split that recombines cleanly.
-    Biquad xLow1, xLow2, xHigh1, xHigh2;
-
     FkPreamp pre;                          // nodal input/preamp stage (the growl)
     float preDrive = 0.2f, preMakeup = 0.014f;
-    float boostGain = 1.f;
-    bool  boostOn = false;
-    float g100 = 1.f, g300 = 1.f;          // master gains
-    bool  biamp = false;
+    // voicing (nodal): Lo Cut HPF, Mid Contour notch (dry - bandpass), Hi Boost shelf
+    RC1 loCutF;  bool loCutOn = false;
+    RC1 conHp, conLp;  bool contourOn = false;
+    RC1 hbLp, hbHp;    bool hiBoostOn = false;
+    // 4-band active EQ (nodal): each band's filters + the pot's +/-dB gain
+    RC1 bLp, bHp;   float bassG = 1.f;     // Bass   low shelf 60 Hz
+    RC1 lmHp, lmLp; float loMidG = 1.f;    // Lo-Mid peak 250 Hz
+    RC1 hmHp, hmLp; float hiMidG = 1.f;    // Hi-Mid peak 1.15 kHz
+    RC1 tLp, tHp;   float trebG = 1.f;     // Treble high shelf 4 kHz
+    float boostGain = 1.f;  bool boostOn = false;
+    RC1 xLp, xHp;   float g100 = 1.f, g300 = 1.f;  bool biamp = false;  // crossover + masters
 
     static inline float softclip(float x) { return std::tanh(x); }
+    RC1* allRC[15] = { &loCutF,&conHp,&conLp,&hbLp,&hbHp,&bLp,&bHp,&lmHp,&lmLp,&hmHp,&hmLp,&tLp,&tHp,&xLp,&xHp };
 public:
-    void setSampleRate(float s) { fs = (s > 0.f) ? s : 48000.f; pre.setFs(s); }
-    void reset() {
-        pre.reset();
-        loCut.reset(); contour.reset(); hiBoost.reset();
-        bqBass.reset(); bqLoMid.reset(); bqHiMid.reset(); bqTreble.reset();
-        xLow1.reset(); xLow2.reset(); xHigh1.reset(); xHigh2.reset();
+    void setSampleRate(float s) {
+        fs = (s > 0.f) ? s : 48000.f; pre.setFs(s);
+        for (RC1* p : allRC) p->setT(fs);
+        // fixed band corners (Hz); the crossover (xLp/xHp) is retuned in setParams
+        loCutF.set(110.0, true);
+        conHp.set(250.0, true);  conLp.set(1000.0, false);    // contour bandpass ~500 Hz
+        hbLp.set(2200.0, false); hbHp.set(2200.0, true);      // hi-boost shelf
+        bLp.set(60.0, false);    bHp.set(60.0, true);         // bass shelf
+        lmHp.set(125.0, true);   lmLp.set(500.0, false);      // lo-mid peak 250 Hz
+        hmHp.set(575.0, true);   hmLp.set(2300.0, false);     // hi-mid peak 1.15 kHz
+        tLp.set(4000.0, false);  tHp.set(4000.0, true);       // treble shelf
+        xLp.set(500.0, false);   xHp.set(500.0, true);
     }
+    void reset() { pre.reset(); for (RC1* p : allRC) p->reset(); }
 
     void setParams(float volume, float treble, float hiMid, float loMid, float bass,
                    float boostLevel, float xover, float master100, float master300,
@@ -205,66 +236,57 @@ public:
         //    drive into it. preMakeup normalises the ~13.5 V rail back to ~unity.
         const float padScale = pad ? 0.316f : 1.0f;
         preDrive  = padScale * (0.04f + volume * 0.24f);   // signal level (V) into U1
-        preMakeup = 3.0f / 214.0f;                          // ~unity small-signal gain
+        preMakeup = 6.0f / 214.0f;                          // ~unity at default Volume
 
-        // ── voicing filters ──
-        if (loCutOn)  loCut.setHighPass(110.f, 0.707f, fs);          else loCut.setBypass();
-        if (contourOn) contour.setPeak(500.f, -11.f, 1.1f, fs);      else contour.setBypass();
-        if (hiBoostOn) hiBoost.setHighShelf(2200.f, 6.5f, fs);       else hiBoost.setBypass();
+        // ── voicing filters (nodal RC networks, switched in/out) ──
+        this->loCutOn = loCutOn; this->contourOn = contourOn; this->hiBoostOn = hiBoostOn;
 
-        // ── 4-band active EQ, ±15 dB (0.5 = flat). Frequencies/Q derived from
-        //    the preamp R/C (Bob Gallien sheet 60045A), which confirm the manual:
-        //      Bass   : R30 12K + C16 .22uF  -> 1/(2pi*R*C) = 60.3 Hz (low shelf)
-        //      Lo-Mid : C13/C14 .022uF net   -> ~250 Hz peak
-        //      Hi-Mid : C11/C12 .0047uF (same topology) -> 250*(.022/.0047) ~ 1.17 kHz
-        //      Treble : high shelf, design 4 kHz
-        //    GK's mid bands are broad/gentle, so Q ~ 0.7 (not a narrow notch).
-        bqBass.setLowShelf(60.f,      (bass   - 0.5f) * 30.f, fs);
-        bqLoMid.setPeak(250.f,        (loMid  - 0.5f) * 30.f, 0.7f, fs);
-        bqHiMid.setPeak(1150.f,       (hiMid  - 0.5f) * 30.f, 0.7f, fs);
-        bqTreble.setHighShelf(4000.f, (treble - 0.5f) * 30.f, fs);
+        // ── 4-band active EQ — each band is a nodal filter pair; the knob sets
+        //    the summing op-amp's +/-dB gain (0.5 = flat). Corners from the
+        //    schematic (Bob Gallien 60045A): Bass 60 Hz shelf, Lo-Mid 250 Hz,
+        //    Hi-Mid 1.15 kHz, Treble 4 kHz. g = 10^(+/-12 dB). ──
+        bassG  = std::pow(10.f, (bass   - 0.5f) * 24.f / 20.f);
+        loMidG = std::pow(10.f, (loMid  - 0.5f) * 24.f / 20.f);
+        hiMidG = std::pow(10.f, (hiMid  - 0.5f) * 24.f / 20.f);
+        trebG  = std::pow(10.f, (treble - 0.5f) * 24.f / 20.f);
 
         // ── boost: preset, footswitchable, up to +15 dB ──
         boostOn   = boostOnP;
         boostGain = std::pow(10.f, (boostLevel * 15.f) / 20.f);   // 1 .. ~5.6
 
-        // ── crossover split + masters ──
+        // ── crossover split + masters (retune the nodal LP/HP to the freq) ──
         biamp = biampP;
-        const float fc = 100.f + 940.f * xover;        // 100 Hz .. 1040 Hz
-        xLow1.setLowPass(fc, 0.707f, fs);  xLow2.setLowPass(fc, 0.707f, fs);
-        xHigh1.setHighPass(fc, 0.707f, fs); xHigh2.setHighPass(fc, 0.707f, fs);
+        const double fc = 100.0 + 940.0 * xover;       // 100 Hz .. 1040 Hz
+        xLp.set(fc, false); xHp.set(fc, true);
         g300 = master300 / 0.7f;   // low / 300W amp  (unity ~ 0.7)
         g100 = master100 / 0.7f;   // high / 100W amp
     }
 
     inline float process(float x) {
-        // 1-2. INPUT/PREAMP — solved as the real op-amp circuit (nodal), so the
+        // 1-2. INPUT/PREAMP — solved as the real op-amp circuit (nodal); the
         //      growl is the actual U1 output clipping at the supply rails.
-        float s = pre.process((double)(preDrive * x)) * preMakeup;
+        double d = (double)(pre.process((double)(preDrive * x)) * preMakeup);
 
-        // 3. voicing filters
-        s = loCut.process(s);
-        s = contour.process(s);
-        s = hiBoost.process(s);
+        // 3. VOICING (nodal): Lo Cut HPF, Mid Contour notch (dry - bandpass),
+        //    Hi Boost high-shelf (+6 dB).
+        if (loCutOn)   d = loCutF.proc(d);
+        if (contourOn) { const double bp = conLp.proc(conHp.proc(d)); d -= 0.9 * bp; }
+        if (hiBoostOn) d = hbLp.proc(d) + 2.0 * hbHp.proc(d);
 
-        // 4. active EQ
-        s = bqBass.process(s);
-        s = bqLoMid.process(s);
-        s = bqHiMid.process(s);
-        s = bqTreble.process(s);
+        // 4. 4-band ACTIVE EQ (nodal). Shelves: HP+g*LP / LP+g*HP. Peaks: dry +
+        //    (g-1)*bandpass. Each filter is a real RC network solved per sample.
+        d = bHp.proc(d) + bassG * bLp.proc(d);                          // Bass shelf
+        { const double bp = lmLp.proc(lmHp.proc(d)); d += (loMidG - 1.0) * bp; }  // Lo-Mid
+        { const double bp = hmLp.proc(hmHp.proc(d)); d += (hiMidG - 1.0) * bp; }  // Hi-Mid
+        d = tLp.proc(d) + trebG * tHp.proc(d);                          // Treble shelf
 
-        // 5. boost stage (extra growl only when pushed hard)
-        if (boostOn) {
-            s *= boostGain;
-            if (boostGain > 2.0f) s = softclip(s) ;  // gentle clip at high boost
-        }
+        // 5. BOOST (preset gain, soft-clip when pushed hard)
+        if (boostOn) { d *= boostGain; if (boostGain > 2.0f) d = std::tanh(d); }
 
-        // 6. crossover + masters
-        const float low  = xLow2.process(xLow1.process(s));
-        const float high = xHigh2.process(xHigh1.process(s));
-        if (biamp)
-            return low * g300 + high * g100;          // bi-amp: split & re-sum
-        return s * (0.5f * g300 + 0.5f * g100);       // full range: combined master
+        // 6. CROSSOVER (nodal LP/HP) + masters
+        const double low = xLp.proc(d), high = xHp.proc(d);
+        if (biamp) return (float)(low * g300 + high * g100);   // bi-amp split & re-sum
+        return (float)(d * (0.5 * g300 + 0.5 * g100));         // full range
     }
 };
 
