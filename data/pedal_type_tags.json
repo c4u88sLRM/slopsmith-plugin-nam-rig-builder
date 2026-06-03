@@ -99,5 +99,8 @@
   "Pedal_Enbiggenator": "doubler doblador enhancer exciter realzador",
   "Bass_Pedal_BassEnbig": "enhancer exciter realzador filter filtro bajo bass",
   "Bass_Pedal_EdenWTDI": "preamp preamplificador di direct-injection bajo bass",
-  "Rack_StudioChamber": "reverb reverberacion chamber camara"
+  "Rack_StudioChamber": "reverb reverberacion chamber camara",
+  "Amp_EN30": "amp amplificador head combo class-a british chime topboost vox",
+  "Amp_TW22": "amp amplificador head combo 6v6 american clean blackface burn high-gain fender",
+  "Amp_TW26": "amp amplificador combo tweed 6v6 american clean breakup woody deluxe fender"
 }

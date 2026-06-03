@@ -388,6 +388,9 @@ _RENAMED_VST_BUNDLES = {
     "Enbiggenator.vst3":         "MIME.vst3",
     "BassEnbig.vst3":            "ENBIGGEN.vst3",
     "EdenWTDI.vst3":             "WT-DX.vst3",
+    "EN30.vst3":                 "BOX DC30.vst3",
+    "TW22.vst3":                 "BENDER SUPERNOVA 22.vst3",
+    "TW26.vst3":                 "BENDER DELUXE.vst3",
 }
 
 

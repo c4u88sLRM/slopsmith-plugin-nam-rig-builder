@@ -2,7 +2,7 @@
 #define DISTRHO_PLUGIN_INFO_H_INCLUDED
 
 #define DISTRHO_PLUGIN_BRAND   "RigBuilder"
-#define DISTRHO_PLUGIN_NAME    "TW22"
+#define DISTRHO_PLUGIN_NAME    "BENDER SUPERNOVA 22"
 #define DISTRHO_PLUGIN_URI     "urn:rigbuilder:tw22"
 #define DISTRHO_PLUGIN_CLAP_ID "rigbuilder.tw22"
 

@@ -3955,7 +3955,7 @@
   }
  },
  "Amp_EN30": {
-  "en30": {
+  "boxdc30": {
    "Gain": {
     "param": "Gain",
     "scale": 0.01
@@ -4020,7 +4020,7 @@
   }
  },
  "Amp_TW22": {
-  "tw22": {
+  "bendersupernova22": {
    "Gain": {
     "param": "Gain",
     "scale": 0.01,
@@ -4041,7 +4041,7 @@
   }
  },
  "Amp_TW26": {
-  "tw26": {
+  "benderdeluxe": {
    "Gain": {
     "param": "Gain",
     "scale": 0.01,
