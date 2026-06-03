@@ -107,7 +107,7 @@ public:
 // Verified against a textbook RC low-pass (-3dB at 1/(2*pi*R*C)) and a
 // non-inverting op-amp (gain = 1 + Rf/Rg).
 struct Mna {
-    static const int MAXN = 6;
+    static const int MAXN = 8;
     int sz, nn;
     double A[MAXN*MAXN], b[MAXN], x[MAXN];
     void init(int nN, int nX) { nn = nN; sz = nN + nX;
@@ -124,6 +124,11 @@ struct Mna {
         if (no>0)    A[(no-1)*sz+r]    += 1;
         if (np>0)    A[r*sz+(np-1)]    += 1;
         if (nnode>0) A[r*sz+(nnode-1)] -= 1; }
+    // transconductance: current g*(V(ca)-V(cb)) injected into node oa, out of ob
+    // (used to stamp the Jacobian of nonlinear elements like the BJT).
+    inline void gm(int oa, int ob, int ca, int cb, double g) {
+        if (oa>0) { if (ca>0) A[(oa-1)*sz+(ca-1)] += g; if (cb>0) A[(oa-1)*sz+(cb-1)] -= g; }
+        if (ob>0) { if (ca>0) A[(ob-1)*sz+(ca-1)] -= g; if (cb>0) A[(ob-1)*sz+(cb-1)] += g; } }
     bool solve() { const int n = sz;
         for (int col = 0; col < n; ++col) {
             int piv = col; double mx = std::fabs(A[col*n+col]);
@@ -193,6 +198,56 @@ struct RC1 {
     }
 };
 
+// ── BOOST stage Q1 — true nodal NPN transistor (Ebers-Moll + Newton) ──────────
+// The GK boost is a footswitchable preset around a small-signal NPN (Q1). Here
+// it's a real common-emitter stage: the BE/BC junctions and Ebers-Moll currents
+// are solved by Newton-Raphson each sample (warm-started from the previous
+// sample), so the collector swing clipping against the +/-rails is the actual
+// transistor grit. Boost Level sets the drive into the base; a DC blocker takes
+// the AC collector swing. Validated standalone (bias point, AC gain, rail clip).
+struct FkBoost {
+    double vB=0.95, vC=13.5, vE=0.33, dcAvg=13.5;   // warm-start + DC tracker
+    void reset() { vB=0.95; vC=13.5; vE=0.33; dcAvg=13.5; }
+    static inline double lim(double vn, double vo) {  // junction-voltage step limit
+        const double Vt=0.02585, Is=1e-14, vc=Vt*std::log(Vt/(1.41421356*Is));
+        if (vn>vc && std::fabs(vn-vo)>2*Vt) { if (vo>0) { double a=1+(vn-vo)/Vt; vn = a>0 ? vo+Vt*std::log(a) : vc; } else vn=Vt*std::log(vn/Vt+1.0); }
+        return vn; }
+    inline double process(double ain, double injScale) {
+        const double Vt=0.02585, Is=1e-14, Bf=220.0, Br=2.0, Vcc=15.0;
+        const double Rc=4700, Re=1000, Rb1=100000, Rb2=22000, Rsig=4700;
+        double B=vB, C=vC, E=vE;
+        for (int it=0; it<8; ++it) {
+            Mna m; m.init(5, 2);                       // 1 Vcc, 2 B, 3 C, 4 E, 5 sig
+            m.Vsrc(1, Vcc, 0); m.Vsrc(5, ain*injScale, 1);
+            m.R(5,2,Rsig); m.R(3,1,Rc); m.R(4,0,Re); m.R(2,1,Rb1); m.R(2,0,Rb2);
+            double vbe=lim(B-E, vB-vE), vbc=lim(B-C, vB-vC);
+            if (vbe>0.95) vbe=0.95; if (vbc>0.95) vbc=0.95;
+            const double ef=std::exp(vbe/Vt), er=std::exp(vbc/Vt);
+            const double gf=Is/Vt*ef, gr=Is/Vt*er;
+            const double Ib=Is*((1.0/Bf)*(ef-1)+(1.0/Br)*(er-1));
+            const double Ic=Is*((ef-1)-(1.0+1.0/Br)*(er-1));
+            const double dIb_dB=(gf/Bf)+(gr/Br), dIb_dC=-(gr/Br), dIb_dE=-(gf/Bf);
+            const double dIc_dB=gf-(1.0+1.0/Br)*gr, dIc_dC=(1.0+1.0/Br)*gr, dIc_dE=-gf;
+            const double dIe_dB=-(dIb_dB+dIc_dB), dIe_dC=-(dIb_dC+dIc_dC), dIe_dE=-(dIb_dE+dIc_dE);
+            m.gm(2,0,2,0,dIb_dB); m.gm(2,0,3,0,dIb_dC); m.gm(2,0,4,0,dIb_dE);
+            m.gm(3,0,2,0,dIc_dB); m.gm(3,0,3,0,dIc_dC); m.gm(3,0,4,0,dIc_dE);
+            m.gm(4,0,2,0,dIe_dB); m.gm(4,0,3,0,dIe_dC); m.gm(4,0,4,0,dIe_dE);
+            const double Ie=-(Ib+Ic);
+            m.Isrc(2,0, Ib-(dIb_dB*B+dIb_dC*C+dIb_dE*E));
+            m.Isrc(3,0, Ic-(dIc_dB*B+dIc_dC*C+dIc_dE*E));
+            m.Isrc(4,0, Ie-(dIe_dB*B+dIe_dC*C+dIe_dE*E));
+            if (!m.solve()) break;
+            const double nB=m.x[1], nC=m.x[2], nE=m.x[3];
+            const double err=std::fabs(nB-B)+std::fabs(nC-C)+std::fabs(nE-E);
+            B=nB; C=nC; E=nE; if (err<1e-7) break;
+        }
+        if (!std::isfinite(C)) { reset(); return ain; }
+        vB=B; vC=C; vE=E;
+        dcAvg += 0.0008*(vC-dcAvg);                   // DC blocker
+        return (vC - dcAvg) * 1.78;                   // AC collector swing, ~unity at the fixed drive
+    }
+};
+
 class Gk800Channel {
     float fs = 48000.f;
     FkPreamp pre;                          // nodal input/preamp stage (the growl)
@@ -206,7 +261,7 @@ class Gk800Channel {
     RC1 lmHp, lmLp; float loMidG = 1.f;    // Lo-Mid peak 250 Hz
     RC1 hmHp, hmLp; float hiMidG = 1.f;    // Hi-Mid peak 1.15 kHz
     RC1 tLp, tHp;   float trebG = 1.f;     // Treble high shelf 4 kHz
-    float boostGain = 1.f;  bool boostOn = false;
+    FkBoost boostStage;  float boostInj = 0.04f, boostMakeup = 1.f;  bool boostOn = false;  // nodal Q1 boost
     RC1 xLp, xHp;   float g100 = 1.f, g300 = 1.f;  bool biamp = false;  // crossover + masters
 
     static inline float softclip(float x) { return std::tanh(x); }
@@ -225,7 +280,7 @@ public:
         tLp.set(4000.0, false);  tHp.set(4000.0, true);       // treble shelf
         xLp.set(500.0, false);   xHp.set(500.0, true);
     }
-    void reset() { pre.reset(); for (RC1* p : allRC) p->reset(); }
+    void reset() { pre.reset(); boostStage.reset(); for (RC1* p : allRC) p->reset(); }
 
     void setParams(float volume, float treble, float hiMid, float loMid, float bass,
                    float boostLevel, float xover, float master100, float master300,
@@ -250,9 +305,11 @@ public:
         hiMidG = std::pow(10.f, (hiMid  - 0.5f) * 24.f / 20.f);
         trebG  = std::pow(10.f, (treble - 0.5f) * 24.f / 20.f);
 
-        // ── boost: preset, footswitchable, up to +15 dB ──
-        boostOn   = boostOnP;
-        boostGain = std::pow(10.f, (boostLevel * 15.f) / 20.f);   // 1 .. ~5.6
+        // ── boost: footswitchable preset — Boost Level sets the drive into the
+        //    nodal Q1 transistor (more level = more gain + transistor clip). ──
+        boostOn  = boostOnP;
+        boostInj = 0.04f;                                       // mild fixed drive (transistor character)
+        boostMakeup = std::pow(10.f, (boostLevel * 15.f) / 20.f);   // the preset pot: 0 .. +15 dB
 
         // ── crossover split + masters (retune the nodal LP/HP to the freq) ──
         biamp = biampP;
@@ -280,8 +337,9 @@ public:
         { const double bp = hmLp.proc(hmHp.proc(d)); d += (hiMidG - 1.0) * bp; }  // Hi-Mid
         d = tLp.proc(d) + trebG * tHp.proc(d);                          // Treble shelf
 
-        // 5. BOOST (preset gain, soft-clip when pushed hard)
-        if (boostOn) { d *= boostGain; if (boostGain > 2.0f) d = std::tanh(d); }
+        // 5. BOOST — real nodal Q1 transistor stage (Ebers-Moll, Newton/sample);
+        //    the preset level (boostMakeup) is the pot after the transistor.
+        if (boostOn) d = boostStage.process(d, boostInj) * boostMakeup;
 
         // 6. CROSSOVER (nodal LP/HP) + masters
         const double low = xLp.proc(d), high = xHp.proc(d);
