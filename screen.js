@@ -854,13 +854,19 @@ async function rbFetchAudioEffectsPayloadForRequest(request) {
     if (presetId != null && presetId !== '') {
         const resp = await fetch(`${RB_API}/native_preset_full/${encodeURIComponent(presetId)}`);
         if (!resp.ok) return { outcome: 'no-target', status: 'preset-unavailable', reason: `Rig Builder preset plan unavailable: HTTP ${resp.status}` };
-        return { outcome: 'handled', payload: await resp.json(), mode: 'full-chain', ref: presetId };
+        let payload;
+        try { payload = await resp.json(); }
+        catch (_) { return { outcome: 'failed', status: 'invalid-response', reason: 'Rig Builder preset plan response was not valid JSON' }; }
+        return { outcome: 'handled', payload, mode: 'full-chain', ref: presetId };
     }
     const filename = target.filename || request && request.filename || planRequest.filename || rbState.currentSongFile;
     if (filename) {
         const resp = await fetch(`${RB_API}/mega_chain/${encodeURIComponent(filename)}`);
         if (!resp.ok) return { outcome: 'no-target', status: 'song-unavailable', reason: `Rig Builder song chain unavailable: HTTP ${resp.status}` };
-        return { outcome: 'handled', payload: await resp.json(), mode: 'mega-chain', ref: 'song' };
+        let payload;
+        try { payload = await resp.json(); }
+        catch (_) { return { outcome: 'failed', status: 'invalid-response', reason: 'Rig Builder song chain response was not valid JSON' }; }
+        return { outcome: 'handled', payload, mode: 'mega-chain', ref: 'song' };
     }
     return { outcome: 'no-target', status: 'no-target', reason: 'No preset or song target is available for Rig Builder audio-effects resolution' };
 }
@@ -919,16 +925,22 @@ async function rbLoadNativePresetPayload(api, payload, options) {
 function rbAudioEffectsOperationHandlers() {
     return {
         'chain.resolve': async (request = {}) => {
-            const fetched = await rbFetchAudioEffectsPayloadForRequest(request);
-            if (!fetched || fetched.outcome !== 'handled') return fetched;
-            const resolved = rbBuildAudioEffectsRequestFromPayload(fetched.payload, { mode: fetched.mode, ref: fetched.ref });
-            return {
-                outcome: 'handled',
-                status: 'resolved',
-                plan: resolved.plan,
-                assets: resolved.assets,
-                summary: resolved.plan.summary,
-            };
+            try {
+                const fetched = await rbFetchAudioEffectsPayloadForRequest(request);
+                if (!fetched || fetched.outcome !== 'handled') return fetched;
+                const resolved = rbBuildAudioEffectsRequestFromPayload(fetched.payload, { mode: fetched.mode, ref: fetched.ref });
+                return {
+                    outcome: 'handled',
+                    status: 'resolved',
+                    plan: resolved.plan,
+                    assets: resolved.assets,
+                    summary: resolved.plan.summary,
+                };
+            } catch (e) {
+                const reason = e && e.message ? e.message : 'Rig Builder chain resolution failed';
+                rbRecordAudioEffectsBridge(reason);
+                return { outcome: 'failed', status: 'resolve-failed', reason: rbShortSafeText(reason, 'Rig Builder chain resolution failed') };
+            }
         },
         'chain.inspect': () => ({
             outcome: 'handled',
@@ -2163,10 +2175,14 @@ const RbMegaChain = (function () {
             });
             window.slopsmith.on('playback:stopped', () => {
                 _lastSeenFile = null;
+                window.__rbPlaybackSettingsKey = '';
+                window.__rbPlaybackSettingsFilename = '';
                 if (RbMegaChain.isActive()) RbMegaChain.teardown(false).catch(() => {});
             });
             window.slopsmith.on('playback:ended', () => {
                 _lastSeenFile = null;
+                window.__rbPlaybackSettingsKey = '';
+                window.__rbPlaybackSettingsFilename = '';
                 if (RbMegaChain.isActive()) RbMegaChain.teardown(false).catch(() => {});
             });
         }

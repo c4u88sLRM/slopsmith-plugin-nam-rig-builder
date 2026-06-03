@@ -60,6 +60,10 @@ def test_screen_registers_executable_audio_effects_provider():
     assert "provider_ref: rbPresetProviderRef(presetId)" in src
     assert "rbPresetIdFromProviderRef(providerRef)" in src
     assert "body.mirrored_presets" in src
+    assert "invalid-response" in src
+    assert "resolve-failed" in src
+    assert "rbRecordAudioEffectsBridge(reason)" in src
+    assert "window.__rbPlaybackSettingsKey = ''" in src
     assert "window.__rbPlaybackSettingsFilename" in src
     assert "slopsmithDesktop.audioEffects" not in src
 
