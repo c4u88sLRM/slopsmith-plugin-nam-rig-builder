@@ -2988,23 +2988,29 @@ def _nam_stage(path, *, bypassed, input_level=1.0, output_drive=None,
 _RS_IR_MAKEUP = 1.0
 
 
-# Per-cab RMS matching. A cab IR's broadband convolution gain — i.e. how much
-# output RMS it imparts (output_RMS = input_RMS × ‖IR‖₂ for broadband input) —
-# is exactly its L2 norm. After the ±1.0 clip-safe peak cap, IRs no longer all
-# share an L2 (the peakiest get pulled down ~8 dB), so different cabs/mics play
-# at different loudness. We compute each RS cab IR's L2 and surface a makeup
-# factor (target_L2 / L2) on the stage dict; the engine ignores per-IR gain, so
-# screen.js (rbChainGainTargetFor) folds it into the chain gain. Result: every
-# cab imparts the same output RMS — the same loudness-match the NAM loudness
-# normalizer (`_nam_normalized_output_level`) gives amps/pedals.
-_IR_REF_L2 = 2.4          # common broadband gain (matches tone3000 cab IRs)
-_IR_MAKEUP_MAX = 2.818    # +9 dB cap — covers the ~8 dB L2 spread with headroom
-_ir_l2_cache: dict[tuple, float | None] = {}
-_ir_l2_lock = threading.Lock()
+# Per-cab loudness matching. We want every cab/mic to play at the same
+# *perceived* level. The v2.1.0 take used flat L2 (broadband RMS gain), but a
+# guitar's energy sits in the lows/low-mids, so flat L2 over-counts treble the
+# guitar barely excites — two IRs with equal L2 can sound 2-3 dB apart, and
+# bright/thin mics (Edge/Off-axis) end up much quieter. Measured cab-to-cab
+# spread with flat-L2 makeup: ~8 dB. So we weight the IR with a pink (-3 dB/oct)
+# tilt — a pink-noise probe ≈ a musical/guitar spectrum — which tracks perceived
+# loudness and cuts the residual spread to ~2 dB. The factor (ref / loudness) is
+# surfaced on the IR stage dict; the engine ignores per-IR gain, so screen.js
+# (rbChainGainTargetFor) folds it into the chain gain. Composes with the amp/
+# pedal NAM loudness normalization — those standardise each stage's output, so
+# the cab makeup equalises the cab's contribution given a standard input.
+_IR_REF_LOUDNESS = 5.2    # median pink-weighted loudness of the base-game cabs
+_IR_MAKEUP_MIN = 0.45     # -6.9 dB — cut the loudest cabs down toward the median
+_IR_MAKEUP_MAX = 2.8      # +8.9 dB — lift the quietest cabs up
+_ir_loud_cache: dict[tuple, float | None] = {}
+_ir_loud_lock = threading.Lock()
 
 
-def _read_ir_l2(path: Path) -> float | None:
-    """L2 norm (sqrt of total energy) of a mono float32 cab IR. Returns None
+def _read_ir_loudness(path: Path) -> float | None:
+    """Guitar-weighted loudness of a mono float32 cab IR: the L2 of the IR after
+    a pink (-3 dB/oct) tilt (Paul Kellet's economy pink filter). Pure Python (a
+    3-pole IIR) so it runs in the engine's numpy-less interpreter. Returns None
     when the file is unreadable or not the mono-float32 shape we ship."""
     try:
         blob = path.read_bytes()
@@ -3029,37 +3035,46 @@ def _read_ir_l2(path: Path) -> float | None:
     n = data_size // 4
     if n == 0:
         return None
-    total = sum(v * v for v in struct.unpack(
-        "<%df" % n, blob[data_off:data_off + data_size]))
+    b0 = b1 = b2 = 0.0
+    total = 0.0
+    for x in struct.unpack("<%df" % n, blob[data_off:data_off + data_size]):
+        b0 = 0.99765 * b0 + x * 0.0990460
+        b1 = 0.96300 * b1 + x * 0.2965164
+        b2 = 0.57000 * b2 + x * 1.0526913
+        p = b0 + b1 + b2 + x * 0.1848
+        total += p * p
     return total ** 0.5
 
 
-def _ir_l2_for_path(path: Path) -> float | None:
-    """Cached `_read_ir_l2`. Keyed by (path, mtime, size) so the value is
+def _ir_loudness_for_path(path: Path) -> float | None:
+    """Cached `_read_ir_loudness`. Keyed by (path, mtime, size) so the value is
     recomputed if the IR is rewritten (e.g. the normalize endpoint)."""
     try:
         st = path.stat()
         key = (str(path), st.st_mtime_ns, st.st_size)
     except OSError:
         return None
-    with _ir_l2_lock:
-        if key in _ir_l2_cache:
-            return _ir_l2_cache[key]
-    val = _read_ir_l2(path)
-    with _ir_l2_lock:
-        _ir_l2_cache[key] = val
+    with _ir_loud_lock:
+        if key in _ir_loud_cache:
+            return _ir_loud_cache[key]
+    val = _read_ir_loudness(path)
+    with _ir_loud_lock:
+        _ir_loud_cache[key] = val
     return val
 
 
 def _ir_rms_makeup(path: Path) -> float:
-    """Linear makeup that brings this cab IR's broadband gain to `_IR_REF_L2`
-    so every cab imparts the same output RMS. Clamped to [1.0, _IR_MAKEUP_MAX]
-    — we only ever lift quiet IRs toward the common target, never cut (the
-    target equals the loudest IRs' L2). Falls back to 1.0 when L2 is unknown."""
-    l2 = _ir_l2_for_path(path)
-    if not l2 or l2 <= 0.0:
+    """Linear makeup bringing this cab IR's guitar-weighted loudness to the
+    common reference so every cab/mic plays at the same perceived level. Now
+    allowed to CUT loud cabs as well as lift quiet ones (clamp ≈ -7..+9 dB).
+    Only the RELATIVE ratio between cabs matters (so it is invariant to the IRs'
+    overall amplitude / normalization state); the hardcoded reference just sets
+    the overall level, which the chain offset + user trim absorb. Falls back to
+    1.0 when the loudness is unknown."""
+    loud = _ir_loudness_for_path(path)
+    if not loud or loud <= 0.0:
         return 1.0
-    return max(1.0, min(_IR_MAKEUP_MAX, _IR_REF_L2 / l2))
+    return max(_IR_MAKEUP_MIN, min(_IR_MAKEUP_MAX, _IR_REF_LOUDNESS / loud))
 
 
 def _ir_stage(ir_path, *, bypassed, gain=1.0,
