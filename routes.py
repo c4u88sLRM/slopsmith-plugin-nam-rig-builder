@@ -465,6 +465,33 @@ def _get_conn() -> sqlite3.Connection:
                     "WHERE vst_path LIKE ?", (f"/{old}", f"/{new}", f"%/{old}"))
         except Exception:
             log.exception("renamed-VST path migration failed")
+        # vst/ folder reorg: bundles moved from a flat vst/<name>.vst3 into
+        # category subdirs (vst/amps|pedals|racks/<name>.vst3). Rewrite stored
+        # absolute paths so existing per-song assignments survive the move.
+        # Driven by the seed catalog's now-subdir'd `bundled` paths and
+        # idempotent (the flat "/vst/<name>" segment no longer matches once a
+        # path has been moved under a subdir).
+        try:
+            seed = _load_vst_seed_catalog() or {}
+            seen = set()
+            for arr in seed.values():
+                if not isinstance(arr, list):
+                    continue
+                for e in arr:
+                    b = (isinstance(e, dict) and e.get("bundled")) or ""
+                    parts = b.split("/")
+                    if (len(parts) == 3 and parts[0] == "vst"
+                            and parts[2].endswith((".vst3", ".component"))):
+                        fn = parts[2]
+                        if fn in seen:
+                            continue
+                        seen.add(fn)
+                        _conn.execute(
+                            "UPDATE preset_pieces SET vst_path = REPLACE(vst_path, ?, ?) "
+                            "WHERE vst_path LIKE ?",
+                            (f"/vst/{fn}", f"/{b}", f"%/vst/{fn}"))
+        except Exception:
+            log.exception("vst subdir path migration failed")
         _conn.commit()
         # v1.2 storage migration. Idempotent — guarded by sentinel file
         # so re-running on subsequent restarts is a no-op. Done here
@@ -1311,9 +1338,20 @@ def _bundled_vst_plugins() -> list[dict]:
     root = _plugin_dir / "vst"
     if not root.exists():
         return []
+    # The bundles are filed under category subdirs (vst/amps, vst/pedals,
+    # vst/racks); search the root and those one-level subdirs but NOT the C++
+    # `src/` tree and NOT inside the .vst3 bundles themselves (which embed
+    # per-platform binaries like Contents/x86_64-win/<name>.vst3).
+    search_dirs = [root]
+    for d in sorted(root.iterdir()):
+        if d.is_dir() and d.name != "src" and not d.name.endswith((".vst3", ".component")):
+            search_dirs.append(d)
     out = []
     for suffix, fmt in ((".vst3", "VST3"), (".component", "AudioUnit")):
-        for entry in sorted(root.glob(f"*{suffix}")):
+        entries = []
+        for base in search_dirs:
+            entries.extend(base.glob(f"*{suffix}"))
+        for entry in sorted(entries):
             if not entry.exists():
                 continue
             name = entry.name[:-len(suffix)]
