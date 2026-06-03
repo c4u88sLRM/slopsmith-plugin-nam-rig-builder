@@ -127,7 +127,9 @@ struct Tube {
         if (!std::isfinite(P)) { reset(); return 0.0; }
         vG=G; vP=P; vK=K;
         dcAvg += 0.0008*(P-dcAvg);
-        return (P - dcAvg) * (1.0/40.0);                    // DC-blocked, ~unity small-signal
+        // common-cathode plate is INVERTING; negate so the tube path is in phase
+        // with the solid-state path (otherwise they cancel when blended ~equally).
+        return -(P - dcAvg) * (1.0/40.0);                   // DC-blocked, ~unity small-signal
     }
 };
 
@@ -222,7 +224,7 @@ public:
 
     inline float process(float x) {
         // 1-2-3. dual preamp blend — real 12AX7 (nodal triode) + solid-state (nodal op-amp)
-        double s = (tube.process((double)(tubeDrive * x)) + ss.process((double)(ssDrive * x))) * 4.5;
+        double s = (tube.process((double)(tubeDrive * x)) + ss.process((double)(ssDrive * x))) * 0.55;
 
         // 4. COMPRESSOR — envelope detector drives a JFET VCR (Rds) in a divider:
         //    bigger envelope -> FET conducts -> Rds drops -> more attenuation.
