@@ -348,6 +348,61 @@
   const P = {};
   function defKnobs(arr){ return arr; }
 
+  // ── Freddy Krueger 800BR — Gallien-Krueger 800RB bass head (parody) ─────────
+  // Wide 1U rack face: one row of knurled knobs + the voicing/boost/biamp square
+  // switches, white section legends, and FK / FREDDY-KRUEGER / 800BR branding.
+  // Logical param ids (Buffer Size/Sample Rate already filtered out):
+  //  0 Volume 1 Treble 2 Hi-Mid 3 Lo-Mid 4 Bass 5 Boost(level) 6 Crossover
+  //  7 100W 8 300W | 9 -10dB 10 LoCut 11 Mid Contour 12 Hi Boost 13 Boost-on 14 Bi-Amp
+  P.freddykrueger800br = { w:960, h:300,
+    knobs:[
+      {id:0,cx:.135,cy:.50,r:.028,style:'knurled'},
+      {id:1,cx:.345,cy:.50,r:.028,style:'knurled'},
+      {id:2,cx:.415,cy:.50,r:.028,style:'knurled'},
+      {id:3,cx:.485,cy:.50,r:.028,style:'knurled'},
+      {id:4,cx:.555,cy:.50,r:.028,style:'knurled'},
+      {id:5,cx:.635,cy:.50,r:.028,style:'knurled'},
+      {id:6,cx:.730,cy:.50,r:.028,style:'knurled'},
+      {id:7,cx:.835,cy:.50,r:.028,style:'knurled'},
+      {id:8,cx:.910,cy:.50,r:.028,style:'knurled'}],
+    switches:[
+      {id:9, cx:.050,cy:.50,hs:.014},
+      {id:10,cx:.198,cy:.50,hs:.013},
+      {id:11,cx:.240,cy:.50,hs:.013},
+      {id:12,cx:.282,cy:.50,hs:.013},
+      {id:13,cx:.688,cy:.50,hs:.014},
+      {id:14,cx:.785,cy:.50,hs:.014}],
+    tick:rgb(150,152,158), ptr:rgb(238,240,244),
+    draw(d, vals){ vals = vals || {}; const {ctx:c,W,H}=d; const w=rgb(224,226,230), dim=rgb(140,142,148);
+      box(d, 36,38,42, true);
+      const leg=(cx,t)=>textC(d, cx*W, .155*H, F.barlow, 10, w, t);
+      leg(.050,'INPUT'); leg(.135,'VOLUME'); leg(.240,'VOICING FILTERS');
+      leg(.470,'ACTIVE EQUALIZATION'); leg(.660,'BOOST'); leg(.730,'CROSSOVER'); leg(.873,'MASTER VOLUMES');
+      const kl=(cx,t,sub)=>{ textC(d, cx*W, .67*H, F.barlow, 9.5, w, t); if(sub) textC(d, cx*W, .755*H, F.barlow, 7, dim, sub); };
+      kl(.135,'VOLUME'); kl(.345,'TREBLE','4kHz'); kl(.415,'HI-MID','1kHz'); kl(.485,'LO-MID','250Hz');
+      kl(.555,'BASS','60Hz'); kl(.635,'LEVEL'); kl(.730,'FREQ','100Hz-1k'); kl(.835,'100W AMP'); kl(.910,'300W AMP');
+      const sl=(cx,t)=>textC(d, cx*W, .685*H, F.barlow, 6.8, w, t);
+      sl(.050,'-10dB'); sl(.198,'LO CUT'); sl(.240,'CONTOUR'); sl(.282,'HI BOOST'); sl(.688,'BOOST'); sl(.785,'BIAMP');
+      const jack=(cx,cy)=>{ c.beginPath(); c.arc(cx*W,cy*H,9,0,7); c.fillStyle=rgb(18,18,20); c.fill();
+        c.strokeStyle=rgb(120,122,126); c.lineWidth=1.6; c.stroke();
+        c.beginPath(); c.arc(cx*W,cy*H,4,0,7); c.fillStyle=rgb(40,40,44); c.fill(); };
+      jack(.028,.40); jack(.655,.40); textC(d,.655*W,.285*H,F.barlow,6.5,dim,'FOOTSW');
+      ledDot(d,.688*W,.34*H,(vals[13]>.5),70,235,90);
+      ledDot(d,.785*W,.34*H,(vals[14]>.5),70,235,90);
+      // red power rocker, far right
+      const px=.965*W, py=.50*H;
+      rr(c,px-13,py-26,26,52,3); c.fillStyle=rgb(16,16,18); c.fill();
+      rr(c,px-13,py-26,26,52,3); c.strokeStyle=rgb(80,82,86); c.lineWidth=1.2; c.stroke();
+      rr(c,px-9,py-24,18,22,2); c.fillStyle=rgb(176,32,30); c.fill();
+      textC(d,px,.80*H,F.barlow,6.5,dim,'POWER');
+      // branding row (bottom)
+      const by=.905*H;
+      rr(c,.022*W,by-13,30,22,3); c.strokeStyle=w; c.lineWidth=2; c.stroke();
+      textC(d,.022*W+15,by,F.bebas,15,w,'FK');
+      textC(d,.062*W,by,F.bebas,19,w,'FREDDY-KRUEGER','left');
+      textC(d,.945*W,by,F.bebas,15,w,'800BR','right');
+      textC(d,.945*W,by-13,F.barlow,6,dim,'400W BIAMP BASS SYSTEM','right'); } };
+
   P.mouse = { w:320,h:500, knobs:[
       {id:0,cx:.215,cy:.305,r:.105,style:'pointer',cap:[26,26,28]},
       {id:1,cx:.500,cy:.305,r:.105,style:'pointer',cap:[26,26,28]},
