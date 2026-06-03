@@ -423,14 +423,14 @@
       // BOOST  (LEVEL knob + footswitch button + on-LED)
       bracket(.660,.044,'BOOST'); klabel(.640,'LEVEL');
       textC(d,.700*W,.555*H,F.barlow,6.0,ink,'FOOTSWITCH'); ledDot(d,.700*W,.27*H,(vals[13]>.5),70,210,80);
-      divider(.745);
+      divider(.722);
       // CROSSOVER
       bracket(.778,.052,'CROSSOVER'); klabel(.760,'FREQUENCY'); scale(.760,'100Hz   1.0K');
       textC(d,.812*W,.50*H,F.barlow,6.0,ink,'FULL'); textC(d,.812*W,.565*H,F.barlow,6.0,ink,'BIAMP');
-      divider(.838);
+      divider(.832);
       // MASTER VOLUMES
       bracket(.890,.052,'MASTER VOLUMES'); klabel(.862,'100W AMP'); klabel(.918,'300W AMP');
-      ledDot(d,.945*W,.40*H,true,70,210,80);
+      ledDot(d,.936*W,.555*H,true,70,210,80);   // status LED, clear below/right of the 300W knob
       // black power rocker on the chassis, right of the plate
       const px=.968*W, py=.40*H;
       rr(c,px-11,py-23,22,46,3); c.fillStyle=rgb(16,16,18); c.fill();
