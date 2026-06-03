@@ -446,6 +446,58 @@
       textC(d,.945*W,by-1,F.bebas,15,wht,'800BR','right');
       textC(d,.945*W,by-14,F.barlow,6.0,rgb(150,152,156),'320 + 100W BIAMP BASS SYSTEM','right'); } };
 
+  // ── Sampleg SBT-CL — faithful Ampeg SVT-CL all-tube head panel (parody) ─────
+  // Black tube-head face: input jacks + -15 dB pad, Gain, the Ultra Lo/Hi push
+  // switches, the Bass/Midrange/Frequency/Treble/Master row, a chrome SAMPLEG ·
+  // SBT-CL nameplate and standby/power rockers.
+  // Logical ids: 0 Gain 1 Bass 2 Midrange 3 Frequency(5-pos) 4 Treble 5 Master |
+  //   6 -15dB 7 Ultra Lo 8 Ultra Hi
+  P.samplegsbtcl = { w:840, h:256,
+    knobs:[
+      {id:0,cx:.175,cy:.44,r:.021,style:'pointer',cap:[24,24,26]},
+      {id:1,cx:.380,cy:.44,r:.021,style:'pointer',cap:[24,24,26]},
+      {id:2,cx:.460,cy:.44,r:.021,style:'pointer',cap:[24,24,26]},
+      {id:3,cx:.540,cy:.44,r:.021,style:'pointer',cap:[24,24,26],select:5},
+      {id:4,cx:.620,cy:.44,r:.021,style:'pointer',cap:[24,24,26]},
+      {id:5,cx:.700,cy:.44,r:.021,style:'pointer',cap:[24,24,26]}],
+    switches:[
+      {id:6,cx:.118,cy:.44,hs:.011,dark:true},
+      {id:7,cx:.268,cy:.44,hs:.011,dark:true},
+      {id:8,cx:.310,cy:.44,hs:.011,dark:true}],
+    tick:rgb(150,152,158), ptr:rgb(244,245,248),
+    draw(d, vals){ vals=vals||{}; const {ctx:c,W,H}=d;
+      const wht=rgb(224,226,230), dim=rgb(150,152,158);
+      box(d, 30,31,35, true);
+      // control band behind the row (a touch lighter so the black knobs read)
+      const BY=.27*H, BH=.36*H, bg=c.createLinearGradient(0,BY,0,BY+BH);
+      bg.addColorStop(0,rgb(48,49,53)); bg.addColorStop(1,rgb(28,29,32));
+      rr(c,.03*W,BY,.74*W,BH,5); c.fillStyle=bg; c.fill();
+      rr(c,.03*W,BY,.74*W,BH,5); c.strokeStyle=rgb(62,64,68); c.lineWidth=1; c.stroke();
+      const lab=(cx,y,sz,t,col)=>textC(d,cx*W,y*H,F.barlow,sz,col||wht,t);
+      // input jacks
+      const jack=(cx)=>{ c.beginPath(); c.arc(cx*W,.44*H,8,0,7); c.fillStyle=rgb(14,14,16); c.fill();
+        c.strokeStyle=rgb(120,122,126); c.lineWidth=1.5; c.stroke(); c.beginPath(); c.arc(cx*W,.44*H,3.4,0,7); c.fillStyle=rgb(34,34,38); c.fill(); };
+      jack(.050); jack(.085); lab(.0675,.70,7,'INPUTS'); lab(.050,.305,6.3,'0',dim); lab(.085,.305,6.3,'-15',dim);
+      // knob labels + the frequency selector legend
+      [[.175,'GAIN'],[.380,'BASS'],[.460,'MIDRANGE'],[.540,'FREQUENCY'],[.620,'TREBLE'],[.700,'MASTER']].forEach(k=>lab(k[0],.665,8,k[1]));
+      lab(.540,.745,6.3,'220·450·800·1.6k·3k',dim);
+      // switch labels
+      lab(.118,.665,6.6,'-15dB');
+      textC(d,.268*W,.625*H,F.barlow,6.0,wht,'ULTRA'); textC(d,.268*W,.69*H,F.barlow,6.0,wht,'LO');
+      textC(d,.310*W,.625*H,F.barlow,6.0,wht,'ULTRA'); textC(d,.310*W,.69*H,F.barlow,6.0,wht,'HI');
+      // chrome nameplate
+      const nx=.775*W, ny=.28*H, nw=.130*W, nh=.32*H, cg=c.createLinearGradient(0,ny,0,ny+nh);
+      cg.addColorStop(0,rgb(218,220,224)); cg.addColorStop(.5,rgb(176,178,184)); cg.addColorStop(1,rgb(148,150,156));
+      rr(c,nx,ny,nw,nh,5); c.fillStyle=cg; c.fill(); rr(c,nx,ny,nw,nh,5); c.strokeStyle=rgb(92,94,98); c.lineWidth=1.4; c.stroke();
+      textC(d,nx+nw*0.5,ny+nh*0.37,F.bebas,15,rgb(26,26,28),'SAMPLEG'); textC(d,nx+nw*0.5,ny+nh*0.73,F.barlow,9,rgb(40,40,44),'SBT-CL');
+      // standby + power rockers (power lit red)
+      const rock=(cx,red,lbl)=>{ const x=cx*W,y=.44*H; rr(c,x-9,y-17,18,34,3); c.fillStyle=rgb(16,16,18); c.fill();
+        rr(c,x-9,y-17,18,34,3); c.strokeStyle=rgb(80,82,86); c.lineWidth=1.2; c.stroke();
+        rr(c,x-6,y-15,12,15,2); c.fillStyle=red?rgb(176,32,30):rgb(58,60,64); c.fill(); textC(d,x,.72*H,F.barlow,6,dim,lbl); };
+      rock(.928,false,'STANDBY'); rock(.967,true,'POWER');
+      // brand wordmark
+      textC(d,.030*W,.90*H,F.bebas,21,rgb(232,234,238),'Sampleg','left'); } };
+
   P.mouse = { w:320,h:500, knobs:[
       {id:0,cx:.215,cy:.305,r:.105,style:'pointer',cap:[26,26,28]},
       {id:1,cx:.500,cy:.305,r:.105,style:'pointer',cap:[26,26,28]},

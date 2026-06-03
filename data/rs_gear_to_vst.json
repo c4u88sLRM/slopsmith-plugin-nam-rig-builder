@@ -2064,5 +2064,16 @@
    "bundled": "vst/amps/FreddyKrueger800BR.vst3",
    "notes": "Bundled Gallien-Krueger 800RB style bass head (Rocksmith 'BT880B' = GK RB800) modeled from the 800RB service manual, using Rocksmith's Gain, Bass, Mid, and Treble knobs."
   }
+ ],
+ "Bass_Amp_BT975B": [
+  {
+   "name": "SamplegSBTCL",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "url": "",
+   "free": true,
+   "bundled": "vst/amps/SamplegSBTCL.vst3",
+   "notes": "Bundled Ampeg SVT-CL style all-tube bass head (Rocksmith 'BT975B'); preamp modeled from the documented SVT-CL circuit, using Rocksmith's Gain, Bass, Mid, and Treble knobs."
+  }
  ]
 }
