@@ -1032,6 +1032,28 @@ def _nam_normalized_output_level(path: Path,
     return raw / effective_input
 
 
+def _nam_loudness_deficit_db(path: Path) -> float:
+    """How many dB BELOW the loudness target a NAM ends up because the makeup
+    BOOST cap clipped it — mostly high-gain captures (sitting at -25..-30 LUFS)
+    that can't reach the -6 LUFS target within `nam_normalize_max_boost_db`.
+    The per-stage outputLevel can't exceed that cap, so those tones play
+    quieter than clean ones no matter the cab. rbChainGainTargetFor adds this
+    back at the chain level (the only gain the engine honours) so the WHOLE
+    tone lands at a consistent loudness, closing the gap the per-cab makeup
+    can't (it's an amp issue, not a cab one). Returns 0 when the NAM isn't
+    cap-limited, normalization is off, or the loudness is unknown; capped at
+    +9 dB for safety."""
+    settings = _load_settings()
+    if not settings.get("normalize_nam_loudness", True):
+        return 0.0
+    loudness = _nam_loudness_for_path(path)
+    if loudness is None:
+        return 0.0
+    target = float(settings.get("nam_loudness_target_lufs", -6.0))
+    max_boost = float(settings.get("nam_normalize_max_boost_db", 20.0))
+    return max(0.0, min(9.0, (target - loudness) - max_boost))
+
+
 def _amp_input_drive_for(rs_gear: str | None, slot: str | None) -> float:
     """Return the inputLevel multiplier to feed a NAM stage.
 
@@ -2975,6 +2997,16 @@ def _nam_stage(path, *, bypassed, input_level=1.0, output_drive=None,
             stage["rs_gain"] = float(rs_gain)
         except (TypeError, ValueError):
             pass
+    # Whole-chain loudness: surface how far the AMP fell short of the loudness
+    # target because its makeup hit the boost cap (high-gain captures). The
+    # engine ignores per-stage gain, so screen.js (rbChainGainTargetFor) adds
+    # this back at the chain level. Amp only — it's the loudness driver, and
+    # this is orthogonal to rbPostAmpMakeupForChain (which handles clean amps
+    # via drive). Engine ignores unknown stage keys (like slot/rs_gear).
+    if slot == "amp":
+        deficit = _nam_loudness_deficit_db(Path(path))
+        if deficit > 0.01:
+            stage["amp_loudness_deficit"] = round(deficit, 2)
     stage["state"] = _state_b64({"modelPath": str(path),
                                  "inputLevel": input_level,
                                  "outputLevel": out_level})
