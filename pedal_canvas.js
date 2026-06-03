@@ -68,8 +68,18 @@
     c.beginPath(); c.arc(cx,cy,R*0.78,0,7); c.fillStyle=rgb(150,153,159); c.fill();
     c.beginPath(); c.arc(cx-R*0.25,cy-R*0.3,R*0.34,0,7); c.fillStyle=rgb(255,255,255,0.27); c.fill(); }
 
-  // square red toggle switch (Eden Bass Boost / Mid Shift, Wah Auto, …)
-  function switchSquare(d, cx, cy, hs, on) { const c = d.ctx;
+  // square toggle switch. Default = red (Eden Bass Boost / Mid Shift, Wah Auto…).
+  // dark=true = the black push-button look of the GK 800RB voicing/pad switches:
+  // black cap with a grey rocker nub that rides up when engaged + a green pip.
+  function switchSquare(d, cx, cy, hs, on, dark) { const c = d.ctx;
+    if (dark) {
+      rr(c, cx-hs, cy-hs, hs*2, hs*2, 3); c.fillStyle = on ? rgb(54,58,54) : rgb(26,26,28); c.fill();
+      rr(c, cx-hs, cy-hs, hs*2, hs*2, 3); c.strokeStyle = rgb(96,98,102); c.lineWidth = 1.2; c.stroke();
+      const ny = on ? cy - hs*0.34 : cy + hs*0.30;
+      rr(c, cx-hs*0.58, ny-hs*0.34, hs*1.16, hs*0.68, 2); c.fillStyle = rgb(150,152,156); c.fill();
+      if (on) { c.beginPath(); c.arc(cx, cy+hs*0.55, hs*0.18, 0, 7); c.fillStyle = rgb(70,210,80); c.fill(); }
+      return;
+    }
     rr(c, cx-hs, cy-hs, hs*2, hs*2, 3); c.fillStyle = on ? rgb(208,40,36) : rgb(78,22,20); c.fill();
     rr(c, cx-hs, cy-hs, hs*2, hs*2, 3); c.strokeStyle = rgb(20,12,10); c.lineWidth = 1.5; c.stroke();
     if (on) { c.beginPath(); c.arc(cx, cy, hs*0.34, 0, 7); c.fillStyle = rgb(255,180,170); c.fill(); } }
@@ -348,60 +358,93 @@
   const P = {};
   function defKnobs(arr){ return arr; }
 
-  // ── Freddy Krueger 800BR — Gallien-Krueger 800RB bass head (parody) ─────────
-  // Wide 1U rack face: one row of knurled knobs + the voicing/boost/biamp square
-  // switches, white section legends, and FK / FREDDY-KRUEGER / 800BR branding.
+  // ── Freddy Krueger 800BR — faithful Gallien-Krueger 800RB front panel ───────
+  // Wide rack face traced from the real amp: a grey brushed control PLATE inset
+  // into the black chassis, section brackets + vertical dividers, black knurled
+  // knobs with 0–10 tick fans + a frequency scale under each EQ knob, the black
+  // square voicing/pad/boost/biamp switches, FK / FREDDY-KRUEGER wordmark with
+  // the trailing rule + 800BR on the black chassis below the plate.
   // Logical param ids (Buffer Size/Sample Rate already filtered out):
   //  0 Volume 1 Treble 2 Hi-Mid 3 Lo-Mid 4 Bass 5 Boost(level) 6 Crossover
-  //  7 100W 8 300W | 9 -10dB 10 LoCut 11 Mid Contour 12 Hi Boost 13 Boost-on 14 Bi-Amp
-  P.freddykrueger800br = { w:960, h:300,
+  //  7 100W 8 300W | 9 -10dB 10 LoCut 11 Contour 12 Hi Boost 13 Boost(footsw) 14 Bi-Amp
+  P.freddykrueger800br = { w:840, h:256,
     knobs:[
-      {id:0,cx:.135,cy:.50,r:.028,style:'knurled'},
-      {id:1,cx:.345,cy:.50,r:.028,style:'knurled'},
-      {id:2,cx:.415,cy:.50,r:.028,style:'knurled'},
-      {id:3,cx:.485,cy:.50,r:.028,style:'knurled'},
-      {id:4,cx:.555,cy:.50,r:.028,style:'knurled'},
-      {id:5,cx:.635,cy:.50,r:.028,style:'knurled'},
-      {id:6,cx:.730,cy:.50,r:.028,style:'knurled'},
-      {id:7,cx:.835,cy:.50,r:.028,style:'knurled'},
-      {id:8,cx:.910,cy:.50,r:.028,style:'knurled'}],
+      {id:0,cx:.175,cy:.40,r:.021,style:'pointer',cap:[26,26,28]},
+      {id:1,cx:.385,cy:.40,r:.021,style:'pointer',cap:[26,26,28]},
+      {id:2,cx:.445,cy:.40,r:.021,style:'pointer',cap:[26,26,28]},
+      {id:3,cx:.505,cy:.40,r:.021,style:'pointer',cap:[26,26,28]},
+      {id:4,cx:.565,cy:.40,r:.021,style:'pointer',cap:[26,26,28]},
+      {id:5,cx:.640,cy:.40,r:.021,style:'pointer',cap:[26,26,28]},
+      {id:6,cx:.760,cy:.40,r:.021,style:'pointer',cap:[26,26,28]},
+      {id:7,cx:.862,cy:.40,r:.021,style:'pointer',cap:[26,26,28]},
+      {id:8,cx:.918,cy:.40,r:.021,style:'pointer',cap:[26,26,28]}],
     switches:[
-      {id:9, cx:.050,cy:.50,hs:.014},
-      {id:10,cx:.198,cy:.50,hs:.013},
-      {id:11,cx:.240,cy:.50,hs:.013},
-      {id:12,cx:.282,cy:.50,hs:.013},
-      {id:13,cx:.688,cy:.50,hs:.014},
-      {id:14,cx:.785,cy:.50,hs:.014}],
-    tick:rgb(150,152,158), ptr:rgb(238,240,244),
-    draw(d, vals){ vals = vals || {}; const {ctx:c,W,H}=d; const w=rgb(224,226,230), dim=rgb(140,142,148);
-      box(d, 36,38,42, true);
-      const leg=(cx,t)=>textC(d, cx*W, .155*H, F.barlow, 10, w, t);
-      leg(.050,'INPUT'); leg(.135,'VOLUME'); leg(.240,'VOICING FILTERS');
-      leg(.470,'ACTIVE EQUALIZATION'); leg(.660,'BOOST'); leg(.730,'CROSSOVER'); leg(.873,'MASTER VOLUMES');
-      const kl=(cx,t,sub)=>{ textC(d, cx*W, .67*H, F.barlow, 9.5, w, t); if(sub) textC(d, cx*W, .755*H, F.barlow, 7, dim, sub); };
-      kl(.135,'VOLUME'); kl(.345,'TREBLE','4kHz'); kl(.415,'HI-MID','1kHz'); kl(.485,'LO-MID','250Hz');
-      kl(.555,'BASS','60Hz'); kl(.635,'LEVEL'); kl(.730,'FREQ','100Hz-1k'); kl(.835,'100W AMP'); kl(.910,'300W AMP');
-      const sl=(cx,t)=>textC(d, cx*W, .685*H, F.barlow, 6.8, w, t);
-      sl(.050,'-10dB'); sl(.198,'LO CUT'); sl(.240,'CONTOUR'); sl(.282,'HI BOOST'); sl(.688,'BOOST'); sl(.785,'BIAMP');
-      const jack=(cx,cy)=>{ c.beginPath(); c.arc(cx*W,cy*H,9,0,7); c.fillStyle=rgb(18,18,20); c.fill();
-        c.strokeStyle=rgb(120,122,126); c.lineWidth=1.6; c.stroke();
-        c.beginPath(); c.arc(cx*W,cy*H,4,0,7); c.fillStyle=rgb(40,40,44); c.fill(); };
-      jack(.028,.40); jack(.655,.40); textC(d,.655*W,.285*H,F.barlow,6.5,dim,'FOOTSW');
-      ledDot(d,.688*W,.34*H,(vals[13]>.5),70,235,90);
-      ledDot(d,.785*W,.34*H,(vals[14]>.5),70,235,90);
-      // red power rocker, far right
-      const px=.965*W, py=.50*H;
-      rr(c,px-13,py-26,26,52,3); c.fillStyle=rgb(16,16,18); c.fill();
-      rr(c,px-13,py-26,26,52,3); c.strokeStyle=rgb(80,82,86); c.lineWidth=1.2; c.stroke();
-      rr(c,px-9,py-24,18,22,2); c.fillStyle=rgb(176,32,30); c.fill();
-      textC(d,px,.80*H,F.barlow,6.5,dim,'POWER');
-      // branding row (bottom)
-      const by=.905*H;
-      rr(c,.022*W,by-13,30,22,3); c.strokeStyle=w; c.lineWidth=2; c.stroke();
-      textC(d,.022*W+15,by,F.bebas,15,w,'FK');
-      textC(d,.062*W,by,F.bebas,19,w,'FREDDY-KRUEGER','left');
-      textC(d,.945*W,by,F.bebas,15,w,'800BR','right');
-      textC(d,.945*W,by-13,F.barlow,6,dim,'400W BIAMP BASS SYSTEM','right'); } };
+      {id:9, cx:.108,cy:.40,hs:.0105,dark:true},
+      {id:10,cx:.230,cy:.40,hs:.0110,dark:true},
+      {id:11,cx:.262,cy:.40,hs:.0110,dark:true},
+      {id:12,cx:.294,cy:.40,hs:.0110,dark:true},
+      {id:13,cx:.700,cy:.40,hs:.0120,dark:true},
+      {id:14,cx:.812,cy:.40,hs:.0110,dark:true}],
+    tick:rgb(74,76,80), ptr:rgb(242,243,246),
+    draw(d, vals){ vals = vals || {}; const {ctx:c,W,H}=d;
+      const ink=rgb(22,22,24), dim=rgb(46,47,50), wht=rgb(236,238,242), plate=rgb(150,152,156);
+      box(d, 30,31,34, true);
+      c.strokeStyle=rgb(64,66,70); c.lineWidth=1.2; c.beginPath(); c.moveTo(.02*W,.10*H); c.lineTo(.98*W,.10*H); c.stroke();
+      // grey control plate
+      const PL=.029*W, PT=.175*H, PW=.918*W, PH=.436*H;
+      const pg=c.createLinearGradient(0,PT,0,PT+PH); pg.addColorStop(0,rgb(162,164,168)); pg.addColorStop(1,rgb(138,140,144));
+      rr(c,PL,PT,PW,PH,7); c.fillStyle=pg; c.fill();
+      rr(c,PL,PT,PW,PH,7); c.strokeStyle=rgb(40,41,44); c.lineWidth=1.5; c.stroke();
+      // ── section helpers ──
+      const bracket=(cx,half,label)=>{ const y=.225*H; c.strokeStyle=dim; c.lineWidth=1.1;
+        c.beginPath(); c.moveTo((cx-half)*W,y); c.lineTo((cx+half)*W,y);
+        c.moveTo((cx-half)*W,y); c.lineTo((cx-half)*W,y+5); c.moveTo((cx+half)*W,y); c.lineTo((cx+half)*W,y+5); c.stroke();
+        setFont(d,F.barlow,9); const tw=c.measureText(label).width;
+        c.fillStyle=plate; c.fillRect(cx*W-tw/2-4,y-7,tw+8,13); textC(d,cx*W,y,F.barlow,9,ink,label); };
+      const divider=(x)=>{ c.strokeStyle=rgb(118,120,124); c.lineWidth=1; c.beginPath(); c.moveTo(x*W,PT+8); c.lineTo(x*W,PT+PH-8); c.stroke(); };
+      const klabel=(cx,t)=>textC(d,cx*W,.285*H,F.barlow,8.5,ink,t);
+      const scale=(cx,t)=>textC(d,cx*W,.535*H,F.barlow,7.5,dim,t);
+      const jack=(cx)=>{ c.beginPath(); c.arc(cx*W,.40*H,8.5,0,7); c.fillStyle=rgb(16,16,18); c.fill();
+        c.strokeStyle=rgb(96,98,102); c.lineWidth=1.5; c.stroke(); c.beginPath(); c.arc(cx*W,.40*H,3.6,0,7); c.fillStyle=rgb(36,36,40); c.fill(); };
+      // INPUT
+      bracket(.085,.040,'INPUT'); jack(.058); textC(d,.108*W,.50*H,F.barlow,6.6,ink,'-10dB'); divider(.135);
+      // VOLUME
+      bracket(.175,.034,'VOLUME'); klabel(.175,'VOLUME'); scale(.175,'0      10'); divider(.205);
+      // VOICING FILTERS
+      bracket(.262,.052,'VOICING FILTERS');
+      [[.230,'LO','CUT'],[.262,'MID','CONT'],[.294,'HI','BOOST']].forEach(s=>{
+        textC(d,s[0]*W,.50*H,F.barlow,6.2,ink,s[1]); textC(d,s[0]*W,.565*H,F.barlow,6.2,ink,s[2]); });
+      divider(.325);
+      // ACTIVE EQUALIZATION
+      bracket(.475,.110,'ACTIVE EQUALIZATION');
+      [[.385,'TREBLE','4.0kHz'],[.445,'HI-MID','1.0kHz'],[.505,'LO-MID','250Hz'],[.565,'BASS','60Hz']]
+        .forEach(e=>{ klabel(e[0],e[1]); scale(e[0],'– '+e[2]+' +'); });
+      divider(.605);
+      // BOOST  (LEVEL knob + footswitch button + on-LED)
+      bracket(.660,.044,'BOOST'); klabel(.640,'LEVEL');
+      textC(d,.700*W,.555*H,F.barlow,6.0,ink,'FOOTSWITCH'); ledDot(d,.700*W,.27*H,(vals[13]>.5),70,210,80);
+      divider(.745);
+      // CROSSOVER
+      bracket(.778,.052,'CROSSOVER'); klabel(.760,'FREQUENCY'); scale(.760,'100Hz   1.0K');
+      textC(d,.812*W,.50*H,F.barlow,6.0,ink,'FULL'); textC(d,.812*W,.565*H,F.barlow,6.0,ink,'BIAMP');
+      divider(.838);
+      // MASTER VOLUMES
+      bracket(.890,.052,'MASTER VOLUMES'); klabel(.862,'100W AMP'); klabel(.918,'300W AMP');
+      ledDot(d,.945*W,.40*H,true,70,210,80);
+      // black power rocker on the chassis, right of the plate
+      const px=.968*W, py=.40*H;
+      rr(c,px-11,py-23,22,46,3); c.fillStyle=rgb(16,16,18); c.fill();
+      rr(c,px-11,py-23,22,46,3); c.strokeStyle=rgb(80,82,86); c.lineWidth=1.2; c.stroke();
+      rr(c,px-7,py-21,14,21,2); c.fillStyle=rgb(150,30,28); c.fill();
+      textC(d,px,.585*H,F.barlow,6.6,rgb(150,152,156),'O');
+      // ── branding on the black chassis below the plate ──
+      const by=.79*H;
+      rr(c,.030*W,by-12,30,21,3); c.strokeStyle=wht; c.lineWidth=2; c.stroke(); textC(d,.030*W+15,by-1,F.bebas,15,wht,'FK');
+      textC(d,.075*W,by-1,F.bebas,19,wht,'FREDDY-KRUEGER','left');
+      setFont(d,F.bebas,19); const fkw=c.measureText('FREDDY-KRUEGER').width;
+      c.strokeStyle=wht; c.lineWidth=2; c.beginPath(); c.moveTo(.075*W+fkw+10,by+6); c.lineTo(.66*W,by+6); c.stroke();
+      textC(d,.945*W,by-1,F.bebas,15,wht,'800BR','right');
+      textC(d,.945*W,by-14,F.barlow,6.0,rgb(150,152,156),'320 + 100W BIAMP BASS SYSTEM','right'); } };
 
   P.mouse = { w:320,h:500, knobs:[
       {id:0,cx:.215,cy:.305,r:.105,style:'pointer',cap:[26,26,28]},
@@ -3100,7 +3143,7 @@
     });
     (spec.switches || []).forEach(s => {
       const on = (values && values[s.id] != null) ? values[s.id] > 0.5 : false;
-      switchSquare(d, s.cx * d.W, s.cy * d.H, s.hs * d.W, on);
+      switchSquare(d, s.cx * d.W, s.cy * d.H, s.hs * d.W, on, s.dark);
     });
     (spec.sw3 || []).forEach(s => {
       const v = (values && values[s.id] != null) ? values[s.id] : 0.5;
