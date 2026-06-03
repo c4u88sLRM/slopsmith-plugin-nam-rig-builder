@@ -113,8 +113,12 @@ Migration gates still expected:
   with provider id `rig_builder.effects` and opaque `preset:<id>` refs. The
   existing `nam_tone.db` `tone_mappings` write remains as the legacy/private
   compatibility bridge until normal playback and the Amp UI are fully host-
-  routed. Provider resolution accepts those refs and converts them back to the
-  saved preset chain.
+  routed; those old DB reads/writes record `audio-effects.legacy-tone-db`
+  bridge hits. Provider resolution accepts those refs and converts them back to
+  the saved preset chain.
+- Direct Desktop `loadPreset` fallback remains attributed as
+  `audio-effects.legacy-native-load` until all physical loads flow through a
+  compatible audio-effects executor.
 - Validation passed before the provider/executor boundary cleanup: `uv run
   --with pytest pytest tests/test_manifest.py`, Node `new Function(screen.js)`
   syntax check, `uv run --with fastapi python -c "import routes"`, `git diff
@@ -141,8 +145,8 @@ may remain as the implementation behind native capability handlers.
 |---|---|---|
 | UI navigation/screens | Manifest + runtime native `ui.navigation` / `ui.plugin-screens` records exist. | Legacy `nav`/`screen` fields are compatibility only, with native records owning inspector output. |
 | Library | Manifest + runtime `library` requester/observer exists; Songs tab uses `/api/library?provider=...`; provider refresh/selection/sync go through the `library` owner command. | Keep all song search/sync flows on the library owner/provider contract; do not reintroduce a Rig Builder local song scanner. |
-| Playback | Manifest + runtime `playback` observer exists; playback v1 `ready`/`stopped`/`ended` events keep mega-chain lifecycle aligned when local filename fallback is available. Tone saves write the core audio-effects mapping index using the active playback `settingsKey` when known and filename otherwise. | Complete the read-side migration so playback observers and the future host Amp UI select provider refs from core mappings first, with filename/legacy table rows only as import fallback. |
-| Audio effects | `rig_builder.effects` registers as an executable provider for the extracted audio-effects host and returns safe chain plans while keeping raw chain payloads provider-private. Saved mappings are indexed in core as `preset:<id>` refs. | NAM/player code asks the selected `audio-effects` provider for the active Rig Builder chain/route directly, keeps provider-private chain payloads out of diagnostics, and falls back to the existing 2-stage preset path; no fetch monkey-patch. |
+| Playback | Manifest + runtime `playback` observer exists; playback v1 `ready`/`stopped`/`ended` events keep mega-chain lifecycle aligned when local filename fallback is available. Tone saves write the core audio-effects mapping index using the active playback `settingsKey` when known and filename otherwise. Legacy `tone_mappings` fallbacks are counted as `audio-effects.legacy-tone-db` bridge hits. | Complete the read-side migration so playback observers and the future host Amp UI select provider refs from core mappings first, with filename/legacy table rows only as import fallback. |
+| Audio effects | `rig_builder.effects` registers as an executable provider for the extracted audio-effects host and returns safe chain plans while keeping raw chain payloads provider-private. Saved mappings are indexed in core as `preset:<id>` refs. Direct Desktop `loadPreset` fallbacks are counted as `audio-effects.legacy-native-load` bridge hits. | NAM/player code asks the selected `audio-effects` provider for the active Rig Builder chain/route directly, keeps provider-private chain payloads out of diagnostics, and falls back to the existing 2-stage preset path; no fetch monkey-patch. |
 | Jobs | Long-running UI actions are wrapped with job labels/progress where possible; backend routes still execute the real work. | Batch, preload, extraction, export, purge, and downloads are dispatched through `jobs` provider handlers with job IDs, cancellation, and safe recovery refs. |
 | Privileged work | Backend routes, tone3000, media import/export, and extractors are inventoried in `privileged-capabilities`. | Privileged operations are authorized and audited through the host before route execution, then linked to `jobs` when long-running. |
 | Diagnostics | Safe summaries are emitted for chains/jobs/privileged outcomes; avoid paths, filenames, tokens, model names, route payloads. | Support snapshots explain all capability state and bridge hits without exposing provider-private data. |

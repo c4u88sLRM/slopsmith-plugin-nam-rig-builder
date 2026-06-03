@@ -555,7 +555,7 @@ async function rbPreLoadMute(chainLen, targetGain) {
             const api = window.slopsmithDesktop && window.slopsmithDesktop.audio;
             if (!api || typeof api.loadPreset !== 'function') return;
 
-            const r = await fetch(`/api/plugins/nam_tone/mappings/${encodeURIComponent(filename)}`);
+            const r = await rbFetchLegacyNamToneMappings(filename);
             if (!r.ok) return;
             const mappings = await r.json();
             const tone = resolveActiveTone();
@@ -571,6 +571,7 @@ async function rbPreLoadMute(chainLen, targetGain) {
             const chain = full && full.native_preset && full.native_preset.chain;
             if (!Array.isArray(chain) || chain.length === 0) return;
 
+            rbRecordLegacyNativeLoadBridge('amp auto-apply loaded chain through legacy Desktop audio API');
             // Goes through our patched loadPreset (mute + chain-gain 0)
             // so the AMP-on transient is suppressed just like a tone change.
             await api.loadPreset(JSON.stringify(full.native_preset));
@@ -1173,6 +1174,41 @@ function rbRecordAudioEffectsBridge(reason) {
         status: 'used',
         reason: rbShortSafeText(reason || 'Rig Builder chain routing bridge used'),
     });
+}
+
+function rbRecordLegacyToneDbBridge(reason, status) {
+    const api = rbAudioEffectsApi();
+    const recorder = api && typeof api.recordBridgeHit === 'function' ? api : rbCandidateDomainsApi();
+    if (!recorder || typeof recorder.recordBridgeHit !== 'function') return;
+    recorder.recordBridgeHit({
+        domain: 'audio-effects',
+        routeKey: RB_AUDIO_EFFECTS_ROUTE_KEY,
+        bridgeId: 'audio-effects.legacy-tone-db',
+        pluginId: RB_PLUGIN_ID,
+        legacySurface: 'nam_tone.db tone_mappings',
+        status: status || 'used',
+        reason: rbShortSafeText(reason || 'Rig Builder legacy tone mapping database used'),
+    });
+}
+
+function rbRecordLegacyNativeLoadBridge(reason, status) {
+    const api = rbAudioEffectsApi();
+    const recorder = api && typeof api.recordBridgeHit === 'function' ? api : rbCandidateDomainsApi();
+    if (!recorder || typeof recorder.recordBridgeHit !== 'function') return;
+    recorder.recordBridgeHit({
+        domain: 'audio-effects',
+        routeKey: RB_AUDIO_EFFECTS_ROUTE_KEY,
+        bridgeId: 'audio-effects.legacy-native-load',
+        pluginId: RB_PLUGIN_ID,
+        legacySurface: 'window.slopsmithDesktop.audio.loadPreset',
+        status: status || 'used',
+        reason: rbShortSafeText(reason || 'Rig Builder direct Desktop loadPreset used'),
+    });
+}
+
+async function rbFetchLegacyNamToneMappings(filename) {
+    rbRecordLegacyToneDbBridge('read legacy nam_tone tone_mappings for amp auto-apply');
+    return fetch(`/api/plugins/nam_tone/mappings/${encodeURIComponent(filename)}`);
 }
 
 async function rbSyncAudioEffectsCapability(reason, options) {
@@ -4176,6 +4212,7 @@ async function rbToneSetVstParam(toneIdx, pIdx, paramId, value, valueDisplayEl) 
                 valueDisplayEl.textContent = v.toFixed(3);
             }
         } else {
+            rbRecordLegacyNativeLoadBridge('chain loaded through legacy Desktop audio API fallback');
             valueDisplayEl.textContent = v.toFixed(3);
         }
     }
@@ -6804,6 +6841,7 @@ async function rbPersistTone(toneIdx, filename) {
             return null;
         }
         const body = await r.json().catch(() => ({}));
+        rbRecordLegacyToneDbBridge('save_preset persisted provider-private legacy tone database rows');
         const presetId = body.preset_id ?? null;
         if (presetId !== null) {
             const toneKey = tone.key || tone.name;

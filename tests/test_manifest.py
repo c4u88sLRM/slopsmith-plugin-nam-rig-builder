@@ -63,6 +63,13 @@ def test_screen_registers_executable_audio_effects_provider():
     assert "invalid-response" in src
     assert "resolve-failed" in src
     assert "rbRecordAudioEffectsBridge(reason)" in src
+    assert "audio-effects.legacy-tone-db" in src
+    assert "rbRecordLegacyToneDbBridge" in src
+    assert "audio-effects.legacy-native-load" in src
+    assert "rbRecordLegacyNativeLoadBridge" in src
+    assert "rbFetchLegacyNamToneMappings(filename)" in src
+    assert "save_preset persisted provider-private legacy tone database rows" in src
+    assert src.count("/api/plugins/nam_tone/mappings/") == 1
     assert "window.__rbPlaybackSettingsKey = ''" in src
     assert "window.__rbPlaybackSettingsFilename" in src
     assert "slopsmithDesktop.audioEffects" not in src
@@ -73,3 +80,13 @@ def test_routes_return_mirrored_preset_ids_for_mapping_refs():
 
     assert "mirrored_presets" in src
     assert "mirror_preset_id = _persist_preset_chain" in src
+
+
+def test_legacy_tone_db_access_is_explicitly_inventoried():
+    src = (ROOT / "routes.py").read_text()
+
+    assert src.count('"nam_tone.db"') == 1
+    assert src.count("tone_mappings") == 17
+    assert "INSERT OR REPLACE INTO tone_mappings" in src
+    assert "SELECT DISTINCT filename FROM tone_mappings WHERE filename != ?" in src
+    assert "FROM tone_mappings tm JOIN presets p ON tm.preset_id = p.id" in src
