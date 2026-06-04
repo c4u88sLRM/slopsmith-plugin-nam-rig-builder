@@ -694,20 +694,23 @@
     knobs:[
       {id:0,cx:.092,cy:.31,r:.021,style:'pointer',cap:[20,20,22]},
       {id:1,cx:.152,cy:.31,r:.021,style:'pointer',cap:[20,20,22]},
-      {id:2,cx:.288,cy:.31,r:.021,style:'pointer',cap:[20,20,22]},
-      {id:3,cx:.344,cy:.31,r:.021,style:'pointer',cap:[20,20,22]},
-      {id:4,cx:.484,cy:.36,r:.021,style:'pointer',cap:[20,20,22]},
+      {id:2,cx:.266,cy:.31,r:.021,style:'pointer',cap:[20,20,22]},
+      {id:3,cx:.322,cy:.31,r:.021,style:'pointer',cap:[20,20,22]},
+      {id:4,cx:.460,cy:.31,r:.021,style:'pointer',cap:[20,20,22]},
       {id:5,cx:.903,cy:.31,r:.032,style:'pointer',cap:[20,20,22]}],
     switches:[
-      {id:16,cx:.188,cy:.22,hs:.0090,dark:true},
-      {id:17,cx:.188,cy:.40,hs:.0090,dark:true},
-      {id:18,cx:.855,cy:.31,hs:.0090,dark:true},
+      {id:16,cx:.205,cy:.22,hs:.0090,dark:true},
+      {id:17,cx:.205,cy:.40,hs:.0090,dark:true},
+      {id:18,cx:.820,cy:.31,hs:.0090,dark:true},
       {id:19,cx:.092,cy:.76,hs:.0090,dark:true}],
     faders:[
-      {id:6,cx:.566,y0:.18,y1:.42},{id:7,cx:.595,y0:.18,y1:.42},{id:8,cx:.624,y0:.18,y1:.42},
-      {id:9,cx:.653,y0:.18,y1:.42},{id:10,cx:.681,y0:.18,y1:.42},{id:11,cx:.710,y0:.18,y1:.42},
-      {id:12,cx:.739,y0:.18,y1:.42},{id:13,cx:.768,y0:.18,y1:.42},{id:14,cx:.797,y0:.18,y1:.42},
-      {id:15,cx:.826,y0:.18,y1:.42}],
+      {id:6,cx:.528,y0:.18,y1:.42},{id:7,cx:.557,y0:.18,y1:.42},{id:8,cx:.586,y0:.18,y1:.42},
+      {id:9,cx:.615,y0:.18,y1:.42},{id:10,cx:.644,y0:.18,y1:.42},{id:11,cx:.673,y0:.18,y1:.42},
+      {id:12,cx:.702,y0:.18,y1:.42},{id:13,cx:.731,y0:.18,y1:.42},{id:14,cx:.760,y0:.18,y1:.42},
+      {id:15,cx:.789,y0:.18,y1:.42}],
+    // logical id -> real VST param name, so a NAME-keyed saved state (from
+    // apply_vst_state) resolves onto these numeric-id controls in the thumbnail.
+    names:['Gain','Pre-amp Blend','Lo','Hi','Depth','Volume','50 Hz','80 Hz','160 Hz','320 Hz','640 Hz','1.25 kHz','2.5 kHz','5 kHz','8 kHz','Graphic Level','Bright','Deep','Graphic','Lo Input'],
     tick:rgb(150,148,135), ptr:rgb(236,233,221),
     draw(d,vals){ vals=vals||{}; const {ctx:c,W,H}=d;
       const cream=rgb(220,216,200), dim=rgb(150,148,132), goldInk=rgb(52,44,28);
@@ -729,19 +732,19 @@
       lab(.092,.47,7.5,'GAIN');
       lab(.152,.45,6,'PRE-AMP'); lab(.152,.50,6,'BLEND');
       // BRIGHT / DEEP switch labels
-      lab(.188,.135,6.5,'BRIGHT'); lab(.188,.475,6.5,'DEEP');
+      lab(.205,.135,6.5,'BRIGHT'); lab(.205,.475,6.5,'DEEP');
       // PRIMARY EQ frame (Lo / Hi — 2-band, no mid)
-      frame(.226*W,.10*H,.180*W,.40*H); lab(.316,.155,7.5,'PRIMARY EQ',dim);
-      [[.288,'LO'],[.344,'HI']].forEach(k=>lab(k[0],.47,6.5,k[1]));
-      // COMPRESSION frame (Depth knob + Threshold INDICATOR LED — no threshold pot)
-      frame(.424*W,.10*H,.120*W,.40*H); lab(.484,.155,7.5,'COMPRESSION',dim);
-      c.beginPath(); c.arc(.484*W,.215*H,4,0,7); c.fillStyle=rgb(150,46,38); c.fill();
-      lab(.484,.265,5.5,'THRESHOLD',dim);
-      lab(.484,.49,6.5,'DEPTH');
-      // GRAPHIC EQUALIZER frame + band labels (real 9 bands) + LEVEL + GRAPHIC switch
-      frame(.556*W,.10*H,.280*W,.40*H); lab(.696,.155,7.5,'GRAPHIC EQUALIZER',dim);
-      [['50',.566],['80',.595],['160',.624],['320',.653],['640',.681],['1k25',.710],['2k5',.739],['5k',.768],['8k',.797],['LVL',.826]].forEach(b=>lab(b[1],.465,5.5,b[0],dim));
-      lab(.855,.45,6.5,'GRAPHIC');
+      frame(.234*W,.10*H,.120*W,.40*H); lab(.294,.155,7.5,'PRIMARY EQ',dim);
+      [[.266,'LO'],[.322,'HI']].forEach(k=>lab(k[0],.47,6.5,k[1]));
+      // COMPRESSION frame (Depth knob right + Threshold INDICATOR LED left, same row — no threshold pot)
+      frame(.372*W,.10*H,.120*W,.40*H); lab(.432,.155,7.5,'COMPRESSION',dim);
+      c.beginPath(); c.arc(.404*W,.31*H,4,0,7); c.fillStyle=rgb(150,46,38); c.fill();
+      lab(.404,.43,5.5,'THRESHOLD',dim);
+      lab(.460,.47,6.5,'DEPTH');
+      // GRAPHIC EQUALIZER frame (encloses the GRAPHIC switch) + band labels (real 9 bands) + LEVEL
+      frame(.510*W,.10*H,.328*W,.40*H); lab(.674,.155,7.5,'GRAPHIC EQUALIZER',dim);
+      [['50',.528],['80',.557],['160',.586],['320',.615],['640',.644],['1k25',.673],['2k5',.702],['5k',.731],['8k',.760],['LVL',.789]].forEach(b=>lab(b[1],.465,5.5,b[0],dim));
+      lab(.820,.45,6.5,'GRAPHIC');
       // VOLUME (big, right)
       lab(.903,.47,7.5,'VOLUME');
       // ── bottom gold strip: INPUT jack + Marsten script + power ──

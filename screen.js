@@ -3130,7 +3130,24 @@ function rbCanvasParamModel(piece) {
 function rbCanvasThumbValues(piece) {
     const v = rbCanvasParamModel(piece).values;
     if (Object.keys(v).length) return v;
-    try { return rbParseVstStateParams(rbEffVstState(piece)) || {}; } catch (_) { return {}; }
+    let byName = {};
+    try { byName = rbParseVstStateParams(rbEffVstState(piece)) || {}; } catch (_) { byName = {}; }
+    if (!Object.keys(byName).length) return byName;
+    // A saved vst_state is keyed by VST param NAME. Specs whose controls use
+    // numeric logical ids (e.g. the amps) won't resolve those — so when the
+    // spec declares a `names` array (logical id -> param name), project the
+    // name-keyed values onto the numeric ids too. Name keys are kept as well
+    // (harmless; specs that read by name still work).
+    try {
+        const stem = rbCanvasStem(piece);
+        const spec = window.RBPedalCanvas && window.RBPedalCanvas.specs && window.RBPedalCanvas.specs[stem];
+        if (spec && Array.isArray(spec.names)) {
+            const out = {};
+            spec.names.forEach((nm, id) => { if (nm && byName[nm] != null) out[id] = byName[nm]; });
+            return Object.assign(out, byName);
+        }
+    } catch (_) { /* fall through to name-keyed */ }
+    return byName;
 }
 
 function rbToneRenderInlineVstParams(toneIdx, pIdx) {
