@@ -244,22 +244,26 @@ public:
 class TW26Core
 {
     float sampleRate = 48000.0f;
-    float gain = kTW26Def[kGain];
-    float bass = kTW26Def[kBass];
-    float mid = kTW26Def[kMid];
-    float treble = kTW26Def[kTreble];
-    float pres = kTW26Def[kPres];
+    float tone    = kTW26Def[kTone];
+    float instVol = kTW26Def[kInstVol];   // Instrument Volume (= gain)
+    float micVol  = kTW26Def[kMicVol];    // Mic Volume (jumpered body)
+    float bright  = kTW26Def[kBright];    // Instrument bright input
+    float bass    = kTW26Def[kBass];      // hidden low shelf
+    float presK   = kTW26Def[kPresence];  // hidden power-amp top lift
 
     RcLowPass inputGrid;        // 68k grid into V1 Miller capacitance
+    RcHighPass instBright;      // bright input cap (input 1 bright vs 2 normal)
     RcHighPass v1Coupling;      // C2 .1uF into the volume/tone
     RcLowPass v1Miller;
+    RcHighPass micCoupling;     // Mic channel input coupling (jumpered second ch)
+    RcLowPass micLp;            // Mic channel is darker (no bright cap)
+    Biquad micBody;             // Mic channel low-mid body (the jumper fill)
     RcHighPass toneTrebleBleed; // C5 .0047uF treble path of the single Tone pot
+    Biquad toneShelf;           // the single tweed Tone control (bright<->dark)
     RcHighPass v2Coupling;      // C7 .022uF into V2-A
-    Biquad bassShelf;
+    Biquad bassShelf;           // hidden RS Bass (5E3 has no bass pot)
     Biquad tweedBody;           // fixed woody low-mid hump (tweed is mid-forward)
-    Biquad midPeak;             // Rocksmith Mid
-    Biquad trebleShelf;         // Rocksmith Treble (tweed Tone control voicing)
-    Biquad presenceShelf;       // Rocksmith Pres (the 5E3 has no presence pot)
+    Biquad presenceShelf;       // hidden RS Pres (the 5E3 has no presence pot)
     RcHighPass piCoupling;      // C9/C10 to the 6V6 grids
     Y3CathodeBiasedSupply supply;
     Biquad transformerLow;      // output transformer low resonance
@@ -273,51 +277,49 @@ class TW26Core
 
     void updateComponentValues()
     {
-        const float g = smoothstep(gain);
-        const float hot = smoothstepRange(0.50f, 0.98f, gain);
+        const float g = smoothstep(instVol);                  // 5E3 volume = gain
+        const float hot = smoothstepRange(0.50f, 0.98f, instVol);
 
         inputGrid.setRC(sampleRate, 68000.0f, 50.0e-12f);     // ~47 kHz ceiling
+        instBright.setHz(sampleRate, 1500.0f);                // bright-input treble cap
         v1Coupling.setRC(sampleRate, 1000000.0f, 0.1e-6f);    // C2 .1uF / 1M -> ~1.6 Hz
         v1Miller.setRC(sampleRate, 100000.0f, 90.0e-12f);     // plate/Miller rolloff
 
-        // Single tweed Tone control (treble bleed). Its audible corner lands in
-        // the presence band; the cap sees the network's effective R, not the raw
-        // 1M pot (that would push the corner sub-audio and kill the control).
-        toneTrebleBleed.setRC(sampleRate, 1.0f / (2.0f * kPi * (2200.0f + 1800.0f * treble) * 0.0047e-6f), 0.0047e-6f);
+        // Mic channel (the jumpered second channel): darker, low-mid forward.
+        micCoupling.setRC(sampleRate, 1000000.0f, 0.1e-6f);
+        micLp.setHz(sampleRate, 3600.0f);
+        micBody.setPeaking(sampleRate, 480.0f, 0.80f, 3.5f);
+
+        // Single tweed Tone control (treble bleed + a shelf for real range). Its
+        // corner lands in the presence band; the cap sees the network's effective
+        // R, not the raw 1M pot (that would push the corner sub-audio).
+        toneTrebleBleed.setRC(sampleRate, 1.0f / (2.0f * kPi * (2200.0f + 1800.0f * tone) * 0.0047e-6f), 0.0047e-6f);
+        toneShelf.setHighShelf(sampleRate, 1900.0f + 1100.0f * tone, 0.66f, -8.0f + 18.0f * tone);
         v2Coupling.setRC(sampleRate, 470000.0f, 0.022e-6f);   // C7 .022uF -> ~15 Hz
 
-        // --- tweed tone shaping (mid-forward, NEVER scooped) ---
-        // more low-end weight so the amp has real body (was too thin -> boxy)
+        // --- tweed body + hidden RS Bass / Pres ---
         bassShelf.setLowShelf(sampleRate, 115.0f, 0.72f, eqDb(bass, 9.5f) + 2.4f);
-        // woody low-mid hump — eased a touch so it's full, not honky/boxy
         tweedBody.setPeaking(sampleRate, 340.0f, 0.85f, 1.2f + 1.1f * g);
-        // Rocksmith Mid sits on the tweed midrange — boosts the bark, only a mild
-        // dip at minimum (tweed does not scoop hard like a blackface).
-        midPeak.setPeaking(sampleRate, 620.0f + 220.0f * mid, 0.72f, -2.5f + 9.0f * mid);
-        trebleShelf.setHighShelf(sampleRate, 2300.0f + 900.0f * treble, 0.70f, eqDb(treble, 10.5f) + 1.0f);
-        // Pres: gentle top lift (no real presence pot on a 5E3)
-        presenceShelf.setHighShelf(sampleRate, 3000.0f, 0.80f, -1.0f + 5.5f * pres);
+        presenceShelf.setHighShelf(sampleRate, 3000.0f, 0.80f, -1.0f + 5.5f * presK);
 
         piCoupling.setRC(sampleRate, 220000.0f, 0.1e-6f);     // ~7 Hz into the 6V6 grids
         supply.setSampleRate(sampleRate);
 
         // --- output transformer + 1x12 tweed speaker (Jensen-style, warm) ---
-        transformerLow.setPeaking(sampleRate, 95.0f, 0.72f, 0.6f + 1.8f * bass);   // low thump
-        speakerHp.setHighPass(sampleRate, 70.0f, 0.72f);                          // let the lows through
-        // body/warmth moved down to ~175 Hz and lifted so the amp feels full
+        transformerLow.setPeaking(sampleRate, 95.0f, 0.72f, 0.6f + 1.8f * bass);
+        speakerHp.setHighPass(sampleRate, 70.0f, 0.72f);
         speakerBody.setPeaking(sampleRate, 175.0f, 0.80f, 2.6f + 1.8f * bass - 0.5f * hot);
-        // upper-mid clarity lifted so it isn't "muffled"
-        speakerPresence.setPeaking(sampleRate, 2150.0f + 350.0f * treble, 0.72f, 2.4f + 2.4f * treble + 2.4f * pres);
-        // tweed is darker than a modern cab, but the top was over-rolled -> open it
-        speakerLp.setLowPass(sampleRate, 5500.0f + 2000.0f * pres + 900.0f * treble, 0.66f);
+        speakerPresence.setPeaking(sampleRate, 2150.0f + 350.0f * tone, 0.72f, 2.4f + 2.4f * tone + 2.4f * presK);
+        speakerLp.setLowPass(sampleRate, 5500.0f + 2000.0f * presK + 900.0f * tone, 0.66f);
     }
 
 public:
     void reset()
     {
-        inputGrid.reset(); v1Coupling.reset(); v1Miller.reset();
-        toneTrebleBleed.reset(); v2Coupling.reset();
-        bassShelf.reset(); tweedBody.reset(); midPeak.reset(); trebleShelf.reset(); presenceShelf.reset();
+        inputGrid.reset(); instBright.reset(); v1Coupling.reset(); v1Miller.reset();
+        micCoupling.reset(); micLp.reset(); micBody.reset();
+        toneTrebleBleed.reset(); toneShelf.reset(); v2Coupling.reset();
+        bassShelf.reset(); tweedBody.reset(); presenceShelf.reset();
         piCoupling.reset(); supply.reset();
         transformerLow.reset(); speakerHp.reset(); speakerBody.reset(); speakerPresence.reset(); speakerLp.reset();
         dcBlock.reset();
@@ -326,70 +328,83 @@ public:
 
     void setSampleRate(float sr) { sampleRate = sr > 1000.0f ? sr : 48000.0f; reset(); }
 
-    void setGain(float v)   { gain = clamp01(v);   updateComponentValues(); }
-    void setBass(float v)   { bass = clamp01(v);   updateComponentValues(); }
-    void setMid(float v)    { mid = clamp01(v);    updateComponentValues(); }
-    void setTreble(float v) { treble = clamp01(v); updateComponentValues(); }
-    void setPres(float v)   { pres = clamp01(v);   updateComponentValues(); }
+    void setTone(float v)    { tone = clamp01(v);    updateComponentValues(); }
+    void setInstVol(float v) { instVol = clamp01(v); updateComponentValues(); }
+    void setMicVol(float v)  { micVol = clamp01(v);  updateComponentValues(); }
+    void setBright(float v)  { bright = clamp01(v);  updateComponentValues(); }
+    void setBass(float v)    { bass = clamp01(v);    updateComponentValues(); }
+    void setPresence(float v){ presK = clamp01(v);   updateComponentValues(); }
 
     float process(float in)
     {
-        const float g = smoothstep(gain);
-        const float hot = smoothstepRange(0.50f, 0.98f, gain);
+        const float g = smoothstep(instVol);                 // 5E3 volume = gain
+        const float hot = smoothstepRange(0.50f, 0.98f, instVol);
 
         float x = inputGrid.process(in);
 
+        // Instrument bright input: input 1 (bright cap) vs input 2 (normal/darker)
+        float xi = x + instBright.process(x) * (0.45f * bright);
+
         // V1 12AY7 first stage — warm, low-mu, soft early compression.
-        float y = v1Coupling.process(x);
-        const float v1Drive = 0.80f + 1.55f * gain + 0.55f * g;
-        y = triode12AY7(y * v1Drive, -0.020f - 0.020f * gain);
-        y = v1Miller.process(y);
+        float inst = v1Coupling.process(xi);
+        const float v1Drive = 0.80f + 1.55f * instVol + 0.55f * g;
+        inst = triode12AY7(inst * v1Drive, -0.020f - 0.020f * instVol);
+        inst = v1Miller.process(inst);
 
-        // interactive Volume + single tweed Tone control (treble bleed blended in)
+        // Mic channel jumpered in (RS Mid): a darker, low-mid-forward parallel
+        // 12AY7 voice that fills body underneath the Instrument channel.
+        float y = inst;
+        if (micVol > 0.001f)
+        {
+            float mic = micLp.process(micCoupling.process(x));
+            mic = triode12AY7(mic * (0.7f + 1.1f * micVol), -0.020f);
+            mic = micBody.process(mic);
+            y += mic * (0.55f + 1.05f * micVol);
+        }
+
+        // interactive Volume + single tweed Tone control (treble bleed + shelf)
         const float volume = 0.30f + 1.35f * g + 0.55f * hot;
-        y = (y + toneTrebleBleed.process(y) * (0.18f + 0.42f * treble)) * volume;
+        y = (y + toneTrebleBleed.process(y) * (0.18f + 0.42f * tone)) * volume;
+        y = toneShelf.process(y);
 
-        // --- tweed tone stack (mid-forward) ---
+        // --- tweed body + hidden RS Bass ---
         y = bassShelf.process(y);
         y = tweedBody.process(y);
-        y = midPeak.process(y);
-        y = trebleShelf.process(y);
 
         // V2-A 12AX7 recovery/gain stage
         y = v2Coupling.process(y);
-        const float v2Drive = 0.85f + 1.65f * gain + 1.55f * hot;
-        y = triode12AX7(y * v2Drive, -0.012f - 0.018f * gain);
+        const float v2Drive = 0.85f + 1.65f * instVol + 1.55f * hot;
+        y = triode12AX7(y * v2Drive, -0.012f - 0.018f * instVol);
 
         // --- V2-B cathodyne PI + 6V6 push-pull, cathode-biased, no NFB,
         //     5Y3 blooming sag ---
         y = piCoupling.process(y);
         const float env = std::fabs(y);
-        const float supplyScale = supply.process(env, gain, hot);
-        const float powerDrive = (1.02f + 1.40f * gain + 2.10f * hot) * supplyScale;
-        y = sixV6Pair(y * powerDrive, 0.03f + 0.012f * (treble - bass));
-        y = (0.92f * y + 0.08f * softClip(y * (1.5f + 0.9f * gain))) * supplyScale;
+        const float supplyScale = supply.process(env, instVol, hot);
+        const float powerDrive = (1.02f + 1.40f * instVol + 2.10f * hot) * supplyScale;
+        y = sixV6Pair(y * powerDrive, 0.03f + 0.012f * (tone - bass));
+        y = (0.92f * y + 0.08f * softClip(y * (1.5f + 0.9f * instVol))) * supplyScale;
 
         y = dcBlock.process(y);
 
-        // --- output transformer + 1x12 tweed speaker ---
+        // --- output transformer + 1x12 tweed speaker + hidden presence ---
         y = transformerLow.process(y);
         y = speakerHp.process(y);
         y = speakerBody.process(y);
         y = speakerPresence.process(y);
+        y = presenceShelf.process(y);
         y = speakerLp.process(y);
 
-        // output makeup: hold perceived level ~constant across the Gain sweep so
-        // it sits at the BOX DC30 level and presets don't jump (the tweed adds
-        // level as it breaks up; this gently trims it back). Tone-energy term
-        // keeps big EQ moves from changing loudness.
+        // output makeup: hold perceived level ~constant across the Volume(=gain)
+        // sweep AND the jumpered Mic channel, so it sits at the BOX DC30 level.
+        const float micBlend = (micVol > 0.001f) ? micVol : 0.0f;
         const float toneEnergy = 1.0f
             + 0.013f * std::fabs((bass - 0.5f) * 20.0f)
-            + 0.013f * std::fabs((mid - 0.5f) * 22.0f)
-            + 0.013f * std::fabs((treble - 0.5f) * 20.0f);
-        // The heavy 5Y3/cathode-bias sag pulls the steady level DOWN as Gain
-        // rises (like the AC30), so the makeup RISES with Gain to hold the
-        // perceived loudness ~constant at the BOX DC30 level while keeping the
-        // sag bloom/compression dynamics intact.
+            + 0.013f * std::fabs((tone - 0.5f) * 20.0f)
+            + 0.06f * micBlend;
+        // The heavy 5Y3/cathode-bias sag pulls the steady level DOWN as the volume
+        // rises, so the makeup RISES with it to hold loudness ~constant while
+        // keeping the sag bloom/compression dynamics intact.
         const float makeup = 1.50f + 0.40f * g + 0.70f * hot;
         const float level = makeup / toneEnergy;
         return softClip(y * level) * 0.98f;

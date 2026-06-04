@@ -18,10 +18,19 @@ class TW22Plugin : public Plugin
 
     void applyAll()
     {
-        left.setGain(params[kGain]);     right.setGain(params[kGain]);
-        left.setBass(params[kBass]);     right.setBass(params[kBass]);
-        left.setMid(params[kMid]);       right.setMid(params[kMid]);
-        left.setTreble(params[kTreble]); right.setTreble(params[kTreble]);
+        left.setVintVol(params[kVintVol]);       right.setVintVol(params[kVintVol]);
+        left.setVintTreble(params[kVintTreble]); right.setVintTreble(params[kVintTreble]);
+        left.setVintBass(params[kVintBass]);     right.setVintBass(params[kVintBass]);
+        left.setNormFat(params[kNormFat]);       right.setNormFat(params[kNormFat]);
+        left.setChannel(params[kChannel]);       right.setChannel(params[kChannel]);
+        left.setGain1(params[kGain1]);           right.setGain1(params[kGain1]);
+        left.setGain2(params[kGain2]);           right.setGain2(params[kGain2]);
+        left.setBurnTreble(params[kBurnTreble]); right.setBurnTreble(params[kBurnTreble]);
+        left.setBurnBass(params[kBurnBass]);     right.setBurnBass(params[kBurnBass]);
+        left.setBurnMid(params[kBurnMid]);       right.setBurnMid(params[kBurnMid]);
+        left.setBurnVol(params[kBurnVol]);       right.setBurnVol(params[kBurnVol]);
+        left.setReverb(params[kReverb]);         right.setReverb(params[kReverb]);
+        left.setPresence(params[kPresence]);     right.setPresence(params[kPresence]);
     }
 
 public:

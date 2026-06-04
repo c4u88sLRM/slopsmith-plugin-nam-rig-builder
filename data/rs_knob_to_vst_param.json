@@ -3861,7 +3861,7 @@
    "Time": {
     "param": "Time",
     "scale": 0.005,
-    "_hint": "RS Time in ms
+    "_hint": "RS Time in ms (~110..120) -> 0..700 ms normalized."
    },
    "Feedback": {
     "param": "Feedback",
@@ -4035,51 +4035,82 @@
  },
  "Amp_TW22": {
   "bender supernova 22": {
+   "_hint": "BENDER SUPERNOVA 22 = the FULL Fender Super-Sonic 22 panel (2 channels, modelled from the schematic). RS Gain DRIVES THE CHANNEL: low Gain = Vintage clean, high Gain = the cascaded Burn lead. Treble/Bass/Mid map to the Burn tone stack; Bright -> Norm/Fat; Pres -> the power-amp presence. The Vintage knobs + Burn Gain/Vol sit at musical defaults (_static) and stay editable by hand.",
    "Gain": {
-    "param": "Gain",
+    "param": "Channel",
     "scale": 0.01,
-    "_hint": "Rocksmith's single Gain blends the Super-Sonic 22 from Vintage/Fat clean behavior into the Burn channel's cascaded gain stages."
-   },
-   "Bass": {
-    "param": "Bass",
-    "scale": 0.01
-   },
-   "Mid": {
-    "param": "Mid",
-    "scale": 0.01
+    "_hint": "RS Gain morphs the channel select Vintage(0) -> Burn(1). The two channels' inherent gain (clean vs cascaded) gives the clean -> cranked sweep."
    },
    "Treble": {
     "param": "Treble",
-    "scale": 0.01
+    "scale": 0.01,
+    "_hint": "RS Treble maps to the Burn channel Treble (the main RS voice)."
+   },
+   "Bass": {
+    "param": "Bass",
+    "scale": 0.01,
+    "_hint": "RS Bass maps to the Burn channel Bass."
+   },
+   "Mid": {
+    "param": "Middle",
+    "scale": 0.01,
+    "_hint": "RS Mid maps to the Burn channel Middle (the Burn channel HAS a Mid pot, unlike the AC30)."
+   },
+   "Bright": {
+    "param": "Norm/Fat",
+    "scale": 1.0,
+    "invert": true,
+    "_hint": "RS Bright -> the shared Norm/Fat voicing (Norm = bright, Fat = darker/fuller). Bright on = Norm (inverted), Bright off = Fat."
+   },
+   "Pres": {
+    "param": "Presence",
+    "scale": 0.01,
+    "_hint": "The Super-Sonic 22 has no front presence pot; Pres maps to the modelled power-amp NFB presence (upper-treble bite)."
+   },
+   "_static": {
+    "Vint Vol": 0.5,
+    "Vint Treble": 0.6,
+    "Vint Bass": 0.5,
+    "Gain 1": 0.6,
+    "Gain 2": 0.5,
+    "Burn Vol": 0.5,
+    "Reverb": 0.0,
+    "_note": "Controls Rocksmith songs don't set: the Vintage channel EQ + Burn Gain/Volume sit at musical defaults so the Gain-driven channel morph and the Burn tone stack do the work. Reverb off."
    }
   }
  },
  "Amp_TW26": {
   "bender deluxe": {
+   "_hint": "BENDER DELUXE = the FULL Fender '57 Deluxe 5E3 panel (Tone, Inst Vol, Mic Vol only). On a 5E3 the VOLUME is the gain and there is one Tone control; the famous trick is jumpering the Mic channel for body. So RS Gain -> Inst Vol, Treble -> Tone, Mid -> Mic Vol (jumper). Bright picks the Instrument bright/normal input; Bass + Pres have no 5E3 pot so they drive hidden shelves.",
    "Gain": {
-    "param": "Gain",
+    "param": "Inst Vol",
     "scale": 0.01,
-    "_hint": "5E3 volume behavior: Rocksmith Gain drives the 12AY7 preamp and cathode-biased 6V6 output section."
+    "_hint": "On a 5E3 the Instrument Volume IS the gain — it cleans up / breaks up as you turn it. RS Gain drives it; loudness is held flat by the makeup."
+   },
+   "Treble": {
+    "param": "Tone",
+    "scale": 0.01,
+    "_hint": "RS Treble maps to the single tweed Tone control (treble bleed: up = bright, down = dark)."
+   },
+   "Mid": {
+    "param": "Mic Vol",
+    "scale": 0.01,
+    "_hint": "The 5E3 has no Mid pot. RS Mid turns up the jumpered Mic channel — its darker, low-mid-forward voice fills body underneath the Instrument channel (the classic 5E3 jumper)."
+   },
+   "Bright": {
+    "param": "Bright",
+    "scale": 1.0,
+    "_hint": "RS Bright picks the Instrument bright input 1 (bright cap) vs the normal/darker input 2."
    },
    "Bass": {
     "param": "Bass",
     "scale": 0.01,
-    "_hint": "The real 57 Deluxe has no Bass pot; this controls low-end coupling and tweed thump while tightening high-gain flub."
-   },
-   "Mid": {
-    "param": "Mid",
-    "scale": 0.01,
-    "_hint": "The real 5E3 has no Mid pot; this controls the tweed mid body instead of a blackface-style scoop."
-   },
-   "Treble": {
-    "param": "Treble",
-    "scale": 0.01,
-    "_hint": "Maps to the single 5E3 Tone circuit."
+    "_hint": "The 5E3 has no Bass pot; RS Bass drives a hidden low shelf (tweed thump / tightening)."
    },
    "Pres": {
-    "param": "Pres",
+    "param": "Presence",
     "scale": 0.01,
-    "_hint": "The schematic has no presence pot; this adds/removes power-amp and speaker bite."
+    "_hint": "The 5E3 has no presence pot; RS Pres drives a hidden power-amp top lift."
    }
   }
  },

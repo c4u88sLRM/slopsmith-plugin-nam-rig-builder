@@ -18,11 +18,12 @@ class TW26Plugin : public Plugin
 
     void applyAll()
     {
-        left.setGain(params[kGain]);     right.setGain(params[kGain]);
-        left.setBass(params[kBass]);     right.setBass(params[kBass]);
-        left.setMid(params[kMid]);       right.setMid(params[kMid]);
-        left.setTreble(params[kTreble]); right.setTreble(params[kTreble]);
-        left.setPres(params[kPres]);     right.setPres(params[kPres]);
+        left.setTone(params[kTone]);       right.setTone(params[kTone]);
+        left.setInstVol(params[kInstVol]); right.setInstVol(params[kInstVol]);
+        left.setMicVol(params[kMicVol]);   right.setMicVol(params[kMicVol]);
+        left.setBright(params[kBright]);   right.setBright(params[kBright]);
+        left.setBass(params[kBass]);       right.setBass(params[kBass]);
+        left.setPresence(params[kPresence]); right.setPresence(params[kPresence]);
     }
 
 public:
