@@ -695,11 +695,12 @@
       textC(d,.04*W,gy,F.bebas,30,rgb(232,234,238),'Sharke','left');
       textC(d,.955*W,gy,F.barlow,11,rgb(150,152,158),'MODEL HB3500  ·  350 WATTS','right'); } };
 
-  // ── Sharke HB5000 — faithful Hartke HA5000 silver panel (parody) ────────────
-  // Same control surface as the HB3500 (the HA5000 shares the front end); only
-  // the 10-band EQ centres (…2k/3k/5k/8k) and the MODEL / 250+250 WATTS legend
-  // differ. Logical ids identical: 0 Tube 1 Solid 2 Comp 3 LowPass 4 HighPass
-  //   5 Volume | 6..15 EQ 30/64/125/250/500/1k/2k/3k/5k/8k | 16 Active 17 EQ In
+  // ── Sharke HB5000 — faithful Hartke HA5000 BLACK panel w/ blue accent (parody)
+  // Same control surface + geometry as the HB3500, but the HA5000 ships a dark
+  // charcoal face (blue pinstripe, white text, green comp LED) instead of the
+  // HA3500 silver. EQ centres …2k/3k/5k/8k; MODEL HB5000 / 250+250 WATTS.
+  // Logical ids: 0 Tube 1 Solid 2 Comp 3 LowPass 4 HighPass 5 Volume |
+  //   6..15 EQ 30/64/125/250/500/1k/2k/3k/5k/8k | 16 Active 17 EQ In
   P.sharkehb5000 = { w:960, h:300,
     knobs:[
       {id:0,cx:.170,cy:.40,r:.023,style:'pointer',cap:[26,26,28]},
@@ -716,22 +717,24 @@
       {id:9,cx:.5136,y0:.27,y1:.56},{id:10,cx:.5448,y0:.27,y1:.56},{id:11,cx:.576,y0:.27,y1:.56},
       {id:12,cx:.6072,y0:.27,y1:.56},{id:13,cx:.6384,y0:.27,y1:.56},{id:14,cx:.6696,y0:.27,y1:.56},
       {id:15,cx:.7008,y0:.27,y1:.56}],
-    tick:rgb(74,76,82), ptr:rgb(245,246,249),
+    tick:rgb(150,152,158), ptr:rgb(238,240,244),
     draw(d,vals){ vals=vals||{}; const {ctx:c,W,H}=d;
-      const ink=rgb(30,31,35), dim=rgb(92,94,100);
-      box(d, 26,27,30, true);
+      const ink=rgb(228,231,237), dim=rgb(120,130,150), blue=rgb(58,108,182);
+      box(d, 15,16,19, true);
       const PL=.03*W,PT=.07*H,PW=.94*W,PH=.62*H;
-      const pg=c.createLinearGradient(0,PT,0,PT+PH); pg.addColorStop(0,rgb(202,204,208)); pg.addColorStop(.5,rgb(180,182,188)); pg.addColorStop(1,rgb(158,160,166));
+      const pg=c.createLinearGradient(0,PT,0,PT+PH); pg.addColorStop(0,rgb(48,50,57)); pg.addColorStop(.5,rgb(34,36,42)); pg.addColorStop(1,rgb(23,25,30));
       rr(c,PL,PT,PW,PH,4); c.fillStyle=pg; c.fill();
       c.save(); rr(c,PL,PT,PW,PH,4); c.clip();
-      for(let x=PL;x<PL+PW;x+=2){ c.strokeStyle=(((x|0)%4)?'rgba(255,255,255,0.05)':'rgba(0,0,0,0.045)'); c.lineWidth=1; c.beginPath(); c.moveTo(x,PT); c.lineTo(x,PT+PH); c.stroke(); }
+      for(let x=PL;x<PL+PW;x+=2){ c.strokeStyle=(((x|0)%4)?'rgba(255,255,255,0.035)':'rgba(0,0,0,0.13)'); c.lineWidth=1; c.beginPath(); c.moveTo(x,PT); c.lineTo(x,PT+PH); c.stroke(); }
+      // blue pinstripe across the top of the panel (Hartke "Transient Attack" line)
+      c.fillStyle=blue; c.fillRect(PL,PT+.045*H,PW,2);
       c.restore();
-      rr(c,PL,PT,PW,PH,4); c.strokeStyle=rgb(118,120,126); c.lineWidth=1.5; c.stroke();
-      const engrave=(x,y,w,h)=>{ rr(c,x,y+1.5,w,h,5); c.strokeStyle='rgba(255,255,255,0.5)'; c.lineWidth=1; c.stroke(); rr(c,x,y,w,h,5); c.strokeStyle=rgb(112,114,120); c.lineWidth=1.2; c.stroke(); };
+      rr(c,PL,PT,PW,PH,4); c.strokeStyle=rgb(60,64,72); c.lineWidth=1.5; c.stroke();
+      const engrave=(x,y,w,h)=>{ rr(c,x,y+1.5,w,h,5); c.strokeStyle='rgba(255,255,255,0.06)'; c.lineWidth=1; c.stroke(); rr(c,x,y,w,h,5); c.strokeStyle=rgb(64,92,140); c.lineWidth=1.2; c.stroke(); };
       const lab=(cx,y,sz,t,col)=>textC(d,cx*W,y*H,F.barlow,sz,col||ink,t);
       const ibx=.04*W,iby=.13*H,ibw=.092*W,ibh=.44*H;
-      rr(c,ibx,iby,ibw,ibh,4); c.fillStyle=rgb(150,152,158); c.fill(); rr(c,ibx,iby,ibw,ibh,4); c.strokeStyle=rgb(106,108,114); c.lineWidth=1.2; c.stroke();
-      const jack=(x,y)=>{ c.beginPath(); c.arc(x,y,7,0,7); c.fillStyle=rgb(14,14,16); c.fill(); c.strokeStyle=rgb(88,90,96); c.lineWidth=1.3; c.stroke(); c.beginPath(); c.arc(x,y,3,0,7); c.fillStyle=rgb(34,34,38); c.fill(); };
+      rr(c,ibx,iby,ibw,ibh,4); c.fillStyle=rgb(40,42,48); c.fill(); rr(c,ibx,iby,ibw,ibh,4); c.strokeStyle=rgb(66,70,78); c.lineWidth=1.2; c.stroke();
+      const jack=(x,y)=>{ c.beginPath(); c.arc(x,y,7,0,7); c.fillStyle=rgb(10,10,12); c.fill(); c.strokeStyle=rgb(96,100,108); c.lineWidth=1.3; c.stroke(); c.beginPath(); c.arc(x,y,3,0,7); c.fillStyle=rgb(30,30,34); c.fill(); };
       jack(ibx+ibw*0.30, iby+ibh*0.24); jack(ibx+ibw*0.30, iby+ibh*0.58);
       textC(d,ibx+ibw*0.58,iby+ibh*0.24,F.barlow,7.5,ink,'PASS','left'); textC(d,ibx+ibw*0.58,iby+ibh*0.58,F.barlow,7.5,ink,'ACT','left');
       lab(.103,.61,9,'ACTIVE');
@@ -739,13 +742,15 @@
       engrave(.368*W, PT+8, .352*W, PH-16);
       engrave(.738*W, PT+8, .205*W, PH-16);
       [[.170,'TUBE'],[.245,'SOLID ST'],[.320,'COMP']].forEach(k=>lab(k[0],.59,10,k[1]));
+      // green compression LED (above/right of the Comp knob, as on the HA5000)
+      c.beginPath(); c.arc(.357*W,.305*H,4.5,0,7); c.fillStyle=rgb(74,214,96); c.fill(); c.strokeStyle=rgb(20,90,30); c.lineWidth=1; c.stroke();
       const ef=['30','64','125','250','500','1k','2k','3k','5k','8k'];
       const fx=[.420,.4512,.4824,.5136,.5448,.576,.6072,.6384,.6696,.7008];
       for(let i=0;i<10;i++) textC(d,fx[i]*W,.225*H,F.barlow,8.5,dim,ef[i]);
       lab(.560,.62,9.5,'GRAPHIC EQUALIZER');
       [[.775,'LOW PASS'],[.840,'HIGH PASS'],[.905,'VOLUME']].forEach(k=>lab(k[0],.59,10,k[1]));
-      const px=.957*W,py=.40*H; rr(c,px-10,py-19,20,38,3); c.fillStyle=rgb(20,20,22); c.fill();
-      rr(c,px-10,py-19,20,38,3); c.strokeStyle=rgb(70,72,76); c.lineWidth=1.2; c.stroke(); rr(c,px-7,py-17,14,17,2); c.fillStyle=rgb(176,32,30); c.fill();
+      const px=.957*W,py=.40*H; rr(c,px-10,py-19,20,38,3); c.fillStyle=rgb(16,16,18); c.fill();
+      rr(c,px-10,py-19,20,38,3); c.strokeStyle=rgb(64,66,72); c.lineWidth=1.2; c.stroke(); rr(c,px-7,py-17,14,17,2); c.fillStyle=rgb(196,40,36); c.fill();
       textC(d,px,.61*H,F.barlow,8.5,ink,'POWER');
       const gy=.85*H;
       textC(d,.04*W,gy,F.bebas,30,rgb(232,234,238),'Sharke','left');
