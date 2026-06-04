@@ -149,9 +149,12 @@ public:
 
     void setParams(const float* p) {
         const float pad = (p[kLoInput] > 0.5f) ? 0.35f : 1.0f;        // Lo input pad
-        // Clean SS gain: brings the signal up to a working level (so the comp
-        // threshold is meaningful), only rail-clips when cranked into a hot bass.
-        gainDrive = p[kGain] * (3.0f + p[kGain] * 12.0f) * pad;
+        // Clean SS gain. Bass songs run the Gain knob LOW (RS 0-100, median ~5),
+        // so the knob is kept in a MODEST, mostly-clean range (it sets feel/level
+        // and only edges into grit near the top), instead of a wide drive curve
+        // that would make low-Gain songs play quiet. kLvl is calibrated at the
+        // real median (Gain 5) so typical songs land at the house loudness.
+        gainDrive = (0.8f + p[kGain] * 3.0f) * pad;
 
         // Bright (HF lift ~+6 dB @ 3 kHz) / Deep (LF lift ~+6 dB @ 50 Hz) switches.
         if (p[kBright] > 0.5f) brite.setHighShelf(3000.f, 6.0f, fs); else brite.setBypass();
@@ -233,7 +236,7 @@ protected:
 
     void run(const float** in, float** out, uint32_t frames) override {
         const float* iL=in[0]; const float* iR=in[1]; float* oL=out[0]; float* oR=out[1];
-        for (uint32_t i=0;i<frames;++i){ oL[i]=rbAmpLvl(1.387f*L.process(iL[i])); oR[i]=rbAmpLvl(1.387f*R.process(iR[i])); }  // kLvl -> -14 LUF (~0.19 RMS @ real CS350B settings); see AMP_LOUDNESS.md
+        for (uint32_t i=0;i<frames;++i){ oL[i]=rbAmpLvl(1.683f*L.process(iL[i])); oR[i]=rbAmpLvl(1.683f*R.process(iR[i])); }  // kLvl -> -14 LUF (~0.19 RMS @ real CS350B median Gain 5); loudness ~flat across Gain. See AMP_LOUDNESS.md
     }
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DbsPlugin)
 };
