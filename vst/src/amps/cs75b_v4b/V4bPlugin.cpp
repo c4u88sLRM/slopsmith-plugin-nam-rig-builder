@@ -246,16 +246,18 @@ public:
         // Output transformer + 7027A HF roll-off (100 W head, a touch darker top).
         pwrLP.setLowpassQ(7500.f, 0.7f, fs);
         // ── Loudness standardization: a gain-dependent output makeup that keeps
-        //    the multitone RMS ~flat across the Gain knob. The preamp+power level
-        //    (RMS measured BEFORE makeup) rises ~0.164→0.348 as Gain 0→1, so
-        //    makeup = C / that curve holds the post-makeup level constant.
-        //    The OLD exp() makeup fell too fast and OVER-cancelled the top: past
-        //    ~45% Gain the natural level rise was more than undone, so max Gain
-        //    ended up QUIETER than mid Gain (the "volume drops at max" bug).
-        //    C = 0.806 = the pre-makeup RMS at Gain 0.5, so noon is unchanged and
-        //    the cross-amp level match is preserved.
-        const float rawLvl = 0.164f + gain * (0.108f + 0.076f * gain);
-        outMakeup = 0.806f / rawLvl;
+        //    the FINAL multitone loudness ~flat across the Gain knob (so songs at
+        //    different Gain settings don't jump volume). Targeting flat *final*
+        //    loudness (not flat pre-clip RMS) matters because the output soft-clip
+        //    compresses the cleaner low-Gain signal MORE than the saturated
+        //    high-Gain one, so a flat pre-clip level still drifts loud as Gain
+        //    rises. The makeup that holds final RMS constant has 1/makeup nearly
+        //    linear in Gain — fit below (anchored so Gain 0.5 == the noon level
+        //    that the cross-amp match is calibrated at). Earlier curves either
+        //    dropped at max Gain (exp, over-cancelled) or boosted ~10–35% Gain
+        //    (flat pre-clip, not flat final).
+        const float invMk = 0.0291f + gain * (0.5786f - 0.0980f * gain);
+        outMakeup = 1.0f / invMk;
     }
 
     inline float process(float x) {
