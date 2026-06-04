@@ -2108,5 +2108,16 @@
    "bundled": "vst/amps/SamplegV4B.vst3",
    "notes": "Bundled Ampeg V-4B style all-tube bass head (Rocksmith 'CS75B'); component-level model from the 1971 V-4B schematic (12AX7 preamp, 4x 7027A ~100W), using Rocksmith's Gain, Bass, Mid, and Treble knobs."
   }
+ ],
+ "Bass_Amp_CH350B": [
+  {
+   "name": "MarstenDBS7400",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "url": "",
+   "free": true,
+   "bundled": "vst/amps/MarstenDBS7400.vst3",
+   "notes": "Bundled Marshall DBS 7400 (Dynamic Bass System) style solid-state bass head (Rocksmith 'CS350B'/'CLH-350B'); component-level model from the 7400 schematic (op-amp preamp + compressor + 7-band gyrator graphic EQ). Uses RS Gain, Bass, Treble and the 7 graphic bands."
+  }
  ]
 }

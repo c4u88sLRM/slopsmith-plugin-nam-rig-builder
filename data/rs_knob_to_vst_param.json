@@ -4283,5 +4283,65 @@
     "_hint": "RS Treble 0-10 (5=flat) -> ~5 kHz high-shelf 0..1 (0.5 flat)."
    }
   }
+ },
+ "Bass_Amp_CH350B": {
+  "marstendbs7400": {
+   "Gain": {
+    "param": "Gain",
+    "scale": 0.01,
+    "_hint": "RS Gain 0-100 -> clean op-amp gain 0..1."
+   },
+   "Bass": {
+    "param": "Bass",
+    "scale": 0.01,
+    "_hint": "RS Bass 0-100 (50=flat) -> Primary EQ low shelf 0..1 (0.5 flat)."
+   },
+   "Mid": {
+    "param": "Middle",
+    "scale": 0.1,
+    "_hint": "RS Mid (if sent) -> Primary EQ mid (0.5 flat)."
+   },
+   "Treble": {
+    "param": "Treble",
+    "scale": 0.01,
+    "_hint": "RS Treble 0-100 (50=flat) -> Primary EQ high shelf 0..1 (0.5 flat)."
+   },
+   "30": {
+    "param": "30 Hz",
+    "offset": 0.5,
+    "scale": 0.033333,
+    "_hint": "graphic EQ band, RS +/-15 dB -> 0..1 (0.5 flat)."
+   },
+   "90": {
+    "param": "90 Hz",
+    "offset": 0.5,
+    "scale": 0.033333
+   },
+   "250": {
+    "param": "275 Hz",
+    "offset": 0.5,
+    "scale": 0.033333
+   },
+   "800": {
+    "param": "750 Hz",
+    "offset": 0.5,
+    "scale": 0.033333
+   },
+   "2500": {
+    "param": "2.2 kHz",
+    "offset": 0.5,
+    "scale": 0.033333
+   },
+   "7500": {
+    "param": "6.5 kHz",
+    "offset": 0.5,
+    "scale": 0.033333
+   },
+   "15000": {
+    "param": "12 kHz",
+    "offset": 0.5,
+    "scale": 0.033333
+   }
+  }
  }
 }

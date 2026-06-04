@@ -682,6 +682,60 @@
       textC(d,.100*W,gy,F.bebas,26,rgb(232,234,238),'Sampleg','left');
       textC(d,.955*W,gy,F.crete,15,rgb(150,152,158),'Heritage','right'); } };
 
+  // ── Marsten DBS 7400 — Marshall DBS 7400 (Dynamic Bass System) style (parody).
+  //   Silver rack panel: Hi/Lo jacks + Bright/Deep/Lo-In switches, Gain + Primary
+  //   EQ (Bass/Middle/Treble) + Compression knobs, a 7-band graphic EQ (faders),
+  //   a big Volume knob, and the Marsten · DYNAMIC BASS SYSTEM wordmark.
+  //   Logical ids: 0 Gain 1 Bass 2 Middle 3 Treble 4 Comp 5 Volume |
+  //     6..12 EQ 30/90/275/750/2.2k/6.5k/12k | 13 Bright 14 Deep 15 Lo In
+  P.marstendbs7400 = { w:960, h:300,
+    knobs:[
+      {id:0,cx:.150,cy:.40,r:.023,style:'pointer',cap:[26,26,28]},
+      {id:1,cx:.215,cy:.40,r:.023,style:'pointer',cap:[26,26,28]},
+      {id:2,cx:.280,cy:.40,r:.023,style:'pointer',cap:[26,26,28]},
+      {id:3,cx:.345,cy:.40,r:.023,style:'pointer',cap:[26,26,28]},
+      {id:4,cx:.410,cy:.40,r:.023,style:'pointer',cap:[26,26,28]},
+      {id:5,cx:.905,cy:.40,r:.030,style:'pointer',cap:[26,26,28]}],
+    switches:[
+      {id:13,cx:.070,cy:.66,hs:.010,dark:true},
+      {id:14,cx:.070,cy:.82,hs:.010,dark:true},
+      {id:15,cx:.120,cy:.74,hs:.010,dark:true}],
+    faders:[
+      {id:6,cx:.500,y0:.27,y1:.56},{id:7,cx:.540,y0:.27,y1:.56},{id:8,cx:.580,y0:.27,y1:.56},
+      {id:9,cx:.620,y0:.27,y1:.56},{id:10,cx:.660,y0:.27,y1:.56},{id:11,cx:.700,y0:.27,y1:.56},
+      {id:12,cx:.740,y0:.27,y1:.56}],
+    tick:rgb(74,76,82), ptr:rgb(245,246,249),
+    draw(d,vals){ vals=vals||{}; const {ctx:c,W,H}=d;
+      const ink=rgb(30,31,35), dim=rgb(92,94,100);
+      box(d, 22,23,26, true);                                  // black rack shell
+      const PL=.025*W, PT=.10*H, PW=.95*W, PH=.55*H;
+      const pg=c.createLinearGradient(0,PT,0,PT+PH); pg.addColorStop(0,rgb(206,208,212)); pg.addColorStop(.5,rgb(182,184,190)); pg.addColorStop(1,rgb(160,162,168));
+      rr(c,PL,PT,PW,PH,4); c.fillStyle=pg; c.fill();
+      c.save(); rr(c,PL,PT,PW,PH,4); c.clip();
+      for(let x=PL;x<PL+PW;x+=2){ c.strokeStyle=(((x|0)%4)?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.04)'); c.lineWidth=1; c.beginPath(); c.moveTo(x,PT); c.lineTo(x,PT+PH); c.stroke(); }
+      c.restore();
+      rr(c,PL,PT,PW,PH,4); c.strokeStyle=rgb(118,120,126); c.lineWidth=1.5; c.stroke();
+      const lab=(cx,y,sz,t,col)=>textC(d,cx*W,y*H,F.barlow,sz,col||ink,t);
+      const frame=(x,y,w,h)=>{ rr(c,x,y+1.4,w,h,4); c.strokeStyle='rgba(255,255,255,0.5)'; c.lineWidth=1; c.stroke();
+        rr(c,x,y,w,h,4); c.strokeStyle=rgb(118,120,126); c.lineWidth=1.3; c.stroke(); };
+      // ── left: Hi/Lo jacks + COMPRESSION LED ──
+      const jack=(x,y)=>{ c.beginPath(); c.arc(x,y,7,0,7); c.fillStyle=rgb(16,16,18); c.fill(); c.strokeStyle=rgb(96,98,104); c.lineWidth=1.4; c.stroke(); c.beginPath(); c.arc(x,y,3,0,7); c.fillStyle=rgb(38,38,42); c.fill(); };
+      jack(.040*W,.34*H); jack(.040*W,.50*H);
+      lab(.040,.30,7.5,'HI'); lab(.040,.555,7.5,'LO');
+      // knob labels
+      [[.150,'GAIN'],[.215,'BASS'],[.280,'MIDDLE'],[.345,'TREBLE'],[.410,'COMP'],[.905,'VOLUME']].forEach(k=>lab(k[0],.55,9,k[1]));
+      // switch labels (Bright/Deep/Lo-In drawn by framework; just label)
+      lab(.070,.58,7.5,'BRIGHT'); lab(.070,.90,7.5,'DEEP'); lab(.120,.66,7.5,'LO IN');
+      // ── centre: GRAPHIC EQUALIZER frame + band labels ──
+      frame(.470*W, PT+.04*PH, .300*W, PH-.66*PH);
+      lab(.620,.165,8,'GRAPHIC EQUALIZER',dim);
+      ['30','90','275','750','2k2','6k5','12k'].forEach((t,i)=>lab(.500+i*0.040,.60,7,t,dim));
+      // ── Marsten wordmark + DYNAMIC BASS SYSTEM ──
+      const gy=.83*H;
+      textC(d,.045*W,gy,F.bebas,26,rgb(232,234,238),'Marsten','left');
+      textC(d,.270*W,gy,F.crete,13,rgb(150,152,158),'DYNAMIC BASS SYSTEM','left');
+      textC(d,.955*W,gy,F.barlow,11,rgb(150,152,158),'DBS 7400  400 W','right'); } };
+
   // ── Sharke HB3500 — faithful Hartke HA3500 silver panel (parody) ────────────
   // Silver control panel: Passive/Active inputs + Active pad, Tube + Solid State
   // + Compression knobs, a 10-band graphic EQ (vertical faders 30..16k) with an
