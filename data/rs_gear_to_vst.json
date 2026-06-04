@@ -2010,15 +2010,26 @@
    "notes": "Bundled Vox AC30 Top Boost / EL84 style amp based on the local EN30 schematics, using Rocksmith's Gain, Bass, Mid, Treble, Pres, and Bright knobs."
   }
  ],
+ "Amp_GB100": [
+  {
+   "name": "Raney AOR50",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "url": "",
+   "free": true,
+   "bundled": "vst/amps/AOR50.vst3",
+   "notes": "Bundled Laney AOR 50 'Pro Tube Lead' (A50 Series II) style amp (parody brand 'Raney'), full 2-channel front panel (Channel One + AOR lead, each Preamp/Master with Pull-Bright, shared Bass/Pull-Deep, Middle/Pull-Boost, Treble, Presence) modelled component-by-component from the local AOR50 schematic. Rocksmith's Gain knob drives the channel morph (Channel One clean -> AOR lead); Bass/Mid/Treble->tone stack, Pres->Presence."
+  }
+ ],
  "Amp_MarshallDSL100H": [
   {
-   "name": "DSL100",
+   "name": "Regis DSL100",
    "manufacturer": "RigBuilder",
    "format": "VST3",
    "url": "",
    "free": true,
    "bundled": "vst/amps/DSL100.vst3",
-   "notes": "Bundled Marshall DSL100H / JCM2000 style amp based on the local DSL100 schematics, using Rocksmith's Gain, Bass, Mid, Treble, Pres, and Res knobs."
+   "notes": "Bundled Marshall JCM2000 DSL100 style amp (parody brand 'Regis'), full 2-channel front panel (Classic Clean/Crunch + Ultra OD1/OD2, Tone Shift, Resonance, Presence, dual Master, per-channel reverb, Low/High output) modelled component-by-component from the local DSL100 schematics. Rocksmith's Gain knob drives the channel morph (clean->crunch->ultra); Bass/Mid/Treble->tone stack, Pres->Presence, Res->Resonance."
   }
  ],
  "Amp_TW22": [
@@ -2045,13 +2056,13 @@
  ],
  "Amp_TW40": [
   {
-   "name": "TW40",
+   "name": "Bender Bassman",
    "manufacturer": "RigBuilder",
    "format": "VST3",
    "url": "",
    "free": true,
    "bundled": "vst/amps/TW40.vst3",
-   "notes": "Bundled Fender Bassman 5F6-A / 5881 style amp based on the local TW40 schematic, using Rocksmith's Gain, Bass, Mid, Treble, and Pres knobs."
+   "notes": "Bundled Fender Bassman 5F6-A tweed style amp (parody brand 'Bender'), full front panel (2 jumperable channels Bright/Normal with their own Volume, real FMV tone stack Treble/Bass/Middle, Presence, clickable input cable) modelled component-by-component from the local 5F6-A schematic. The 5F6-A has no gain knob, so Rocksmith's Gain drives the Bright Volume; Bass/Mid/Treble->tone stack, Pres->Presence."
   }
  ],
  "Bass_Amp_BT880B": [

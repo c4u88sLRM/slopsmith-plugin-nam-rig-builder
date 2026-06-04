@@ -4008,37 +4008,97 @@
    }
   }
  },
- "Amp_MarshallDSL100H": {
-  "dsl100": {
+ "Amp_GB100": {
+  "aor50": {
+   "_hint": "Raney AOR50 = the FULL Laney AOR 50 'Pro Tube Lead' panel (Channel One clean + AOR cascaded lead). The Gain knob DRIVES THE CHANNEL morph — low Gain = Channel One clean, high Gain = AOR lead — matching the gain_variants clean/crunch/dist split. Bass/Mid/Treble -> tone stack, Pres -> Presence. Per-channel preamp/master volumes + pull switches sit at musical defaults (_static).",
    "Gain": {
-    "param": "Gain",
+    "param": "Channel",
     "scale": 0.01,
-    "_hint": "Rocksmith Gain morphs the DSL100 from Classic Clean into Classic Crunch and Ultra OD1."
+    "_hint": "RS Gain -> Channel morph (Channel One clean -> AOR cascaded lead). One knob spans the whole range; per-channel preamp gains pinned in _static (Ch1 lower, AOR higher) so the morph is clean at 0 and hot at 100."
    },
    "Bass": {
     "param": "Bass",
     "scale": 0.01,
-    "_hint": "Maps to the DSL tone stack bass control plus low-end tightening at high gain."
+    "_hint": "RS Bass -> British tone-stack bass."
    },
    "Mid": {
-    "param": "Mid",
+    "param": "Middle",
     "scale": 0.01,
-    "_hint": "Maps to the DSL tone stack middle control; low Mid at high Gain increases the Tone Shift-style scoop."
+    "_hint": "RS Mid -> tone-stack middle."
    },
    "Treble": {
     "param": "Treble",
     "scale": 0.01,
-    "_hint": "Maps to the DSL tone stack treble control and high-gain bite."
+    "_hint": "RS Treble -> tone-stack treble and high-gain bite."
    },
    "Pres": {
-    "param": "Pres",
+    "param": "Presence",
     "scale": 0.01,
-    "_hint": "Maps to the upper feedback-loop presence and speaker bite."
+    "_hint": "RS Pres -> Presence (power-amp NFB) and upper speaker bite."
+   },
+   "_static": {
+    "AOR Preamp": 0.78,
+    "AOR Master": 0.5,
+    "AOR Bright": 0.0,
+    "Ch1 Preamp": 0.45,
+    "Ch1 Master": 0.5,
+    "Ch1 Bright": 0.0,
+    "Deep": 0.0,
+    "Mid Boost": 0.0,
+    "_note": "Gain->Channel sweeps the morph: Ch1 Preamp lower (clean at Channel=0) + AOR Preamp higher (lead at Channel=1) so one knob covers clean->crunch->lead. Masters at the loudness reference, brights and pull switches off. Per-channel volumes + pulls stay editable by hand."
+   }
+  }
+ },
+ "Amp_MarshallDSL100H": {
+  "dsl100": {
+   "_hint": "Regis DSL100 = the FULL JCM2000 DSL100 panel (CLASSIC Clean/Crunch + ULTRA OD1/OD2). The Gain knob DRIVES THE CHANNEL morph — low Gain = Classic clean, mid = Classic crunch, high = Ultra OD — matching the gain_variants split. Tone stack + Presence/Resonance map 1:1; per-channel Gain/Vol, modes and masters sit at musical defaults (_static).",
+   "Gain": {
+    "param": "Channel",
+    "scale": 0.01,
+    "_hint": "RS Gain -> Channel morph (Classic clean -> Crunch -> Ultra OD). One knob spans the whole gain range; per-channel gains pinned in _static so the morph is clean at 0 and hot at 100."
+   },
+   "Bass": {
+    "param": "Bass",
+    "scale": 0.01,
+    "_hint": "RS Bass -> Marshall TMB tone-stack bass (+ low-end tightening at high gain)."
+   },
+   "Mid": {
+    "param": "Middle",
+    "scale": 0.01,
+    "_hint": "RS Mid -> tone-stack middle; low Mid (and the Tone Shift switch) deepen the mid scoop."
+   },
+   "Treble": {
+    "param": "Treble",
+    "scale": 0.01,
+    "_hint": "RS Treble -> tone-stack treble and high-gain bite."
+   },
+   "Pres": {
+    "param": "Presence",
+    "scale": 0.01,
+    "_hint": "RS Pres -> power-amp presence (high-frequency NFB) and speaker bite."
    },
    "Res": {
-    "param": "Res",
+    "param": "Resonance",
     "scale": 0.01,
-    "_hint": "Maps to the DSL deep/resonance low-feedback behavior."
+    "_hint": "RS Res -> power-amp resonance / deep (low-frequency NFB). Falls back to the _static default if Rocksmith exposes no Res knob."
+   },
+   "_static": {
+    "Classic Gain": 0.12,
+    "Classic Vol": 0.5,
+    "Classic Mode": 0.0,
+    "Ultra Gain": 0.82,
+    "Ultra Vol": 0.5,
+    "Ultra Mode": 0.0,
+    "Tone Shift": 1.0,
+    "Resonance": 0.45,
+    "Presence": 0.45,
+    "Rev Classic": 0.0,
+    "Rev Ultra": 0.0,
+    "Master 1": 0.5,
+    "Master 2": 0.5,
+    "Master Sel": 0.0,
+    "Output": 1.0,
+    "_note": "Gain->Channel sweeps the morph: Classic Gain low (clean at Channel=0) + Ultra Gain high (hot at Channel=1) so one knob covers clean->crunch->ultra. Modes = Clean / OD1, Tone Shift ON by default (the scooped DSL voicing Rocksmith tones are built around), reverb off, masters at the loudness reference, High (100W) output. Per-channel Vol + masters stay editable by hand."
    }
   }
  },
@@ -4125,30 +4185,36 @@
  },
  "Amp_TW40": {
   "tw40": {
+   "_hint": "Bender Bassman = the FULL Fender Bassman 5F6-A tweed panel (2 jumperable channels + 6 knobs). The 5F6-A has no gain knob — the volumes ARE the gain — so RS Gain drives the Bright Volume into breakup. Treble/Bass/Mid -> the real FMV tone stack, Pres -> Presence. Input pinned to BOTH (jumpered, the signature tone) with Normal Vol as the blend via _static; all editable by hand.",
    "Gain": {
-    "param": "Gain",
+    "param": "Bright Vol",
     "scale": 0.01,
-    "_hint": "Rocksmith Gain drives the 5F6-A preamp and 5881-style output section."
+    "_hint": "RS Gain -> Bright channel Volume (the 5F6-A breaks up via volume, not a gain knob). Higher = more 5881 power-amp drive / grind. Loudness held ~flat by the makeup."
    },
    "Bass": {
     "param": "Bass",
     "scale": 0.01,
-    "_hint": "Maps to the Bassman FMV tone stack bass control."
+    "_hint": "RS Bass -> Bassman FMV tone-stack bass (1M)."
    },
    "Mid": {
-    "param": "Mid",
+    "param": "Middle",
     "scale": 0.01,
-    "_hint": "Maps to the Bassman FMV tone stack middle control."
+    "_hint": "RS Mid -> Bassman FMV tone-stack middle (25K)."
    },
    "Treble": {
     "param": "Treble",
     "scale": 0.01,
-    "_hint": "Maps to the Bassman FMV tone stack treble control and bright-channel blend."
+    "_hint": "RS Treble -> Bassman FMV tone-stack treble (250K) and bright-channel sparkle."
    },
    "Pres": {
-    "param": "Pres",
+    "param": "Presence",
     "scale": 0.01,
-    "_hint": "Maps to the Bassman presence circuit and upper speaker bite."
+    "_hint": "RS Pres -> Presence (5K, power-amp NFB) and upper speaker bite."
+   },
+   "_static": {
+    "Input": 0.5,
+    "Normal Vol": 0.4,
+    "_note": "Input pinned to BOTH (jumpered Bright+Normal — the classic 5F6-A tone). Normal Vol at a musical blend so RS Gain (-> Bright Vol) sweeps the breakup over a full summed signal. Both volumes + the cable stay editable by hand."
    }
   }
  },

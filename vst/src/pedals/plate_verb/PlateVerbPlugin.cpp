@@ -7,7 +7,7 @@
  */
 #include "DistrhoPlugin.hpp"
 #include "PlateVerbParams.h"
-#include "../_shared/reverb_core.hpp"
+#include "../../_shared/reverb_core.hpp"
 #include <cmath>
 
 START_NAMESPACE_DISTRHO

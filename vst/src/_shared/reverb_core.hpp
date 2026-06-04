@@ -62,7 +62,11 @@ class ReverbCore {
     // post modulation (Depth)
     float modBufL[2048], modBufR[2048]; int mw = 0;
     float lfoPh = 0.f, lfoInc = 0.f, modDepth = 0.f, modMix = 0.f;
-    float mix = 0.3f;
+    // Equal-power dry/wet crossfade gains (precomputed in setParams). The raw
+    // comb sum is ~16-22 dB hotter than the dry, so `wetMix` folds in a
+    // level-match (so full wet ≈ dry) and the cos/sin law keeps the perceived
+    // volume ~constant as Mix rises (no "wet is way louder" / "19% = full room").
+    float dryMix = 1.0f, wetMix = 0.0f;
     // voicing
     float sizeScale = 1.f, dampBias = 0.f, apFb = 0.5f, wetMax = 1.f;
 
@@ -102,9 +106,19 @@ public:
             apL[i].set((int)(kAllpassTune[i] * sr), apFb);
             apR[i].set((int)((kAllpassTune[i] + kStereoSpread) * sr), apFb);
         }
+        // Wet modulation OFF (JF): the Depth-driven chorus read as a phaser on the tail.
         (void)depth;
-        modDepth = 0.f; modMix = 0.f;          // wet modulation OFF — it read as a phaser on the tail
-        mix = mixP * wetMax;                   // wetMax caps the blend so the rack stays subtle
+        modDepth = 0.f; modMix = 0.f;
+        // Level-match the wet to the dry: the 8 summed combs get hotter as the
+        // feedback (Time) rises, so scale by (1 - feedback); wetMax is the
+        // per-rack subtlety cap (JF). Then an equal-power (cos/sin) crossfade keeps
+        // the output loudness ~constant across Mix (no "wet way louder" / "19% =
+        // full room", and Mix no longer changes the volume).
+        const float wetLevel = (1.0f - feedback) * 0.85f;
+        float m = ((mixP < 0.f) ? 0.f : (mixP > 1.f ? 1.f : mixP)) * wetMax;
+        const float a = m * 1.5707963f;
+        dryMix = std::cos(a);
+        wetMix = std::sin(a) * wetLevel;
     }
     inline void process(float xL, float xR, float& outL, float& outR) {
         const float in = (xL + xR) * 0.5f * 0.30f;                    // mono feed, scaled (Freeverb gain)
@@ -126,8 +140,8 @@ public:
         }
         if (++mw >= 2048) mw = 0;
 
-        outL = xL * (1.0f - mix) + wL * mix;
-        outR = xR * (1.0f - mix) + wR * mix;
+        outL = xL * dryMix + wL * wetMix;
+        outR = xR * dryMix + wR * wetMix;
     }
 };
 

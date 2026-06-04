@@ -6,4 +6,4 @@
 #define REVERB_SIZE  0.68f
 #define REVERB_DAMP  -0.05f
 #define REVERB_APFB  0.62f
-#include "../_shared/reverb_plugin.hpp"
+#include "../../_shared/reverb_plugin.hpp"

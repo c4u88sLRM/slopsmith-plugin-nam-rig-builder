@@ -1,15 +1,21 @@
 /*
- * TW40 - Fender Bassman 5F6-A / 5881-style amp for Rocksmith's Amp_TW40.
+ * BENDER BASSMAN - Fender Bassman 5F6-A tweed for Rocksmith's Amp_TW40.
+ * Parody brand "Bender" (same as the SuperNova 22 / Deluxe); the in-app face
+ * must never read "Fender".
  *
- * Local reference:
+ * Local reference (modelled component-by-component):
  *   amps/Fender Bassman Tweed (TW40)/Fender_bassman_5f6a.pdf
  *
- * The schematic has normal/bright inputs, a 12AY7 first stage, a 12AX7
- * recovery/cathode-follower tone-stack driver, a Bass/Middle/Treble FMV
- * stack, a long-tail phase inverter, a presence circuit in the feedback loop,
- * and fixed-bias 5881 output tubes into a 4x10 cabinet. Rocksmith exposes a
- * single Gain plus Bass/Mid/Treble/Pres, so Gain drives the preamp and power
- * section while the tone knobs keep the real 5F6-A control names.
+ * Full 5F6-A front panel, 1:1 (see TW40Params.h): two jumperable channels
+ * (BRIGHT with its 100pF bright cap + NORMAL) each with their own Volume off a
+ * 12AY7 input stage, summing into a 12AX7 -> the real FMV (Bassman) tone stack
+ * (Treble/Bass/Middle) -> 12AX7 driver + long-tail PI -> 2x 5881 (~45W) with a
+ * GZ34 rectifier -> 4x10. Presence taps the power-amp NFB. A clickable input
+ * cable picks Bright / Both(jumpered) / Normal.
+ *
+ * Rocksmith: the 5F6-A has no gain knob, so RS Gain -> Bright Volume (the drive
+ * into breakup); Treble/Bass/Mid -> tone stack, Pres -> Presence. See
+ * rs_knob_to_vst_param.json (input pinned to Both/jumpered for songs).
  */
 #include "DistrhoPlugin.hpp"
 #include "TW40Params.h"
@@ -18,9 +24,8 @@
 START_NAMESPACE_DISTRHO
 
 // RB loudness/headroom output stage (shared across all amps): kLvl matches the
-// amp to the common multitone loudness (~0.30 RMS at real settings); the soft
-// knee is transparent below +/-0.80 and saturates to a +/-0.98 ceiling so EQ
-// boosts never hard-clip. See AMP_LOUDNESS.md.
+// amp to the common multitone loudness; the soft knee is transparent below
+// +/-0.90 and saturates to a +/-0.99 ceiling so EQ boosts never hard-clip.
 static inline float rbAmpLvl(float x){ const float t=0.90f,c=0.99f,a=(x<0.f?-x:x);
     if(a<=t) return x; return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
 
@@ -177,33 +182,19 @@ public:
     }
 };
 
+// The real Bassman/FMV passive tone stack (Treble 250K, Bass 1M, Middle 25K,
+// slope R 56K + 100K, C 250pF / 20nF / 20nF) as a bilinear-transformed 3rd-order
+// transfer function. Component values straight off the 5F6-A schematic.
 class BassmanToneStack
 {
-    float b0 = 1.0f;
-    float b1 = 0.0f;
-    float b2 = 0.0f;
-    float b3 = 0.0f;
-    float a1 = 0.0f;
-    float a2 = 0.0f;
-    float a3 = 0.0f;
-    float x1 = 0.0f;
-    float x2 = 0.0f;
-    float x3 = 0.0f;
-    float y1 = 0.0f;
-    float y2 = 0.0f;
-    float y3 = 0.0f;
+    float b0 = 1.0f, b1 = 0.0f, b2 = 0.0f, b3 = 0.0f;
+    float a1 = 0.0f, a2 = 0.0f, a3 = 0.0f;
+    float x1 = 0.0f, x2 = 0.0f, x3 = 0.0f, y1 = 0.0f, y2 = 0.0f, y3 = 0.0f;
     float sampleRate = 48000.0f;
 
 public:
-    void reset()
-    {
-        x1 = x2 = x3 = y1 = y2 = y3 = 0.0f;
-    }
-
-    void setSampleRate(float sr)
-    {
-        sampleRate = sr > 1000.0f ? sr : 48000.0f;
-    }
+    void reset() { x1 = x2 = x3 = y1 = y2 = y3 = 0.0f; }
+    void setSampleRate(float sr) { sampleRate = sr > 1000.0f ? sr : 48000.0f; }
 
     void update(float treble, float mid, float bass)
     {
@@ -265,13 +256,8 @@ public:
             return;
         }
         const float invA0 = 1.0f / na0;
-        b0 = nb0 * invA0;
-        b1 = nb1 * invA0;
-        b2 = nb2 * invA0;
-        b3 = nb3 * invA0;
-        a1 = na1 * invA0;
-        a2 = na2 * invA0;
-        a3 = na3 * invA0;
+        b0 = nb0 * invA0; b1 = nb1 * invA0; b2 = nb2 * invA0; b3 = nb3 * invA0;
+        a1 = na1 * invA0; a2 = na2 * invA0; a3 = na3 * invA0;
     }
 
     float process(float x)
@@ -289,11 +275,7 @@ class DcBlock
     float y1 = 0.0f;
 
 public:
-    void reset()
-    {
-        x1 = y1 = 0.0f;
-    }
-
+    void reset() { x1 = y1 = 0.0f; }
     float process(float x)
     {
         const float y = x - x1 + 0.995f * y1;
@@ -308,11 +290,17 @@ public:
 class TW40Core
 {
     float sampleRate = 48000.0f;
-    float gain = kTW40Def[kGain];
-    float bass = kTW40Def[kBass];
-    float mid = kTW40Def[kMid];
-    float treble = kTW40Def[kTreble];
-    float pres = kTW40Def[kPres];
+    float input    = kTW40Def[kInput];
+    float brightVol= kTW40Def[kBrightVol];
+    float normalVol= kTW40Def[kNormalVol];
+    float treble   = kTW40Def[kTreble];
+    float bass     = kTW40Def[kBass];
+    float mid      = kTW40Def[kMiddle];
+    float pres     = kTW40Def[kPresence];
+
+    // derived
+    float brightG = 1.0f, normalG = 1.0f;   // channel gating from the input cable
+    float effDrive = 0.5f;                   // overall drive proxy (the "gain" axis)
 
     Biquad inputHp;
     Biquad pickupLoad;
@@ -343,9 +331,18 @@ class TW40Core
 
     void updateFilters()
     {
-        const float g = smoothstep(gain);
-        const float pushed = smoothstepRange(0.42f, 0.92f, gain);
-        const float bright = clamp01(0.35f * treble + 0.25f * pres + 0.40f * gain);
+        // Input cable: Bright(<0.25) / Both(jumpered, 0.25-0.75) / Normal(>=0.75)
+        brightG = (input < 0.75f) ? 1.0f : 0.0f;
+        normalG = (input >= 0.25f) ? 1.0f : 0.0f;
+        // Overall drive: the volumes ARE the gain (5F6-A has no gain knob). Both
+        // channels jumpered sum, so the amp is driven harder.
+        effDrive = clamp01(brightG * brightVol + normalG * normalVol * 0.85f);
+
+        const float g = smoothstep(effDrive);
+        const float pushed = smoothstepRange(0.42f, 0.92f, effDrive);
+        // The 100pF bright cap bleeds treble most at LOW Bright Volume; plus base
+        // brightness from Treble/Presence.
+        const float bright = clamp01(0.32f * treble + 0.22f * pres + 0.42f * (1.0f - brightVol));
 
         inputHp.setHighPass(sampleRate, 42.0f + 52.0f * g + 26.0f * pushed, 0.70f);
         pickupLoad.setLowPass(sampleRate, 12800.0f - 1800.0f * pushed + 900.0f * treble, 0.64f);
@@ -383,24 +380,13 @@ class TW40Core
 public:
     void reset()
     {
-        inputHp.reset();
-        pickupLoad.reset();
-        brightShelf.reset();
-        normalBody.reset();
-        brightBody.reset();
-        interstageHp.reset();
-        cathodeFollowerLp.reset();
-        toneStack.reset();
-        stackMakeupLow.reset();
-        stackMakeupBody.reset();
-        phaseLowPass.reset();
-        presenceShelf.reset();
-        speakerHp.reset();
-        speakerThump.reset();
-        speakerLowMid.reset();
-        speakerBite.reset();
-        speakerFizzNotch.reset();
-        speakerLp.reset();
+        inputHp.reset(); pickupLoad.reset(); brightShelf.reset();
+        normalBody.reset(); brightBody.reset();
+        interstageHp.reset(); cathodeFollowerLp.reset();
+        toneStack.reset(); stackMakeupLow.reset(); stackMakeupBody.reset();
+        phaseLowPass.reset(); presenceShelf.reset();
+        speakerHp.reset(); speakerThump.reset(); speakerLowMid.reset();
+        speakerBite.reset(); speakerFizzNotch.reset(); speakerLp.reset();
         dcBlock.reset();
         sag = 0.0f;
         updateFilters();
@@ -413,35 +399,54 @@ public:
         reset();
     }
 
-    void setGain(float v) { gain = clamp01(v); updateFilters(); }
-    void setBass(float v) { bass = clamp01(v); updateFilters(); }
-    void setMid(float v) { mid = clamp01(v); updateFilters(); }
-    void setTreble(float v) { treble = clamp01(v); updateFilters(); }
-    void setPres(float v) { pres = clamp01(v); updateFilters(); }
+    void setParam(int idx, float v)
+    {
+        v = clamp01(v);
+        switch (idx)
+        {
+            case kInput:     input = v; break;
+            case kBrightVol: brightVol = v; break;
+            case kNormalVol: normalVol = v; break;
+            case kTreble:    treble = v; break;
+            case kBass:      bass = v; break;
+            case kMiddle:    mid = v; break;
+            case kPresence:  pres = v; break;
+            default: break;
+        }
+        updateFilters();
+    }
+
+    void initDefaults()
+    {
+        for (int i = 0; i < kParamCount; ++i)
+            setParam(i, kTW40Def[i]);
+    }
 
     float process(float in)
     {
-        const float g = smoothstep(gain);
-        const float pushed = smoothstepRange(0.42f, 0.92f, gain);
-        const float brightMix = clamp01(0.25f + 0.35f * treble + 0.18f * pres);
+        const float g = smoothstep(effDrive);
+        const float pushed = smoothstepRange(0.42f, 0.92f, effDrive);
 
         float x = inputHp.process(in);
         x = pickupLoad.process(x);
-        x = brightShelf.process(x);
         x = softClip(x * (1.04f + 0.08f * pushed)) * (0.96f - 0.04f * pushed);
 
-        float normal = normalBody.process(x);
-        normal = asymTube(normal, 0.82f + 2.0f * gain + 2.0f * g, 0.010f + 0.014f * gain);
-        float brightPath = brightBody.process(x);
-        brightPath = asymTube(brightPath, 0.90f + 2.25f * gain + 2.3f * g,
-                              0.012f + 0.016f * gain);
+        // BRIGHT channel: bright cap + body, its own 12AY7 triode, then volume.
+        float bch = brightShelf.process(brightBody.process(x));
+        bch = asymTube(bch, 0.90f + 2.25f * effDrive + 2.3f * g, 0.012f + 0.016f * effDrive);
+        // NORMAL channel: darker body, its own triode, then volume.
+        float nch = normalBody.process(x);
+        nch = asymTube(nch, 0.82f + 2.0f * effDrive + 2.0f * g, 0.010f + 0.014f * effDrive);
 
-        float y = normal * (1.0f - brightMix) + brightPath * brightMix;
-        const float cleanLeak = 0.36f * (1.0f - smoothstepRange(0.28f, 0.78f, gain));
-        y = y * (1.0f - cleanLeak) + x * cleanLeak;
+        // Jumpered mix: each channel scaled by its Volume and gated by the cable.
+        float y = brightG * brightVol * bch + normalG * normalVol * 0.92f * nch;
+        // A little clean leak at low drive (the tweed stays articulate when quiet).
+        const float cleanLeak = 0.34f * (1.0f - smoothstepRange(0.28f, 0.78f, effDrive));
+        y = y * (1.0f - cleanLeak) + x * cleanLeak * (brightG * brightVol + normalG * normalVol * 0.5f);
 
+        // 12AX7 recovery / cathode-follower into the FMV tone stack.
         y = interstageHp.process(y);
-        y = asymTube(y, 0.82f + 1.60f * gain + 2.2f * pushed, -0.006f - 0.010f * gain);
+        y = asymTube(y, 0.82f + 1.60f * effDrive + 2.2f * pushed, -0.006f - 0.010f * effDrive);
         y = cathodeFollowerLp.process(y);
 
         y = toneStack.process(y) * 1.70f;
@@ -449,13 +454,14 @@ public:
         y = stackMakeupBody.process(y);
         y = phaseLowPass.process(y);
 
+        // 2x 5881 push-pull + GZ34 sag (the GZ34 is fairly stiff -> moderate sag).
         const float env = std::fabs(y);
         const float attack = 1.0f - std::exp(-1.0f / (0.0060f * sampleRate));
         const float release = 1.0f - std::exp(-1.0f / (0.150f * sampleRate));
         sag += (env - sag) * (env > sag ? attack : release);
-        const float sagDrop = 1.0f / (1.0f + sag * (0.36f + 0.86f * gain + 0.50f * pushed));
+        const float sagDrop = 1.0f / (1.0f + sag * (0.36f + 0.86f * effDrive + 0.50f * pushed));
 
-        const float powerDrive = (0.92f + 1.55f * gain + 2.25f * pushed) * sagDrop;
+        const float powerDrive = (0.92f + 1.55f * effDrive + 2.25f * pushed) * sagDrop;
         y = asymTube(y, powerDrive, 0.006f + 0.014f * (treble - bass) + 0.010f * pres);
         y = 0.86f * y + 0.14f * softClip(y * (1.65f + 1.35f * pushed));
         y *= 0.98f - 0.08f * sag;
@@ -470,13 +476,18 @@ public:
         y = speakerFizzNotch.process(y);
         y = speakerLp.process(y);
 
+        // Loudness normalization: the volumes-as-gain means a low-volume setting
+        // is much quieter than a cranked one. cleanMakeup lifts the quiet end so
+        // the RS Gain (-> Bright Volume) sweep stays within a couple dB and the
+        // single shared kLvl stage stays calibrated.
         const float toneEnergy = 1.0f
             + 0.011f * std::fabs((bass - 0.5f) * 15.0f)
             + 0.012f * std::fabs((mid - 0.5f) * 17.0f)
             + 0.012f * std::fabs((treble - 0.5f) * 17.0f)
             + 0.010f * std::fabs((pres - 0.5f) * 16.0f);
-        const float level = (0.72f + 0.14f * (1.0f - gain)) /
-            ((1.0f + 0.28f * gain + 0.32f * pushed) * toneEnergy);
+        const float cleanMakeup = 1.0f + 3.0f * std::exp(-effDrive / 0.30f);
+        const float level = (0.72f + 0.14f * (1.0f - effDrive)) * cleanMakeup /
+            ((1.0f + 0.28f * effDrive + 0.32f * pushed) * toneEnergy);
         return softClip(y * level) * 0.97f;
     }
 };
@@ -489,16 +500,11 @@ class TW40Plugin : public Plugin
 
     void applyAll()
     {
-        left.setGain(params[kGain]);
-        right.setGain(params[kGain]);
-        left.setBass(params[kBass]);
-        right.setBass(params[kBass]);
-        left.setMid(params[kMid]);
-        right.setMid(params[kMid]);
-        left.setTreble(params[kTreble]);
-        right.setTreble(params[kTreble]);
-        left.setPres(params[kPres]);
-        right.setPres(params[kPres]);
+        for (int i = 0; i < kParamCount; ++i)
+        {
+            left.setParam(i, params[i]);
+            right.setParam(i, params[i]);
+        }
     }
 
 public:
@@ -514,7 +520,7 @@ public:
 
 protected:
     const char* getLabel() const override { return "TW40"; }
-    const char* getDescription() const override { return "Fender Bassman 5F6-A style amp"; }
+    const char* getDescription() const override { return "Fender Bassman 5F6-A tweed style amp"; }
     const char* getMaker() const override { return "RigBuilder"; }
     const char* getLicense() const override { return "ISC"; }
     uint32_t getVersion() const override { return d_version(1, 0, 0); }
@@ -542,7 +548,8 @@ protected:
         if (index >= (uint32_t)kParamCount)
             return;
         params[index] = clamp01(value);
-        applyAll();
+        left.setParam((int)index, params[index]);
+        right.setParam((int)index, params[index]);
     }
 
     void sampleRateChanged(double newSampleRate) override
@@ -560,8 +567,8 @@ protected:
         float* outR = outputs[1];
         for (uint32_t i = 0; i < frames; ++i)
         {
-            outL[i] = rbAmpLvl(1.067f * left.process(inL[i]));
-            outR[i] = rbAmpLvl(1.067f * right.process(inR[i]));
+            outL[i] = rbAmpLvl(0.600f * left.process(inL[i]));
+            outR[i] = rbAmpLvl(0.600f * right.process(inR[i]));
         }
     }
 

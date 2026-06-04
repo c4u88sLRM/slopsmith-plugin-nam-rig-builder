@@ -1,16 +1,20 @@
-/* TW40 stompbox UI — shared pedal_ui template. Colour sampled from the
- * Rocksmith art (Amp_TW40); knob count + labels from the plugin params. */
+/* TW40 fallback DPF UI — shared pedal_ui template. The real in-app face is
+ * drawn by pedal_canvas.js (P.tw40, "Bender" brand, tweed Bassman). Knob count +
+ * labels come from the plugin params (7: the full 5F6-A panel). */
 #include "TW40Params.h"
-#define PEDAL_TITLE  "TW40"
+#define PEDAL_TITLE  "BENDER BASSMAN"
 #define PEDAL_NAMES  kTW40Names
 #define PEDAL_DEFS   kTW40Def
-#define PEDAL_ACR 105
-#define PEDAL_ACG 91
-#define PEDAL_ACB 82
-#define PEDAL_ARCR 225
-#define PEDAL_ARCG 230
-#define PEDAL_ARCB 238
-#define PEDAL_W 360
-#define PEDAL_H 440
-#define PEDAL_KNOBS { {0.25f,0.15f,0.082f}, {0.50f,0.15f,0.082f}, {0.75f,0.15f,0.082f}, {0.36f,0.36f,0.082f}, {0.64f,0.36f,0.082f} }
-#include "../_shared/pedal_ui.hpp"
+#define PEDAL_ACR 196
+#define PEDAL_ACG 168
+#define PEDAL_ACB 104
+#define PEDAL_ARCR 30
+#define PEDAL_ARCG 28
+#define PEDAL_ARCB 26
+#define PEDAL_W 560
+#define PEDAL_H 300
+// 7 controls (Input, Bright Vol, Normal Vol, Treble, Bass, Middle, Presence)
+#define PEDAL_KNOBS { \
+  {0.10f,0.30f,0.058f}, {0.24f,0.30f,0.058f}, {0.38f,0.30f,0.058f}, {0.52f,0.30f,0.058f}, \
+  {0.66f,0.30f,0.058f}, {0.80f,0.30f,0.058f}, {0.93f,0.30f,0.058f} }
+#include "../../_shared/pedal_ui.hpp"

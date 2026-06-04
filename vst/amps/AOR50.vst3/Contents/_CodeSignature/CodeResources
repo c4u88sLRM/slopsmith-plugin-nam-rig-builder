@@ -18,20 +18,6 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
-		<key>x86_64-linux/PlateVerb.so</key>
-		<dict>
-			<key>hash2</key>
-			<data>
-			TF0Dur+jEBCrePqgpSCkDEu/7zmtINtqg7oOXD08Fzw=
-			</data>
-		</dict>
-		<key>x86_64-win/PlateVerb.vst3</key>
-		<dict>
-			<key>hash2</key>
-			<data>
-			jI2X7MeLynuoNVPNFrAUUKI8mdv6MeX3ceuRveoYS38=
-			</data>
-		</dict>
 	</dict>
 	<key>rules</key>
 	<dict>

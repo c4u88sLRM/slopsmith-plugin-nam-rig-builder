@@ -7,4 +7,4 @@
 #define REVERB_DAMP   0.15f   // a touch of damping so the tail isn't ringy/bright
 #define REVERB_APFB   0.50f   // more diffusion → denser, less fluttery
 #define REVERB_WETMAX 0.10f   // Mix knob tops out at 10% wet so the verb stays subtle
-#include "../_shared/reverb_plugin.hpp"
+#include "../../_shared/reverb_plugin.hpp"
