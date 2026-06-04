@@ -100,6 +100,17 @@ def test_screen_blocks_amp_button_while_mega_chain_active():
     src = (ROOT / "screen.js").read_text()
 
     assert "let _ampToggleAllowed = false" in src
+    assert "let _pending = false" in src
+    assert "function isPending()" in src
+    assert "function settingKnown()" in src
+    assert "waiting for /settings before build" in src
+    assert "settings-ready catch-up" in src
+    assert "function rbInjectPlayerToneButton()" in src
+    assert "btn.id = 'btn-rig-tones'" in src
+    assert "Rig Tones On" in src
+    assert "Rig Tones Loading" in src
+    assert "Rig Tones Off" in src
+    assert "RbMegaChain.markPending(filename)" in src
     assert "window.__rbAmpClickBlockerInstalled" in src
     assert "event.stopImmediatePropagation()" in src
     assert "AMP button click ignored" in src

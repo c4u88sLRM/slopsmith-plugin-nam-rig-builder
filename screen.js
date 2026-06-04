@@ -1553,6 +1553,9 @@ const NAM_API = '/api/plugins/nam_tone';
 //   - song:unloaded / song change → RbMegaChain.teardown()
 const RbMegaChain = (function () {
     let _active = false;       // are we currently driving the engine for a song
+    let _pending = false;      // a build is scheduled/running and owns the next chain transition
+    let _pendingFilename = null;
+    let _activeFilename = null;
     let _mega = null;          // last fetched /mega_chain response
     let _activeToneKey = null; // tone_key currently un-bypassed
     let _pollHandle = null;    // setInterval handle watching highway tone changes
@@ -1569,6 +1572,52 @@ const RbMegaChain = (function () {
         // Mirror written by rbSaveSettings; falls back to false until
         // /settings has been fetched at least once.
         return !!window.__rbMegaChainSetting;
+    }
+
+    function _settingKnown() {
+        return typeof window.__rbMegaChainSetting !== 'undefined';
+    }
+
+    function _currentSongFilename() {
+        return (window.slopsmith && window.slopsmith.currentSong && window.slopsmith.currentSong.filename)
+            || window.__rbPlaybackSettingsFilename
+            || rbState.currentSongFile
+            || '';
+    }
+
+    function _state() {
+        return {
+            active: _active,
+            pending: _pending,
+            enabled: _settingOn(),
+            activeToneKey: _activeToneKey || '',
+            filename: _activeFilename || _pendingFilename || _currentSongFilename(),
+        };
+    }
+
+    function _emitState() {
+        const detail = _state();
+        try { window.dispatchEvent(new CustomEvent('rig-builder:tones-state', { detail })); } catch (_) {}
+        try {
+            if (window.slopsmith && typeof window.slopsmith.emit === 'function') {
+                window.slopsmith.emit('rig-builder:tones-state', detail);
+            }
+        } catch (_) {}
+        if (typeof rbUpdatePlayerToneButton === 'function') rbUpdatePlayerToneButton();
+    }
+
+    function markPending(filename) {
+        _pending = true;
+        _pendingFilename = filename || _currentSongFilename() || null;
+        _emitState();
+    }
+
+    function _clearPending(filename) {
+        if (!filename || !_pendingFilename || filename === _pendingFilename) {
+            _pending = false;
+            _pendingFilename = null;
+            _emitState();
+        }
     }
 
     function _api() {
@@ -1735,36 +1784,44 @@ const RbMegaChain = (function () {
         await rbApplyChainInputDrive({ chain: effectiveChain });
         await rbApplyChainOutputGain({ chain: effectiveChain });
         _activeToneKey = activeToneKey;
+        _emitState();
     }
 
     async function buildForSong(filename) {
         if (!_settingOn()) {
             console.log('[rig_builder mega-chain] buildForSong skipped — setting off');
+            _clearPending(filename);
             return false;
         }
+        markPending(filename);
         const api = _api();
         if (!api) {
             console.warn('[rig_builder mega-chain] buildForSong aborted — no native audio API');
+            _clearPending(filename);
             return false;
         }
         if (!filename) {
             console.warn('[rig_builder mega-chain] buildForSong aborted — no filename');
+            _clearPending(filename);
             return false;
         }
         // Tear down any previous session before starting a fresh one.
         await teardown(true);   // silent — no stem restore on chained calls
+        markPending(filename);
 
         let resp;
         try {
             resp = await fetch(`${RB_API}/mega_chain/${encodeURIComponent(filename)}`);
         } catch (e) {
             console.warn('[rig_builder mega-chain] fetch failed:', e);
+            _clearPending(filename);
             return false;
         }
         if (!resp.ok) {
             // No mappings for this song, or backend error → silently fall
             // back to the cooperative path. The bundle will still work.
             console.warn(`[rig_builder mega-chain] /mega_chain/${filename} → HTTP ${resp.status} (no tone mappings for this song? Run Batch all or open it in per-song tab first to seed mappings)`);
+            _clearPending(filename);
             return false;
         }
         const mega = await resp.json();
@@ -1772,6 +1829,7 @@ const RbMegaChain = (function () {
             || !Array.isArray(mega.native_preset.chain)
             || mega.native_preset.chain.length === 0) {
             console.warn('[rig_builder mega-chain] empty chain returned by backend:', mega);
+            _clearPending(filename);
             return false;
         }
         _mega = mega;
@@ -1866,6 +1924,7 @@ const RbMegaChain = (function () {
             console.warn('[rig_builder mega-chain] loadPreset failed, falling back:', e);
             _mega = null;
             _restoreGuitarStem();
+            _clearPending(filename);
             return false;
         }
 
@@ -2065,6 +2124,9 @@ const RbMegaChain = (function () {
         }, 10000);
 
         _active = true;
+        _activeFilename = filename;
+        _clearPending(filename);
+        _emitState();
         return true;
     }
 
@@ -2155,18 +2217,101 @@ const RbMegaChain = (function () {
             }
         }
         _active = false;
+        _activeFilename = null;
         _mega = null;
         _activeToneKey = null;
+        _pending = false;
+        _pendingFilename = null;
         _indexToSlotId = [];
+        _emitState();
     }
 
     function isActive() { return _active; }
+    function isPending() { return _pending; }
     function settingOn() { return _settingOn(); }
+    function settingKnown() { return _settingKnown(); }
+    async function toggleEnabled() {
+        if (_active || _pending) {
+            window.__rbMegaChain = false;
+            await teardown(false);
+            return false;
+        }
+        delete window.__rbMegaChain;
+        const filename = _currentSongFilename();
+        if (!filename) { _emitState(); return false; }
+        markPending(filename);
+        return buildForSong(filename);
+    }
+    function state() { return _state(); }
 
-    const api = { buildForSong, teardown, isActive, settingOn };
+    const api = { buildForSong, teardown, isActive, isPending, settingOn, settingKnown, markPending, toggleEnabled, state };
     window.RbMegaChain = api;
     return api;
 })();
+
+function rbInjectPlayerToneButton() {
+    const controls = document.getElementById('player-controls');
+    if (!controls) return;
+    const state = window.RbMegaChain && typeof window.RbMegaChain.state === 'function'
+        ? window.RbMegaChain.state()
+        : { active: false, pending: false, enabled: false };
+    const shouldShow = !!(state.active || state.pending || state.enabled || window.__rbMegaChain === false);
+    const existing = document.getElementById('btn-rig-tones');
+    if (!shouldShow) {
+        if (existing) existing.remove();
+        return;
+    }
+    if (existing && existing.parentElement === controls) {
+        rbUpdatePlayerToneButton();
+        return;
+    }
+    if (existing) existing.remove();
+    const closeBtn = Array.from(controls.children).find(child => (
+        child.tagName === 'BUTTON'
+        && /showScreen\(['"]home['"]\)/.test(child.getAttribute('onclick') || '')
+    )) || controls.querySelector('button[onclick*="showScreen"]');
+    const btn = document.createElement('button');
+    btn.id = 'btn-rig-tones';
+    btn.type = 'button';
+    btn.onclick = async () => {
+        btn.disabled = true;
+        try {
+            if (window.RbMegaChain && typeof window.RbMegaChain.toggleEnabled === 'function') {
+                await window.RbMegaChain.toggleEnabled();
+            }
+        } finally {
+            btn.disabled = false;
+            rbUpdatePlayerToneButton();
+        }
+    };
+    if (closeBtn && closeBtn.parentElement === controls) controls.insertBefore(btn, closeBtn);
+    else controls.appendChild(btn);
+    rbUpdatePlayerToneButton();
+}
+
+function rbUpdatePlayerToneButton() {
+    const btn = document.getElementById('btn-rig-tones');
+    if (!btn) return;
+    const state = window.RbMegaChain && typeof window.RbMegaChain.state === 'function'
+        ? window.RbMegaChain.state()
+        : { active: false, pending: false, enabled: false, activeToneKey: '' };
+    if (state.pending) {
+        btn.textContent = 'Rig Tones Loading';
+        btn.title = 'Rig Builder is loading this song\'s tone chain. Click to cancel and turn tones off for this session.';
+        btn.className = 'px-3 py-1.5 bg-amber-700/40 hover:bg-amber-700/60 rounded-lg text-xs text-amber-200 transition';
+    } else if (state.active) {
+        btn.textContent = 'Rig Tones On';
+        const active = state.activeToneKey ? ` Active tone: ${state.activeToneKey}.` : '';
+        btn.title = `Rig Builder is playing this song\'s mapped tones.${active} Click to turn them off for this session.`;
+        btn.className = 'px-3 py-1.5 bg-emerald-700/40 hover:bg-emerald-700/60 rounded-lg text-xs text-emerald-200 transition';
+    } else {
+        btn.textContent = 'Rig Tones Off';
+        btn.title = 'Rig Builder song tones are off for this session. Click to load the mapped tones for this song.';
+        btn.className = 'px-3 py-1.5 bg-dark-600 hover:bg-dark-500 rounded-lg text-xs text-gray-400 transition';
+    }
+}
+
+window.addEventListener('rig-builder:tones-state', () => rbInjectPlayerToneButton());
 
 // Hook into the slopsmith song lifecycle. `song:loaded` fires from
 // highway.js whenever the in-game player has fully loaded a CDLC.
@@ -2193,6 +2338,13 @@ const RbMegaChain = (function () {
         if (s && typeof s.mega_chain_mode !== 'undefined') {
             window.__rbMegaChainSetting = !!s.mega_chain_mode;
             console.log(`[rig_builder mega-chain] boot setting=${window.__rbMegaChainSetting} (read from /settings)`);
+            const cur = window.slopsmith && window.slopsmith.currentSong;
+            const filename = cur && cur.filename;
+            if (window.__rbMegaChainSetting && filename) {
+                triggerBuild(filename, 'settings-ready catch-up');
+            } else if (!window.__rbMegaChainSetting && RbMegaChain.isPending()) {
+                RbMegaChain.teardown(true).catch(() => {});
+            }
         }
         // Cache the chain-input drive so rbApplyChainInputDrive (called
         // from many hooks) doesn't have to refetch /settings every time.
@@ -2210,6 +2362,14 @@ const RbMegaChain = (function () {
     let _buildingFile = null;
 
     function triggerBuild(filename, source) {
+        if (!RbMegaChain.settingKnown()) {
+            if (filename) {
+                RbMegaChain.markPending(filename);
+                rbInjectPlayerToneButton();
+                console.log('[rig_builder mega-chain] waiting for /settings before build from', source);
+            }
+            return;
+        }
         if (!RbMegaChain.settingOn()) {
             console.log('[rig_builder mega-chain] skip — setting off');
             return;
@@ -2236,6 +2396,8 @@ const RbMegaChain = (function () {
         }
         _lastSeenFile = filename;
         _pendingBuildFile = filename;
+        RbMegaChain.markPending(filename);
+        rbInjectPlayerToneButton();
         console.log(`[rig_builder mega-chain] song detected via ${source}: ${filename} — scheduling buildForSong in 600 ms`);
         // Give the bundle ~600 ms to inject its #btn-nam etc. so our
         // AMP-off click hits a real button. Also lets the highway
@@ -2284,7 +2446,7 @@ const RbMegaChain = (function () {
                 if (_pendingBuildTimer) { clearTimeout(_pendingBuildTimer); _pendingBuildTimer = null; }
                 window.__rbPlaybackSettingsKey = '';
                 window.__rbPlaybackSettingsFilename = '';
-                if (RbMegaChain.isActive()) RbMegaChain.teardown(false).catch(() => {});
+                    if (RbMegaChain.isActive() || RbMegaChain.isPending()) RbMegaChain.teardown(false).catch(() => {});
             });
             window.slopsmith.on('playback:ended', () => {
                 _lastSeenFile = null;
@@ -2293,7 +2455,7 @@ const RbMegaChain = (function () {
                 if (_pendingBuildTimer) { clearTimeout(_pendingBuildTimer); _pendingBuildTimer = null; }
                 window.__rbPlaybackSettingsKey = '';
                 window.__rbPlaybackSettingsFilename = '';
-                if (RbMegaChain.isActive()) RbMegaChain.teardown(false).catch(() => {});
+                    if (RbMegaChain.isActive() || RbMegaChain.isPending()) RbMegaChain.teardown(false).catch(() => {});
             });
         }
         installPlaybackLifecycle();
@@ -2314,7 +2476,7 @@ const RbMegaChain = (function () {
             _pendingBuildFile = null;
             _buildingFile = null;
             if (_pendingBuildTimer) { clearTimeout(_pendingBuildTimer); _pendingBuildTimer = null; }
-            if (RbMegaChain.isActive()) RbMegaChain.teardown(false).catch(() => {});
+            if (RbMegaChain.isActive() || RbMegaChain.isPending()) RbMegaChain.teardown(false).catch(() => {});
         });
         // Catch up on a song that was already loaded when we hooked in:
         // the event has already fired and EventEmitter won't replay it.
