@@ -10,12 +10,16 @@
  * Unlike the Sampleg SVT/V-4B (valve), the DBS is fully SOLID-STATE: a clean
  * op-amp preamp with lots of headroom — no tube saturation. So we model:
  *   IN ─[Lo pad]─► op-amp GAIN (nodal, rail-clip only when slammed)
- *      ─► Bright / Deep shelves ─► Bass/Middle/Treble Primary EQ
- *      ─► Compressor (envelope → JFET VCR) ─► 7-band gyrator graphic EQ
+ *      ─► Bright / Deep shelves ─► Lo / Hi 2-band Primary EQ
+ *      ─► Compressor (fixed threshold, Depth-only) ─► 7-band gyrator graphic EQ
  *      ─► Volume ─► clean SS power
  *
- * Rocksmith ("CLH-350B") drives Gain, Bass, Treble and the 7 graphic bands; the
- * rest sit at faithful defaults. The graphic bands are the RS set (30/90/275/
+ * The real 7400's Primary EQ is Lo + Hi only (VR3/VR4 — no mid), and the
+ * compressor has just a DEPTH knob (VR5) with a FIXED internal threshold
+ * (SSM2252 VCA); the panel "Threshold" is only the INDICATOR LED, not a knob.
+ *
+ * Rocksmith ("CLH-350B") drives Gain, Bass->Lo, Treble->Hi and the 7 graphic
+ * bands; the rest sit at faithful defaults. The graphic bands are the RS set (30/90/275/
  * 750/2.2k/6.5k/12k). Nodal op-amp / RC / MFB primitives are shared with the
  * Sharke (Hartke) build — the right SS sibling — but the voicing is the DBS's.
  */
@@ -136,16 +140,18 @@ class DbsChannel {
     SsPre ss;                            // clean op-amp gain (no tube)
     float gainDrive=1, master=1, blend=0.6f, graphicLvl=1.f;
     Biquad brite, deep;                  // Bright / Deep voicing shelves
-    Biquad bqBass, bqMid, bqTreble;      // Primary EQ
-    // compressor: envelope detector -> JFET voltage-controlled-resistor gain cell
-    bool compOn=false, graphicOn=true; float env=0, atk=0, rel=0, compThr=1, compAmt=0, compMk=1;
+    Biquad bqLo, bqHi;                    // Primary EQ (Lo / Hi — 2-band, no mid)
+    // compressor: envelope detector -> JFET voltage-controlled-resistor gain cell.
+    // FIXED internal threshold (real 7400 has no threshold pot — only Depth + LED).
+    static constexpr float kCompThr = 0.30f;
+    bool compOn=false, graphicOn=true; float env=0, atk=0, rel=0, compAmt=0, compMk=1;
     static inline float msC(float ms, float fs){ return std::exp(-1.f/(0.001f*ms*fs)); }
     MFB eq[kNumEq];  float eqG[kNumEq];                  // 7-band gyrator graphic EQ
 public:
     void setSampleRate(float s){ fs=(s>0)?s:48000.f; atk=msC(5.f,fs); rel=msC(140.f,fs);
         for (int i=0;i<kNumEq;++i){ eq[i].setT(s); eq[i].set(kEqFreqs[i], 1.1, 1e-8); eqG[i]=1.f; } }
     void reset(){ for (int i=0;i<kNumEq;++i) eq[i].reset();
-        brite.reset(); deep.reset(); bqBass.reset(); bqMid.reset(); bqTreble.reset(); env=0; }
+        brite.reset(); deep.reset(); bqLo.reset(); bqHi.reset(); env=0; }
 
     void setParams(const float* p) {
         const float pad = (p[kLoInput] > 0.5f) ? 0.35f : 1.0f;        // Lo input pad
@@ -162,15 +168,14 @@ public:
         if (p[kBright] > 0.5f) brite.setHighShelf(3000.f, 6.0f, fs); else brite.setBypass();
         if (p[kDeep]   > 0.5f) deep.setLowShelf(50.f, 6.0f, fs);     else deep.setBypass();
 
-        // Primary EQ: passive Bass (low shelf ~80 Hz), Middle (peak ~600 Hz),
-        // Treble (high shelf ~4 kHz), +/-15 dB (0.5 = flat).
-        bqBass.setLowShelf(80.f,   (p[kBass]   - 0.5f) * 30.f, fs);
-        bqMid.setPeak(600.f, (p[kMiddle] - 0.5f) * 28.f, 0.8f, fs);
-        bqTreble.setHighShelf(4000.f, (p[kTreble] - 0.5f) * 30.f, fs);
+        // Primary EQ (2-band, no mid): Lo low shelf ~80 Hz (VR3), Hi high shelf
+        // ~3.5 kHz (VR4, C29 10n/R34 4k7), +/-15 dB (0.5 = flat).
+        bqLo.setLowShelf(80.f,    (p[kLo] - 0.5f) * 30.f, fs);
+        bqHi.setHighShelf(3500.f, (p[kHi] - 0.5f) * 30.f, fs);
 
-        // Compression: Threshold (ON..MIN..MAX -> when it bites) + Depth (amount).
+        // Compression: only DEPTH (amount). Threshold is FIXED internally (the
+        // panel "Threshold" is just the indicator LED, not a knob).
         compOn  = p[kDepth] > 0.001f;
-        compThr = 0.50f - p[kThreshold]*0.40f;       // higher Threshold knob -> lower threshold -> bites sooner
         compAmt = p[kDepth];
         compMk  = 1.0f + p[kDepth]*0.35f;
 
@@ -192,14 +197,14 @@ public:
         double s = blend * sClean + (1.0 - blend) * sValve;
         // 2. Bright / Deep voicing
         s = brite.process((float)s); s = deep.process((float)s);
-        // 3. Primary EQ
-        s = bqBass.process((float)s); s = bqMid.process((float)s); s = bqTreble.process((float)s);
-        // 4. COMPRESSOR — envelope → JFET VCR divider (same cell as the Sharke)
+        // 3. Primary EQ (Lo / Hi — 2-band, no mid)
+        s = bqLo.process((float)s); s = bqHi.process((float)s);
+        // 4. COMPRESSOR — envelope → JFET VCR divider (fixed threshold, Depth-only)
         if (compOn) {
             const double a = std::fabs(s);
             const double c = (a > env) ? atk : rel;
             env = c*env + (1.0-c)*a;
-            const double over = (env > compThr) ? (env - compThr) : 0.0;
+            const double over = (env > kCompThr) ? (env - kCompThr) : 0.0;
             const double ctl  = over * compAmt * 5.0;
             double gain = 1.0;
             if (ctl > 1e-6) { const double Ron=400.0, Rs=4700.0; double rds = Ron*3.0/ctl;

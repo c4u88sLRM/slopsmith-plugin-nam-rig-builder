@@ -684,28 +684,28 @@
 
   // ── Marsten DBS 7400 — faithful Marshall DBS 7400 (Dynamic Bass System) look
   //   (parody): gold/champagne chassis, black control panel, ALL controls REAL.
-  //   Logical ids: 0 Gain 1 Pre-amp Blend 2 Bass 3 Middle 4 Treble 5 Threshold
-  //   6 Depth 7 Volume | 8..14 graphic 30/90/275/750/2.2k/6.5k/12k 15 Graphic
-  //   Level | 16 Bright 17 Deep 18 Graphic 19 Lo Input
+  //   Faithful to the real 7400: Primary EQ = Lo/Hi only (no mid); Compression =
+  //   Depth knob + Threshold INDICATOR LED (threshold is fixed internally).
+  //   Logical ids: 0 Gain 1 Pre-amp Blend 2 Lo 3 Hi 4 Depth 5 Volume
+  //   | 6..12 graphic 30/90/275/750/2.2k/6.5k/12k 13 Graphic Level
+  //   | 14 Bright 15 Deep 16 Graphic 17 Lo Input
   P.marstendbs7400 = { w:960, h:300,
     knobs:[
       {id:0,cx:.092,cy:.31,r:.021,style:'pointer',cap:[20,20,22]},
       {id:1,cx:.152,cy:.31,r:.021,style:'pointer',cap:[20,20,22]},
-      {id:2,cx:.261,cy:.31,r:.021,style:'pointer',cap:[20,20,22]},
-      {id:3,cx:.316,cy:.31,r:.021,style:'pointer',cap:[20,20,22]},
-      {id:4,cx:.371,cy:.31,r:.021,style:'pointer',cap:[20,20,22]},
-      {id:5,cx:.458,cy:.31,r:.021,style:'pointer',cap:[20,20,22]},
-      {id:6,cx:.513,cy:.31,r:.021,style:'pointer',cap:[20,20,22]},
-      {id:7,cx:.903,cy:.31,r:.032,style:'pointer',cap:[20,20,22]}],
+      {id:2,cx:.288,cy:.31,r:.021,style:'pointer',cap:[20,20,22]},
+      {id:3,cx:.344,cy:.31,r:.021,style:'pointer',cap:[20,20,22]},
+      {id:4,cx:.484,cy:.36,r:.021,style:'pointer',cap:[20,20,22]},
+      {id:5,cx:.903,cy:.31,r:.032,style:'pointer',cap:[20,20,22]}],
     switches:[
-      {id:16,cx:.188,cy:.22,hs:.0090,dark:true},
-      {id:17,cx:.188,cy:.40,hs:.0090,dark:true},
-      {id:18,cx:.829,cy:.31,hs:.0090,dark:true},
-      {id:19,cx:.092,cy:.76,hs:.0090,dark:true}],
+      {id:14,cx:.188,cy:.22,hs:.0090,dark:true},
+      {id:15,cx:.188,cy:.40,hs:.0090,dark:true},
+      {id:16,cx:.829,cy:.31,hs:.0090,dark:true},
+      {id:17,cx:.092,cy:.76,hs:.0090,dark:true}],
     faders:[
-      {id:8,cx:.561,y0:.18,y1:.42},{id:9,cx:.592,y0:.18,y1:.42},{id:10,cx:.623,y0:.18,y1:.42},
-      {id:11,cx:.654,y0:.18,y1:.42},{id:12,cx:.685,y0:.18,y1:.42},{id:13,cx:.716,y0:.18,y1:.42},
-      {id:14,cx:.747,y0:.18,y1:.42},{id:15,cx:.786,y0:.18,y1:.42}],
+      {id:6,cx:.561,y0:.18,y1:.42},{id:7,cx:.592,y0:.18,y1:.42},{id:8,cx:.623,y0:.18,y1:.42},
+      {id:9,cx:.654,y0:.18,y1:.42},{id:10,cx:.685,y0:.18,y1:.42},{id:11,cx:.716,y0:.18,y1:.42},
+      {id:12,cx:.747,y0:.18,y1:.42},{id:13,cx:.786,y0:.18,y1:.42}],
     tick:rgb(150,148,135), ptr:rgb(236,233,221),
     draw(d,vals){ vals=vals||{}; const {ctx:c,W,H}=d;
       const cream=rgb(220,216,200), dim=rgb(150,148,132), goldInk=rgb(52,44,28);
@@ -728,12 +728,14 @@
       lab(.152,.45,6,'PRE-AMP'); lab(.152,.50,6,'BLEND');
       // BRIGHT / DEEP switch labels
       lab(.188,.135,6.5,'BRIGHT'); lab(.188,.475,6.5,'DEEP');
-      // PRIMARY EQ frame
+      // PRIMARY EQ frame (Lo / Hi — 2-band, no mid)
       frame(.226*W,.10*H,.180*W,.40*H); lab(.316,.155,7.5,'PRIMARY EQ',dim);
-      [[.261,'BASS'],[.316,'MIDDLE'],[.371,'TREBLE']].forEach(k=>lab(k[0],.47,6.5,k[1]));
-      // COMPRESSION frame (Threshold + Depth — both real)
+      [[.288,'LO'],[.344,'HI']].forEach(k=>lab(k[0],.47,6.5,k[1]));
+      // COMPRESSION frame (Depth knob + Threshold INDICATOR LED — no threshold pot)
       frame(.424*W,.10*H,.120*W,.40*H); lab(.484,.155,7.5,'COMPRESSION',dim);
-      lab(.458,.47,6.5,'THRESH'); lab(.513,.47,6.5,'DEPTH');
+      c.beginPath(); c.arc(.484*W,.215*H,4,0,7); c.fillStyle=rgb(150,46,38); c.fill();
+      lab(.484,.265,5.5,'THRESHOLD',dim);
+      lab(.484,.49,6.5,'DEPTH');
       // GRAPHIC EQUALIZER frame + band labels + LEVEL + GRAPHIC switch
       frame(.548*W,.10*H,.300*W,.40*H); lab(.666,.155,7.5,'GRAPHIC EQUALIZER',dim);
       ['30','90','275','750','2k2','6k5','12k','LVL'].forEach((t,i)=>lab((i<7?.561+i*0.031:.786),.465,6,t,dim));

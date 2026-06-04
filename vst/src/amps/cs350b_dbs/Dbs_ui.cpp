@@ -13,11 +13,9 @@ struct Spot { int id; float cx, cy, r; const char* name; };
 static const Spot kKnobs[] = {
     { kGain,         0.060f, 0.40f, 0.026f, "GAIN" },
     { kBlend,        0.130f, 0.40f, 0.026f, "BLEND" },
-    { kBass,         0.220f, 0.40f, 0.026f, "BASS" },
-    { kMiddle,       0.285f, 0.40f, 0.026f, "MIDDLE" },
-    { kTreble,       0.350f, 0.40f, 0.026f, "TREBLE" },
-    { kThreshold,    0.430f, 0.40f, 0.026f, "THRESH" },
-    { kDepth,        0.495f, 0.40f, 0.026f, "DEPTH" },
+    { kLo,           0.250f, 0.40f, 0.026f, "LO" },
+    { kHi,           0.315f, 0.40f, 0.026f, "HI" },
+    { kDepth,        0.430f, 0.40f, 0.026f, "DEPTH" },
     { kGraphicLevel, 0.840f, 0.40f, 0.026f, "EQ LVL" },
     { kVolume,       0.930f, 0.40f, 0.030f, "VOLUME" },
 };

@@ -4292,19 +4292,14 @@
     "_hint": "RS Gain 0-100 -> clean op-amp gain 0..1."
    },
    "Bass": {
-    "param": "Bass",
+    "param": "Lo",
     "scale": 0.01,
-    "_hint": "RS Bass 0-100 (50=flat) -> Primary EQ low shelf 0..1 (0.5 flat)."
-   },
-   "Mid": {
-    "param": "Middle",
-    "scale": 0.1,
-    "_hint": "RS Mid (if sent) -> Primary EQ mid (0.5 flat)."
+    "_hint": "RS Bass 0-100 (50=flat) -> Primary EQ Lo low shelf 0..1 (0.5 flat)."
    },
    "Treble": {
-    "param": "Treble",
+    "param": "Hi",
     "scale": 0.01,
-    "_hint": "RS Treble 0-100 (50=flat) -> Primary EQ high shelf 0..1 (0.5 flat)."
+    "_hint": "RS Treble 0-100 (50=flat) -> Primary EQ Hi high shelf 0..1 (0.5 flat)."
    },
    "30": {
     "param": "30 Hz",
