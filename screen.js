@@ -964,6 +964,23 @@ function rbAudioEffectsOperationHandlers() {
     };
 }
 
+function rbSelectAudioEffectsRoute(reason) {
+    rbRegisterAudioEffectsCapability();
+    const audioEffects = rbAudioEffectsApi();
+    if (!audioEffects || typeof audioEffects.selectChain !== 'function') return null;
+    try {
+        return audioEffects.selectChain({
+            authorization: 'restore-selection',
+            routeKey: RB_EFFECTS_ROUTE_KEY,
+            providerId: RB_EFFECTS_PARTICIPANT_ID,
+            summary: { mode: 'mega-chain', status: reason || 'pending' },
+        }, RB_PLUGIN_ID);
+    } catch (e) {
+        console.warn('[rig_builder] audio-effects route selection failed:', e);
+        return null;
+    }
+}
+
 function rbCapabilityCommand(capability, command, payload) {
     const api = rbCapabilitiesApi();
     if (!api || typeof api.command !== 'function') return Promise.resolve(null);
@@ -1597,11 +1614,6 @@ const RbMegaChain = (function () {
 
     function _emitState() {
         const detail = _state();
-        window.__rbToneOwnership = Object.assign({}, detail, {
-            providerId: 'rig_builder.effects',
-            state: detail.pending ? 'loading' : (detail.active ? 'loaded' : 'idle'),
-            updatedAt: Date.now(),
-        });
         try { window.dispatchEvent(new CustomEvent('rig-builder:tones-state', { detail })); } catch (_) {}
         try {
             if (window.slopsmith && typeof window.slopsmith.emit === 'function') {
@@ -1614,6 +1626,7 @@ const RbMegaChain = (function () {
     function markPending(filename) {
         _pending = true;
         _pendingFilename = filename || _currentSongFilename() || null;
+        rbSelectAudioEffectsRoute('mega-chain-pending');
         _emitState();
     }
 
