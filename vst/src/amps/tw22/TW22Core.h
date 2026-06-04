@@ -170,9 +170,9 @@ class TW22Core {
         const float wBurn = smoothstep(channel);    // 0=Vintage .. 1=Burn
         const float hot   = smoothstepRange(0.45f, 1.0f, channel) * smoothstep(gain1);
 
-        // input grid HP (tightens more on the Burn channel) + shared bright cap
-        // (Norm = sparkly, Fat = darker/fuller).
-        inputHp.setHz(sampleRate, 55.0f + 65.0f * wBurn);
+        // input grid HP (tightens a little more on the Burn channel) + shared
+        // bright cap (Norm = sparkly, Fat = darker/fuller).
+        inputHp.setHz(sampleRate, 45.0f + 32.0f * wBurn);
         inputBright.setHighShelf(sampleRate, 2150.0f, 0.70f, 4.0f - 5.5f * normFat);
 
         // --- VINTAGE tone (American clean: bright, tight, mild) ---
@@ -180,9 +180,11 @@ class TW22Core {
         vintTrebleShelf.setHighShelf(sampleRate, 2000.0f + 1200.0f * vintTre, 0.62f, -6.0f + 15.0f * vintTre);
 
         // --- BURN cascade tone (scooped American hi-gain) ---
-        burnTighten.setHz(sampleRate, 110.0f + 150.0f * gain1 + 120.0f * wBurn);
+        burnTighten.setHz(sampleRate, 60.0f + 70.0f * gain1 + 55.0f * wBurn);
         interstageLp.setHz(sampleRate, 9200.0f - 2600.0f * gain2 + 1400.0f * burnTre);
-        burnBassShelf.setLowShelf(sampleRate, 100.0f + 25.0f * burnBass, 0.74f, eqDb(burnBass, 11.0f));
+        // low shelf with a body baseline so the Burn channel isn't thin (it was
+        // ~12 dB light in the lows vs the Box/Deluxe; American-tight, not anaemic).
+        burnBassShelf.setLowShelf(sampleRate, 135.0f, 0.70f, eqDb(burnBass, 11.0f) + 3.5f);
         burnMidScoop.setPeaking(sampleRate, 430.0f + 150.0f * burnMid, 0.64f, -8.0f + 14.0f * burnMid);
         burnTrebleShelf.setHighShelf(sampleRate, 1900.0f + 1300.0f * burnTre, 0.62f, -7.0f + 17.0f * burnTre);
 
@@ -191,7 +193,7 @@ class TW22Core {
 
         // --- Celestion V30 12" (bright / tight, modest body) ---
         speakerHp.setHighPass(sampleRate, 84.0f, 0.72f);
-        speakerBody.setPeaking(sampleRate, 240.0f, 0.80f, 0.6f + 1.4f * (wBurn * burnBass + (1.0f - wBurn) * vintBass) - 0.4f * hot);
+        speakerBody.setPeaking(sampleRate, 205.0f, 0.80f, 2.4f + 1.6f * (wBurn * burnBass + (1.0f - wBurn) * vintBass) - 0.4f * hot);
         speakerBite.setPeaking(sampleRate, 2600.0f + 500.0f * burnTre, 0.72f, 2.2f + 2.4f * burnTre + 0.8f * wBurn);
         speakerFizz.setPeaking(sampleRate, 4500.0f, 0.95f, -3.0f - 2.0f * hot);
         speakerLp.setLowPass(sampleRate, 4700.0f + 3000.0f * burnTre - 600.0f * wBurn, 0.64f);
