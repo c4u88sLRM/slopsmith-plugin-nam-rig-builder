@@ -695,7 +695,7 @@
       textC(d,.04*W,gy,F.bebas,30,rgb(232,234,238),'Sharke','left');
       textC(d,.955*W,gy,F.barlow,11,rgb(150,152,158),'MODEL HB3500  ·  350 WATTS','right'); } };
 
-  // ── Sharke HB5000 — faithful Hartke HA5000 BLACK panel w/ blue accent (parody)
+  // ── Sharke HB5000 — faithful Hartke HA5000 BLACK panel w/ white accent (parody)
   // Same control surface + geometry as the HB3500, but the HA5000 ships a dark
   // charcoal face (blue pinstripe, white text, green comp LED) instead of the
   // HA3500 silver. EQ centres …2k/3k/5k/8k; MODEL HB5000 / 250+250 WATTS.
@@ -719,18 +719,18 @@
       {id:15,cx:.7008,y0:.27,y1:.56}],
     tick:rgb(150,152,158), ptr:rgb(238,240,244),
     draw(d,vals){ vals=vals||{}; const {ctx:c,W,H}=d;
-      const ink=rgb(228,231,237), dim=rgb(120,130,150), blue=rgb(58,108,182);
+      const ink=rgb(228,231,237), dim=rgb(120,130,150), stripe=rgb(236,238,242);
       box(d, 15,16,19, true);
       const PL=.03*W,PT=.07*H,PW=.94*W,PH=.62*H;
       const pg=c.createLinearGradient(0,PT,0,PT+PH); pg.addColorStop(0,rgb(48,50,57)); pg.addColorStop(.5,rgb(34,36,42)); pg.addColorStop(1,rgb(23,25,30));
       rr(c,PL,PT,PW,PH,4); c.fillStyle=pg; c.fill();
       c.save(); rr(c,PL,PT,PW,PH,4); c.clip();
       for(let x=PL;x<PL+PW;x+=2){ c.strokeStyle=(((x|0)%4)?'rgba(255,255,255,0.035)':'rgba(0,0,0,0.13)'); c.lineWidth=1; c.beginPath(); c.moveTo(x,PT); c.lineTo(x,PT+PH); c.stroke(); }
-      // blue pinstripe across the top of the panel (Hartke "Transient Attack" line)
-      c.fillStyle=blue; c.fillRect(PL,PT+.045*H,PW,2);
+      // white pinstripe across the top of the panel (Hartke "Transient Attack" line)
+      c.fillStyle=stripe; c.fillRect(PL,PT+.045*H,PW,2);
       c.restore();
       rr(c,PL,PT,PW,PH,4); c.strokeStyle=rgb(60,64,72); c.lineWidth=1.5; c.stroke();
-      const engrave=(x,y,w,h)=>{ rr(c,x,y+1.5,w,h,5); c.strokeStyle='rgba(255,255,255,0.06)'; c.lineWidth=1; c.stroke(); rr(c,x,y,w,h,5); c.strokeStyle=rgb(64,92,140); c.lineWidth=1.2; c.stroke(); };
+      const engrave=(x,y,w,h)=>{ rr(c,x,y+1.5,w,h,5); c.strokeStyle='rgba(255,255,255,0.08)'; c.lineWidth=1; c.stroke(); rr(c,x,y,w,h,5); c.strokeStyle=rgb(112,116,124); c.lineWidth=1.2; c.stroke(); };
       const lab=(cx,y,sz,t,col)=>textC(d,cx*W,y*H,F.barlow,sz,col||ink,t);
       const ibx=.04*W,iby=.13*H,ibw=.092*W,ibh=.44*H;
       rr(c,ibx,iby,ibw,ibh,4); c.fillStyle=rgb(40,42,48); c.fill(); rr(c,ibx,iby,ibw,ibh,4); c.strokeStyle=rgb(66,70,78); c.lineWidth=1.2; c.stroke();
