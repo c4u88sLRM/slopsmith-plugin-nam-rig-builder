@@ -689,23 +689,23 @@
   //   Level | 16 Bright 17 Deep 18 Graphic 19 Lo Input
   P.marstendbs7400 = { w:960, h:300,
     knobs:[
-      {id:0,cx:.062,cy:.31,r:.021,style:'pointer',cap:[20,20,22]},
-      {id:1,cx:.122,cy:.31,r:.021,style:'pointer',cap:[20,20,22]},
-      {id:2,cx:.285,cy:.31,r:.021,style:'pointer',cap:[20,20,22]},
-      {id:3,cx:.340,cy:.31,r:.021,style:'pointer',cap:[20,20,22]},
-      {id:4,cx:.395,cy:.31,r:.021,style:'pointer',cap:[20,20,22]},
-      {id:5,cx:.482,cy:.31,r:.021,style:'pointer',cap:[20,20,22]},
-      {id:6,cx:.537,cy:.31,r:.021,style:'pointer',cap:[20,20,22]},
-      {id:7,cx:.915,cy:.31,r:.032,style:'pointer',cap:[20,20,22]}],
+      {id:0,cx:.092,cy:.31,r:.021,style:'pointer',cap:[20,20,22]},
+      {id:1,cx:.152,cy:.31,r:.021,style:'pointer',cap:[20,20,22]},
+      {id:2,cx:.261,cy:.31,r:.021,style:'pointer',cap:[20,20,22]},
+      {id:3,cx:.316,cy:.31,r:.021,style:'pointer',cap:[20,20,22]},
+      {id:4,cx:.371,cy:.31,r:.021,style:'pointer',cap:[20,20,22]},
+      {id:5,cx:.458,cy:.31,r:.021,style:'pointer',cap:[20,20,22]},
+      {id:6,cx:.513,cy:.31,r:.021,style:'pointer',cap:[20,20,22]},
+      {id:7,cx:.903,cy:.31,r:.032,style:'pointer',cap:[20,20,22]}],
     switches:[
-      {id:16,cx:.158,cy:.22,hs:.0090,dark:true},
-      {id:17,cx:.158,cy:.40,hs:.0090,dark:true},
-      {id:18,cx:.853,cy:.31,hs:.0090,dark:true},
+      {id:16,cx:.188,cy:.22,hs:.0090,dark:true},
+      {id:17,cx:.188,cy:.40,hs:.0090,dark:true},
+      {id:18,cx:.829,cy:.31,hs:.0090,dark:true},
       {id:19,cx:.092,cy:.76,hs:.0090,dark:true}],
     faders:[
-      {id:8,cx:.585,y0:.18,y1:.42},{id:9,cx:.616,y0:.18,y1:.42},{id:10,cx:.647,y0:.18,y1:.42},
-      {id:11,cx:.678,y0:.18,y1:.42},{id:12,cx:.709,y0:.18,y1:.42},{id:13,cx:.740,y0:.18,y1:.42},
-      {id:14,cx:.771,y0:.18,y1:.42},{id:15,cx:.810,y0:.18,y1:.42}],
+      {id:8,cx:.561,y0:.18,y1:.42},{id:9,cx:.592,y0:.18,y1:.42},{id:10,cx:.623,y0:.18,y1:.42},
+      {id:11,cx:.654,y0:.18,y1:.42},{id:12,cx:.685,y0:.18,y1:.42},{id:13,cx:.716,y0:.18,y1:.42},
+      {id:14,cx:.747,y0:.18,y1:.42},{id:15,cx:.786,y0:.18,y1:.42}],
     tick:rgb(150,148,135), ptr:rgb(236,233,221),
     draw(d,vals){ vals=vals||{}; const {ctx:c,W,H}=d;
       const cream=rgb(220,216,200), dim=rgb(150,148,132), goldInk=rgb(52,44,28);
@@ -722,24 +722,24 @@
       const lab=(cx,y,sz,t,col)=>textC(d,cx*W,y*H,F.barlow,sz,col||cream,t);
       const frame=(x,y,w,h)=>{ rr(c,x,y,w,h,3); c.strokeStyle='rgba(176,174,156,0.6)'; c.lineWidth=1; c.stroke(); };
       // PEAK LED + GAIN + PRE-AMP BLEND (real knobs)
-      c.beginPath(); c.arc(.050*W,.135*H,4,0,7); c.fillStyle=rgb(214,64,42); c.fill();
-      lab(.050,.205,6.5,'PEAK',dim);
-      lab(.062,.47,7.5,'GAIN');
-      lab(.122,.45,6,'PRE-AMP'); lab(.122,.50,6,'BLEND');
+      c.beginPath(); c.arc(.080*W,.135*H,4,0,7); c.fillStyle=rgb(214,64,42); c.fill();
+      lab(.080,.205,6.5,'PEAK',dim);
+      lab(.092,.47,7.5,'GAIN');
+      lab(.152,.45,6,'PRE-AMP'); lab(.152,.50,6,'BLEND');
       // BRIGHT / DEEP switch labels
-      lab(.158,.135,6.5,'BRIGHT'); lab(.158,.475,6.5,'DEEP');
+      lab(.188,.135,6.5,'BRIGHT'); lab(.188,.475,6.5,'DEEP');
       // PRIMARY EQ frame
-      frame(.250*W,.10*H,.180*W,.40*H); lab(.340,.155,7.5,'PRIMARY EQ',dim);
-      [[.285,'BASS'],[.340,'MIDDLE'],[.395,'TREBLE']].forEach(k=>lab(k[0],.47,6.5,k[1]));
+      frame(.226*W,.10*H,.180*W,.40*H); lab(.316,.155,7.5,'PRIMARY EQ',dim);
+      [[.261,'BASS'],[.316,'MIDDLE'],[.371,'TREBLE']].forEach(k=>lab(k[0],.47,6.5,k[1]));
       // COMPRESSION frame (Threshold + Depth — both real)
-      frame(.448*W,.10*H,.120*W,.40*H); lab(.508,.155,7.5,'COMPRESSION',dim);
-      lab(.482,.47,6.5,'THRESH'); lab(.537,.47,6.5,'DEPTH');
+      frame(.424*W,.10*H,.120*W,.40*H); lab(.484,.155,7.5,'COMPRESSION',dim);
+      lab(.458,.47,6.5,'THRESH'); lab(.513,.47,6.5,'DEPTH');
       // GRAPHIC EQUALIZER frame + band labels + LEVEL + GRAPHIC switch
-      frame(.572*W,.10*H,.300*W,.40*H); lab(.690,.155,7.5,'GRAPHIC EQUALIZER',dim);
-      ['30','90','275','750','2k2','6k5','12k','LVL'].forEach((t,i)=>lab((i<7?.585+i*0.031:.810),.465,6,t,dim));
-      lab(.853,.45,6.5,'GRAPHIC');
+      frame(.548*W,.10*H,.300*W,.40*H); lab(.666,.155,7.5,'GRAPHIC EQUALIZER',dim);
+      ['30','90','275','750','2k2','6k5','12k','LVL'].forEach((t,i)=>lab((i<7?.561+i*0.031:.786),.465,6,t,dim));
+      lab(.829,.45,6.5,'GRAPHIC');
       // VOLUME (big, right)
-      lab(.915,.47,7.5,'VOLUME');
+      lab(.903,.47,7.5,'VOLUME');
       // ── bottom gold strip: INPUT jack + Marsten script + power ──
       const gy=.78*H;
       const jack=(x)=>{ c.beginPath();c.arc(x*W,gy,7,0,7);c.fillStyle=rgb(28,26,20);c.fill();c.strokeStyle=rgb(110,96,58);c.lineWidth=1.4;c.stroke();c.beginPath();c.arc(x*W,gy,3,0,7);c.fillStyle=rgb(58,52,36);c.fill(); };
