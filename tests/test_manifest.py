@@ -103,6 +103,9 @@ def test_screen_blocks_amp_button_while_mega_chain_active():
     assert "let _pending = false" in src
     assert "function isPending()" in src
     assert "function settingKnown()" in src
+    assert "window.__rbToneOwnership" in src
+    assert "providerId: 'rig_builder.effects'" in src
+    assert "state: detail.pending ? 'loading'" in src
     assert "waiting for /settings before build" in src
     assert "settings-ready catch-up" in src
     assert "function rbInjectPlayerToneButton()" in src

@@ -1597,6 +1597,11 @@ const RbMegaChain = (function () {
 
     function _emitState() {
         const detail = _state();
+        window.__rbToneOwnership = Object.assign({}, detail, {
+            providerId: 'rig_builder.effects',
+            state: detail.pending ? 'loading' : (detail.active ? 'loaded' : 'idle'),
+            updatedAt: Date.now(),
+        });
         try { window.dispatchEvent(new CustomEvent('rig-builder:tones-state', { detail })); } catch (_) {}
         try {
             if (window.slopsmith && typeof window.slopsmith.emit === 'function') {
