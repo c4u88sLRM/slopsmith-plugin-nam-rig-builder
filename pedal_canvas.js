@@ -3328,6 +3328,40 @@
       jack(.205,.72); jack(.205,.84); lab(.205,.645,6,'SEND'); lab(.205,.915,6,'RETURN');
       jack(.885,.72); jack(.885,.84); lab(.930,.72,6.5,'IN 1'); lab(.930,.84,6.5,'IN 2'); } };
 
+  // Citrus AD200 — Orange AD200B (parody). Orange tolex + cream panel, CITRUS
+  // bubble logo + AD200 + crest, black control strip: Power/Standby, Gain, an
+  // orange tone section (Bass/Middle/Treble), Master, Passive/Active. ids 0..5.
+  P.citrusad200 = { w:900, h:300,
+    knobs:[
+      {id:0,cx:.230,cy:.70,r:.044,style:'pointer',cap:[20,20,22]},
+      {id:1,cx:.395,cy:.70,r:.030,style:'pointer',cap:[20,20,22]},
+      {id:2,cx:.475,cy:.70,r:.030,style:'pointer',cap:[20,20,22]},
+      {id:3,cx:.555,cy:.70,r:.030,style:'pointer',cap:[20,20,22]},
+      {id:4,cx:.690,cy:.70,r:.044,style:'pointer',cap:[20,20,22]}],
+    switches:[{id:5,cx:.885,cy:.70,hs:.011,dark:true}],
+    names:['Gain','Bass','Middle','Treble','Master','Active'],
+    tick:rgb(120,116,104), ptr:rgb(244,245,248),
+    draw(d,vals){ const {ctx:c,W,H}=d; vals=vals||{};
+      c.fillStyle=rgb(236,118,24); c.fillRect(0,0,W,H);                 // orange tolex
+      rr(c,.035*W,.07*H,.930*W,.86*H,6); c.fillStyle=rgb(238,234,222); c.fill();   // cream panel
+      rr(c,.035*W,.07*H,.930*W,.86*H,6); c.strokeStyle=rgb(150,146,134); c.lineWidth=1.4; c.stroke();
+      textC(d,.085*W,.235*H,F.anton,40,rgb(24,22,20),'CITRUS','left');
+      textC(d,.560*W,.235*H,F.anton,22,rgb(40,38,34),'AD200','left');
+      rr(c,.770*W,.13*H,.085*W,.24*H,3); c.fillStyle=rgb(228,224,212); c.fill();
+      rr(c,.770*W,.13*H,.085*W,.24*H,3); c.strokeStyle=rgb(150,40,40); c.lineWidth=1.2; c.stroke();
+      const lab=(cx,y,sz,t,col)=>textC(d,cx*W,y*H,F.barlow,sz,col||rgb(232,233,236),t);
+      rr(c,.06*W,.55*H,.88*W,.36*H,5); c.fillStyle=rgb(18,18,20); c.fill();           // black strip
+      rr(c,.355*W,.575*H,.245*W,.31*H,4); c.fillStyle=rgb(232,112,22); c.fill();      // orange tone section
+      const rocker=(x)=>{ rr(c,x*W-8,.70*H-14,16,28,2); c.fillStyle=rgb(40,40,44); c.fill(); rr(c,x*W-8,.70*H-14,16,28,2); c.strokeStyle=rgb(90,92,96); c.lineWidth=1; c.stroke(); };
+      rocker(.105); rocker(.160); lab(.105,.89,6.5,'POWER',rgb(206,150,40)); lab(.160,.89,6.5,'STANDBY',rgb(206,150,40));
+      ledDot(d,.078*W,.70*H,true,236,140,30);
+      [[.230,'GAIN'],[.395,'BASS'],[.475,'MIDDLE'],[.555,'TREBLE'],[.690,'MASTER']].forEach(k=>lab(k[0],.83,8.5,k[1]));
+      const jack=(x,y)=>{ c.beginPath();c.arc(x*W,y*H,8,0,7);c.fillStyle=rgb(16,16,18);c.fill();c.strokeStyle=rgb(120,122,126);c.lineWidth=1.4;c.stroke(); };
+      jack(.825,.62); jack(.825,.80);
+      const act=(vals[5]||0)>0.5;
+      lab(.885,.59,7,'PASSIVE',act?rgb(150,150,154):rgb(236,200,120));
+      lab(.885,.83,7,'ACTIVE',act?rgb(236,200,120):rgb(150,150,154)); } };
+
   // ── generic fallback: any VST without a hand-built spec gets a clean knob
   //    grid built from its live parameter metadata (so nothing opens in a
   //    native window). params = [{id|paramId|index, name, value}, …]. ──────────

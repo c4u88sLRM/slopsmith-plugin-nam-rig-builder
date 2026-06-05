@@ -4535,6 +4535,33 @@
    }
   }
  },
+ "Bass_Amp_OrangeAD200B": {
+  "citrusad200": {
+   "Gain": {
+    "param": "Gain",
+    "scale": 0.01,
+    "_hint": "RS Gain 0-100 -> 12AX7 input drive 0..1."
+   },
+   "Bass": {
+    "param": "Bass",
+    "offset": 0.5,
+    "scale": 0.1,
+    "_hint": "RS Bass 0-10 -> Orange subtractive Bass; RS 5 (flat) -> 1.0 flat, below cuts."
+   },
+   "Mid": {
+    "param": "Middle",
+    "offset": 0.5,
+    "scale": 0.1,
+    "_hint": "RS Mid 0-10 -> Orange subtractive Middle; RS 5 (flat) -> 1.0 flat, below cuts."
+   },
+   "Treble": {
+    "param": "Treble",
+    "offset": 0.5,
+    "scale": 0.1,
+    "_hint": "RS Treble 0-10 -> Orange subtractive Treble; RS 5 (flat) -> 1.0 flat, below cuts."
+   }
+  }
+ },
  "Bass_Amp_CS75B": {
   "samplegv4b": {
    "Gain": {
