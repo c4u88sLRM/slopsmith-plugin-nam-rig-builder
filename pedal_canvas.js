@@ -3182,21 +3182,21 @@
     const pg=c.createLinearGradient(0,PT,0,PT+PH); pg.addColorStop(0,rgb(206,176,96)); pg.addColorStop(1,rgb(176,146,72));
     rr(c,PL,PT,PW,PH,6); c.fillStyle=pg; c.fill(); rr(c,PL,PT,PW,PH,6); c.strokeStyle=rgb(180,52,44); c.lineWidth=2; c.stroke();
     const lab=(cx,y,sz,t,col)=>textC(d,cx*W,y*H,F.barlow,sz,col||ink,t);
-    textC(d,PL+60,PT+6,F.barlow,11,rgb(180,52,44),'Valve-Tech Series','left');
-    textC(d,PL+60,PT+22,F.barlow,9,ink,'Twin Triode Tube Pre Amplifier   '+model,'left');
-    textC(d,(PL+PW)-12,PT+6,F.crete,18,rgb(28,24,18),'Aiden','right');
+    textC(d,PL+60,PT+14,F.barlow,12.5,rgb(180,52,44),'Valve-Tech Series','left');
+    textC(d,PL+60,PT+32,F.barlow,10.5,ink,'Twin Triode Tube Pre Amplifier   '+model,'left');
+    textC(d,(PL+PW)-12,PT+16,F.crete,20.5,rgb(28,24,18),'Aiden','right');
     const jack=(x,y)=>{ c.beginPath();c.arc(x*W,y*H,8,0,7);c.fillStyle=rgb(16,16,18);c.fill();c.strokeStyle=rgb(60,50,36);c.lineWidth=1.4;c.stroke(); };
-    jack(.035,.66); lab(.035,.78,7.5,'INPUT'); jack(.955,.66); lab(.955,.78,7,'PHONES');
-    lab(.560,.92,8.5,'Semi-Parametric Bass Equalizer');
-    [[.460,'FREQ'],[.560,'FREQ'],[.660,'FREQ']].forEach(k=>lab(k[0],.40,8,k[1]));
-    [[.085,'GAIN'],[.175,'ENHANCE'],[.300,'BASS'],[.460,levLbl[0]],[.560,levLbl[1]],[.660,levLbl[2]],[.790,'TREBLE'],[.875,'MASTER']].forEach(k=>lab(k[0],.78,8.5,k[1])); }
+    jack(.035,.66); lab(.035,.79,8.5,'INPUT'); jack(.955,.66); lab(.955,.79,8,'PHONES');
+    lab(.560,.93,9.5,'Semi-Parametric Bass Equalizer');
+    [[.460,'FREQ'],[.560,'FREQ'],[.660,'FREQ']].forEach(k=>lab(k[0],.44,9.5,k[1]));
+    [[.105,'GAIN'],[.195,'ENHANCE'],[.320,'BASS'],[.460,levLbl[0]],[.560,levLbl[1]],[.660,levLbl[2]],[.790,'TREBLE'],[.875,'MASTER']].forEach(k=>lab(k[0],.82,9.5,k[1])); }
   const EDEN_KNOBS=[
     {id:3,cx:.460,cy:.30,r:.024,style:'pointer',cap:EDEN_RED},
     {id:5,cx:.560,cy:.30,r:.024,style:'pointer',cap:EDEN_RED},
     {id:7,cx:.660,cy:.30,r:.024,style:'pointer',cap:EDEN_RED},
-    {id:0,cx:.085,cy:.66,r:.026,style:'pointer',cap:EDEN_BLUE},
-    {id:1,cx:.175,cy:.66,r:.026,style:'pointer',cap:EDEN_WHITE},
-    {id:2,cx:.300,cy:.66,r:.024,style:'pointer',cap:EDEN_RED},
+    {id:0,cx:.105,cy:.66,r:.026,style:'pointer',cap:EDEN_BLUE},
+    {id:1,cx:.195,cy:.66,r:.026,style:'pointer',cap:EDEN_WHITE},
+    {id:2,cx:.320,cy:.66,r:.024,style:'pointer',cap:EDEN_RED},
     {id:4,cx:.460,cy:.66,r:.024,style:'pointer',cap:EDEN_RED},
     {id:6,cx:.560,cy:.66,r:.024,style:'pointer',cap:EDEN_RED},
     {id:8,cx:.660,cy:.66,r:.024,style:'pointer',cap:EDEN_RED},
@@ -3215,16 +3215,16 @@
       {id:5,cx:.500,cy:.30,r:.022,style:'pointer',cap:EDEN_RED},
       {id:7,cx:.580,cy:.30,r:.022,style:'pointer',cap:EDEN_RED},
       {id:11,cx:.700,cy:.30,r:.022,style:'pointer',cap:EDEN_GREY},
-      {id:0,cx:.075,cy:.66,r:.024,style:'pointer',cap:EDEN_BLUE},
-      {id:1,cx:.150,cy:.66,r:.024,style:'pointer',cap:EDEN_WHITE},
-      {id:2,cx:.260,cy:.66,r:.022,style:'pointer',cap:EDEN_RED},
+      {id:0,cx:.095,cy:.66,r:.024,style:'pointer',cap:EDEN_BLUE},
+      {id:1,cx:.170,cy:.66,r:.024,style:'pointer',cap:EDEN_WHITE},
+      {id:2,cx:.280,cy:.66,r:.022,style:'pointer',cap:EDEN_RED},
       {id:4,cx:.420,cy:.66,r:.022,style:'pointer',cap:EDEN_RED},
       {id:6,cx:.500,cy:.66,r:.022,style:'pointer',cap:EDEN_RED},
       {id:8,cx:.580,cy:.66,r:.022,style:'pointer',cap:EDEN_RED},
       {id:9,cx:.675,cy:.66,r:.022,style:'pointer',cap:EDEN_RED},
       {id:10,cx:.775,cy:.66,r:.024,style:'pointer',cap:EDEN_BLUE},
       {id:12,cx:.860,cy:.66,r:.022,style:'pointer',cap:EDEN_BLUE}],
-    switches:[{id:13,cx:.700,cy:.66,hs:.012,dark:true}],
+    switches:[{id:13,cx:.760,cy:.30,hs:.012,dark:true}],
     names:['Gain','Enhance','Bass','Low Freq','Low Level','Mid Freq','Mid Level','High Freq','High Level','Treble','Master','X-Over Freq','Balance','X-Over'],
     tick:rgb(120,118,108), ptr:rgb(245,245,245),
     draw(d,vals){ const {ctx:c,W,H}=d; const ink=rgb(40,30,18), dim=rgb(60,50,32);
@@ -3233,15 +3233,14 @@
       const pg=c.createLinearGradient(0,PT,0,PT+PH); pg.addColorStop(0,rgb(212,182,104)); pg.addColorStop(1,rgb(170,138,66));
       rr(c,PL,PT,PW,PH,6); c.fillStyle=pg; c.fill(); rr(c,PL,PT,PW,PH,6); c.strokeStyle=rgb(150,120,52); c.lineWidth=2; c.stroke();
       const lab=(cx,y,sz,t,col)=>textC(d,cx*W,y*H,F.barlow,sz,col||ink,t);
-      textC(d,PL+60,PT+6,F.barlow,9,ink,'Hybrid Bass Guitar Amplifier   Valve-Tech Series','left');
-      textC(d,(PL+PW)-12,PT+5,F.bebas,18,rgb(28,24,18),'WORLD TOUR','right');
-      textC(d,(PL+PW)-12,PT+24,F.barlow,11,rgb(170,40,34),'Aiden  GT-880','right');
+      textC(d,PL+60,PT+14,F.barlow,10.5,ink,'Hybrid Bass Guitar Amplifier   Valve-Tech Series','left');
+      textC(d,(PL+PW)-12,PT+14,F.bebas,20.5,rgb(28,24,18),'WORLD TOUR','right');
+      textC(d,(PL+PW)-12,PT+34,F.barlow,12.5,rgb(170,40,34),'Aiden  GT-880','right');
       const jack=(x,y)=>{ c.beginPath();c.arc(x*W,y*H,8,0,7);c.fillStyle=rgb(16,16,18);c.fill();c.strokeStyle=rgb(60,50,36);c.lineWidth=1.4;c.stroke(); };
-      jack(.033,.66); lab(.033,.78,7.5,'INPUT');
-      lab(.500,.93,8,'Semi-Parametric Bass Equalizer');
-      [[.420,'FREQ'],[.500,'FREQ'],[.580,'FREQ'],[.700,'X-OVER']].forEach(k=>lab(k[0],.40,7.5,k[1]));
-      [[.075,'GAIN'],[.150,'ENHANCE'],[.260,'BASS'],[.420,'LOW'],[.500,'MID'],[.580,'HIGH'],[.675,'TREBLE'],[.775,'MASTER'],[.860,'BALANCE']].forEach(k=>lab(k[0],.78,8,k[1]));
-      lab(.700,.80,7,'X-OVER'); } };
+      jack(.033,.66); lab(.033,.79,8.5,'INPUT');
+      lab(.500,.94,9.5,'Semi-Parametric Bass Equalizer');
+      [[.420,'FREQ'],[.500,'FREQ'],[.580,'FREQ'],[.700,'X-OVER'],[.760,'ON']].forEach(k=>lab(k[0],.44,9,k[1]));
+      [[.095,'GAIN'],[.170,'ENHANCE'],[.280,'BASS'],[.420,'LOW'],[.500,'MID'],[.580,'HIGH'],[.675,'TREBLE'],[.775,'MASTER'],[.860,'BALANCE']].forEach(k=>lab(k[0],.82,9,k[1])); } };
 
   // Lovolt 100 — Custom Hiwatt 100 (DR103, parody). Black face, Normal/Bright
   // vols + Bass/Treble/Middle + Presence + Master. ids 0..6.
