@@ -289,7 +289,7 @@ function rbApplyChainInputDrive(opts) {
 //   active amp + no cab IR        → ×0.5 (knock the raw-amp spike down)
 //   no active amp / fallback      → ×1.0 (don't change anything)
 // Extra lift for VST-amp chains (they output below the NAM loudness reference).
-const RB_VST_AMP_BOOST = 2.5;   // ~+8 dB
+const RB_VST_AMP_BOOST = 3.2;   // ~+10 dB
 function rbChainGainTargetFor(chainSpec) {
     // User "Chain volume" trim (chain_makeup, default 1.0) — the ONLY level
     // the engine respects (per-stage IR gain is ignored). Multiplies the

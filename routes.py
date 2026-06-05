@@ -3136,8 +3136,8 @@ def _ir_rms_makeup(path: Path) -> float:
 # loudness equal to the cab-alone path (data/di_cab_makeup.json, cross-validated
 # to <0.5 dB). Generation is pure-python (no numpy) so it runs in the chain
 # builder; the makeup table is precomputed offline by tools/make_di_cab_irs.py.
-_DI_CAB_DI = 0.9
-_DI_CAB_CAB = 0.1
+_DI_CAB_DI = 0.6
+_DI_CAB_CAB = 0.4
 _di_cab_makeup_tbl: dict | None = None
 
 
