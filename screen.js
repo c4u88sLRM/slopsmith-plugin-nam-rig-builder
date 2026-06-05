@@ -295,7 +295,7 @@ function rbChainGainTargetFor(chainSpec) {
     const makeup = (typeof window.__rbChainMakeup === 'number') ? window.__rbChainMakeup : 4.0;
     let base = 1.0;
     if (Array.isArray(chainSpec)) {
-        let hasActiveAmp = false, hasActiveVstAmp = false, hasRsCab = false, hasOtherCab = false, activeNamCount = 0;
+        let hasActiveAmp = false, hasRsCab = false, hasOtherCab = false, activeNamCount = 0;
         let rsCabMakeup = 1.0;
         for (const stage of chainSpec) {
             if (!stage || stage.bypassed) continue;
@@ -303,7 +303,6 @@ function rbChainGainTargetFor(chainSpec) {
                 activeNamCount++;
                 if (stage.slot === 'amp') hasActiveAmp = true;
             }
-            if (stage.type === 0 && stage.slot === 'amp') hasActiveVstAmp = true;
             // type 2 = IR. A Rocksmith cab IR lives under nam_irs/rocksmith/ and
             // is RAW (quiet → needs +6 dB). A tone3000 IR is already normalized
             // (boosting it is what saturated non-RS-cab tones), so 0 dB.
@@ -333,14 +332,6 @@ function rbChainGainTargetFor(chainSpec) {
             // never clipped. rbClampChainGainTarget still bounds the final target.
             if (hasRsCab) base *= rsCabMakeup;
             base *= rbPostAmpMakeupForChain(chainSpec);
-        }
-        // VST amps (type-0) don't trip hasActiveAmp, so the cab/no-cab balance
-        // above is skipped for them. With a cab the DI/cab IR makeup keeps the
-        // level right, but bypassing the cab loses the −6 dB direct-signal
-        // knock-down → it jumps louder than running the cab. Apply just that
-        // knock-down for a VST-amp chain with no active cab.
-        else if (hasActiveVstAmp && !hasRsCab && !hasOtherCab) {
-            base = Math.pow(10, -6 / 20);
         }
     }
     window.__rbChainBaseTarget = base;   // remember (pre-trim) for live makeup changes

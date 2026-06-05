@@ -3136,8 +3136,8 @@ def _ir_rms_makeup(path: Path) -> float:
 # loudness equal to the cab-alone path (data/di_cab_makeup.json, cross-validated
 # to <0.5 dB). Generation is pure-python (no numpy) so it runs in the chain
 # builder; the makeup table is precomputed offline by tools/make_di_cab_irs.py.
-_DI_CAB_DI = 0.7
-_DI_CAB_CAB = 0.3
+_DI_CAB_DI = 0.9
+_DI_CAB_CAB = 0.1
 _di_cab_makeup_tbl: dict | None = None
 
 
@@ -3221,7 +3221,10 @@ def _di_cab_blend_file(cab_path: Path) -> Path | None:
     if not _config_dir:
         return None
     try:
-        out = _config_dir / "nam_irs" / "rocksmith_dicab" / cab_path.name
+        # Versioned by the DI/cab ratio so changing it regenerates (stale blends
+        # of a previous ratio are never reused). Kept under a 'rocksmith' path.
+        sub = "rocksmith_dicab_%d_%d" % (round(_DI_CAB_DI * 100), round(_DI_CAB_CAB * 100))
+        out = _config_dir / "nam_irs" / sub / cab_path.name
         try:
             if out.exists() and out.stat().st_mtime_ns >= cab_path.stat().st_mtime_ns:
                 return out
@@ -3260,19 +3263,21 @@ def _ir_stage(ir_path, *, bypassed, gain=1.0,
     its own gain (see the −12 dB double-attenuation fix).
 
     `di_cab` (set only by the per-tone chain builders) swaps a BASS cab IR for
-    its 70/30 DI+cab blend when the feature is on — see the DI+Cab helpers."""
+    its DI+cab blend when the feature is on — see the DI+Cab helpers."""
     ir_path = str(ir_path)
     di_cab_blend = False
     if di_cab and _is_bass_cab_ir(ir_path) and _di_cab_enabled():
         blended = _di_cab_blend_file(Path(ir_path))
         if blended is not None:
-            # Bake the bass-loudness-preserving makeup into the IR stage's own
-            # `gain` — the engine applies it UNCONDITIONALLY. (Folding it into
-            # cab_rms_makeup instead only works for NAM-amp chains: screen.js
-            # gates that chain-gain makeup on a NAM amp, so a VST-amp bass chain
-            # would play the deliberately-quiet blend IR uncompensated, ~10 dB
-            # too soft — the "fuzz bass plays quieter than other songs" bug.)
-            gain = gain * _di_cab_makeup_for(Path(ir_path), blended)
+            # The blend is DI*delta + CAB*(cab/‖cab‖) (DI=0.9, CAB=0.1). Setting
+            # the IR `gain` = 1/DI makes the dry/DI component play at UNITY — i.e.
+            # the bass sits at the amp's direct level, exactly like running no cab
+            # (so enabling the cab no longer drops the volume), with the small cab
+            # share adding colour. The engine applies this `gain` unconditionally,
+            # so it works for VST-amp chains too (where the chain-gain cab makeup
+            # is gated off). This replaces the old per-cab "preserve the cab's own
+            # loudness" makeup, which kept the bass at the cab's quiet level.
+            gain = 1.0 / _DI_CAB_DI
             ir_path = str(blended)
             di_cab_blend = True
     stage = {"type": 2, "name": Path(ir_path).stem, "path": str(ir_path),
@@ -5913,7 +5918,7 @@ def setup(app, context):
             try:
                 # User cab/chain volume trim — multiplies the auto chain-gain
                 # target (setGain('chain',X), the only level the engine respects).
-                allowed["chain_makeup"] = max(0.1, min(8.0, float(data["chain_makeup"])))
+                allowed["chain_makeup"] = max(0.1, min(24.0, float(data["chain_makeup"])))
             except (TypeError, ValueError):
                 pass
         if "bypass_all_cabs" in data:
