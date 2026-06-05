@@ -3403,14 +3403,14 @@
   // Treble (+Transparency), Master. ids 0..9.
   P.sbrredhead = { w:980, h:200,
     knobs:[
-      {id:0,cx:.110,cy:.56,r:.030,style:'pointer',cap:[20,20,22]},
-      {id:1,cx:.185,cy:.56,r:.030,style:'pointer',cap:[20,20,22]},
-      {id:2,cx:.260,cy:.56,r:.030,style:'pointer',cap:[20,20,22]},
-      {id:3,cx:.340,cy:.56,r:.030,style:'pointer',cap:[20,20,22]},
-      {id:4,cx:.415,cy:.56,r:.030,style:'pointer',cap:[20,20,22]},
-      {id:5,cx:.495,cy:.56,r:.030,style:'pointer',cap:[20,20,22]},
-      {id:6,cx:.580,cy:.56,r:.033,style:'pointer',cap:[20,20,22]}],
-    switches:[{id:7,cx:.040,cy:.50,hs:.010,dark:true},{id:8,cx:.110,cy:.84,hs:.010,dark:true},{id:9,cx:.495,cy:.84,hs:.010,dark:true}],
+      {id:0,cx:.100,cy:.48,r:.030,style:'pointer',cap:[20,20,22]},
+      {id:1,cx:.190,cy:.48,r:.030,style:'pointer',cap:[20,20,22]},
+      {id:2,cx:.280,cy:.48,r:.030,style:'pointer',cap:[20,20,22]},
+      {id:3,cx:.370,cy:.48,r:.030,style:'pointer',cap:[20,20,22]},
+      {id:4,cx:.460,cy:.48,r:.030,style:'pointer',cap:[20,20,22]},
+      {id:5,cx:.550,cy:.48,r:.030,style:'pointer',cap:[20,20,22]},
+      {id:6,cx:.645,cy:.48,r:.033,style:'pointer',cap:[20,20,22]}],
+    switches:[{id:7,cx:.040,cy:.48,hs:.010,dark:true},{id:8,cx:.100,cy:.80,hs:.010,dark:true},{id:9,cx:.550,cy:.80,hs:.010,dark:true}],
     names:['Gain','Aural Enhancer','Bass','Mid Level','Mid Freq','Treble','Master','Active','Turbo','Transparency'],
     tick:rgb(150,60,60), ptr:rgb(246,246,248),
     draw(d,vals){ const {ctx:c,W,H}=d; const ink=rgb(245,235,235);
@@ -3418,18 +3418,19 @@
       const pg=c.createLinearGradient(0,5,0,H-5); pg.addColorStop(0,rgb(214,34,34)); pg.addColorStop(1,rgb(176,22,22));
       rr(c,5,5,W-10,H-10,6); c.fillStyle=pg; c.fill(); rr(c,5,5,W-10,H-10,6); c.strokeStyle=rgb(120,16,16); c.lineWidth=1.5; c.stroke();
       const lab=(cx,y,sz,t,col)=>textC(d,cx*W,y*H,F.barlow,sz,col||ink,t);
-      textC(d,21,18,F.barlow,8.5,rgb(250,235,235),'ALL TUBE PREAMP / 350 WATT POWER AMP','left');
-      for(let i=0;i<2;++i){ const jy=H*(0.40+i*0.30); c.beginPath(); c.arc(.040*W,jy,7,0,7); c.fillStyle=rgb(16,16,18); c.fill(); c.strokeStyle=rgb(120,30,30); c.lineWidth=1.4; c.stroke(); }
-      lab(.040,.86,7,'INPUTS');
-      lab(.378,.27,7.5,'MID-RANGE');
-      c.strokeStyle=rgb(120,20,20); c.lineWidth=1.2; c.beginPath(); c.moveTo(.318*W,.345*H); c.lineTo(.438*W,.345*H); c.stroke();
-      [[.110,'GAIN'],[.185,'AURAL'],[.260,'BASS'],[.340,'LEVEL'],[.415,'FREQ'],[.495,'TREBLE'],[.580,'MASTER']].forEach(k=>lab(k[0],.72,8,k[1]));
+      textC(d,21,16,F.barlow,8.5,rgb(250,235,235),'ALL TUBE PREAMP / 350 WATT POWER AMP','left');
+      for(let i=0;i<2;++i){ const jy=H*(0.35+i*0.26); c.beginPath(); c.arc(.040*W,jy,7,0,7); c.fillStyle=rgb(16,16,18); c.fill(); c.strokeStyle=rgb(120,30,30); c.lineWidth=1.4; c.stroke(); }
+      lab(.040,.72,6.5,'INPUTS');
+      lab(.415,.20,7.5,'MID-RANGE');
+      c.strokeStyle=rgb(120,20,20); c.lineWidth=1.2; c.beginPath(); c.moveTo(.345*W,.275*H); c.lineTo(.485*W,.275*H); c.stroke();
+      [[.100,'GAIN'],[.190,'AURAL'],[.280,'BASS'],[.370,'LEVEL'],[.460,'FREQ'],[.550,'TREBLE'],[.645,'MASTER']].forEach(k=>lab(k[0],.68,8,k[1]));
+      lab(.100,.90,6,'TURBO'); lab(.550,.90,6,'TRANSP');
       // SBR circle logo
-      const lx=.880*W, ly=.52*H, lr=24;
+      const lx=.875*W, ly=.50*H, lr=27;
       c.beginPath(); c.arc(lx,ly,lr,0,7); c.fillStyle=rgb(238,232,232); c.fill();
       c.beginPath(); c.arc(lx,ly,lr,0,7); c.strokeStyle=rgb(120,16,16); c.lineWidth=2; c.stroke();
-      textC(d,lx,ly,F.anton,18,rgb(190,24,24),'SBR');
-      lab(.880,.12,7,'SUPER REDHEAD'); lab(.880,.84,7,'INTEGRATED BASS SYSTEM'); } };
+      textC(d,lx,ly,F.anton,20,rgb(190,24,24),'SBR');
+      lab(.875,.13,7,'SUPER REDHEAD'); lab(.875,.86,7,'INTEGRATED BASS SYSTEM'); } };
 
   // ── generic fallback: any VST without a hand-built spec gets a clean knob
   //    grid built from its live parameter metadata (so nothing opens in a
