@@ -288,6 +288,8 @@ function rbApplyChainInputDrive(opts) {
 //                                         without the Rocksmith cab" report)
 //   active amp + no cab IR        → ×0.5 (knock the raw-amp spike down)
 //   no active amp / fallback      → ×1.0 (don't change anything)
+// Extra lift for VST-amp chains (they output below the NAM loudness reference).
+const RB_VST_AMP_BOOST = 2.5;   // ~+8 dB
 function rbChainGainTargetFor(chainSpec) {
     // User "Chain volume" trim (chain_makeup, default 1.0) — the ONLY level
     // the engine respects (per-stage IR gain is ignored). Multiplies the
@@ -337,6 +339,13 @@ function rbChainGainTargetFor(chainSpec) {
             // never clipped. rbClampChainGainTarget still bounds the final target.
             if (hasRsCab) base *= rsCabMakeup;
             base *= rbPostAmpMakeupForChain(chainSpec);
+            // VST amps output lower than the loudness-normalized NAM reference the
+            // chain gain is calibrated for, so the whole VST-amp chain (amp+cab)
+            // plays quiet — users had to crank the Chain volume well above default.
+            // Lift pure VST-amp chains so the DEFAULT Chain volume already sounds
+            // right. (Empirical: a user sitting at ~×10 needed ~+8 dB to reach the
+            // ×4 default. Tunable via RB_VST_AMP_BOOST.)
+            if (hasActiveVstAmp && !hasActiveAmp) base *= RB_VST_AMP_BOOST;
         }
     }
     window.__rbChainBaseTarget = base;   // remember (pre-trim) for live makeup changes
