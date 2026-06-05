@@ -2219,6 +2219,17 @@
    "notes": "Bundled Trace Elliot V-Type V8 style 400 W all-valve bass head (Rocksmith 'CS240B'): component-level model from the V-Type V8 schematic (cd0119/cd0120). All-ECC83 preamp (Gain I+Bright, Gain II+Pull, Level), Trace tone stack (Bass+Deep, Middle+Shift, Treble), opto compressor, 8x KT88 push-pull (~400 W). RS Gain->Gain I; RS Bass/Mid/Treble->tone stack."
   }
  ],
+ "Bass_Amp_HT300B": [
+  {
+   "name": "SbrRedhead",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "url": "",
+   "free": true,
+   "bundled": "vst/amps/SbrRedhead.vst3",
+   "notes": "Bundled SWR Super Redhead style hybrid bass head (Rocksmith 'HT300B'): component-level model from the SWR Red Head preamp schematic. 12AX7 preamp (Gain+Turbo), SWR Aural Enhancer contour, Bass shelf, semi-parametric Mid (Level+Freq), Treble shelf (+Transparency), 350 W solid-state power (clean hi-fi). RS Gain->Gain; RS Bass/Mid/Treble->Bass/Mid Level/Treble."
+  }
+ ],
  "Bass_Amp_CS75B": [
   {
    "name": "SamplegV4B",
