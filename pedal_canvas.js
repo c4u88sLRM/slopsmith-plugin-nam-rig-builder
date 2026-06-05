@@ -3495,7 +3495,7 @@
       {id:6,cx:.600,cy:.50,r:.026,style:'pointer',cap:[18,18,20]},
       {id:7,cx:.660,cy:.50,r:.026,style:'pointer',cap:[18,18,20]},
       {id:8,cx:.720,cy:.50,r:.026,style:'pointer',cap:[18,18,20]}],
-    switches:[{id:9,cx:.110,cy:.46,hs:.009,dark:true},{id:10,cx:.130,cy:.72,hs:.009,dark:true},{id:11,cx:.348,cy:.50,hs:.009,dark:true}],
+    switches:[{id:9,cx:.110,cy:.46,hs:.009,dark:true},{id:10,cx:.130,cy:.72,hs:.009,dark:true},{id:11,cx:.378,cy:.50,hs:.009,dark:true}],
     names:['Gain','Volume','Notch Freq','40 Hz','120 Hz','350 Hz','800 Hz','2 kHz','5 kHz','Active','Mute','Notch'],
     tick:rgb(40,180,205), ptr:rgb(80,200,220),
     draw(d,vals){ const {ctx:c,W,H}=d; const ink=rgb(210,212,216), cyan=rgb(40,180,205);
@@ -3505,8 +3505,8 @@
       c.fillStyle=cyan; c.fillRect(PL,PT+8,PW,2); c.fillRect(PL,PT+PH-10,PW,2);
       const lab=(cx,y,sz,t,col)=>textC(d,cx*W,y*H,F.barlow,sz,col||ink,t);
       for(let i=0;i<2;++i){ const jx=W*(0.045+i*0.035); c.beginPath(); c.arc(jx,H*0.50,7,0,7); c.fillStyle=rgb(16,16,18); c.fill(); c.strokeStyle=rgb(80,90,100); c.lineWidth=1.4; c.stroke(); }
-      lab(.045,.30,6.5,'PASSIVE'); lab(.080,.30,6.5,'ACTIVE');
-      lab(.205,.78,7.5,'PREAMP',rgb(150,200,210)); lab(.327,.78,7.5,'NOTCH',rgb(150,200,210)); lab(.570,.78,7.5,'EQUALIZER',rgb(150,200,210));
+      lab(.062,.34,6,'INPUT',rgb(150,200,210)); lab(.110,.34,6,'ACTIVE',rgb(150,200,210)); lab(.130,.62,6,'MUTE',rgb(150,200,210));
+      lab(.205,.78,7.5,'PREAMP',rgb(150,200,210)); lab(.342,.78,7.5,'NOTCH',rgb(150,200,210)); lab(.570,.78,7.5,'EQUALIZER',rgb(150,200,210));
       [[.175,'GAIN'],[.235,'VOLUME'],[.305,'FREQ'],[.420,'40'],[.480,'120'],[.540,'350'],[.600,'800'],[.660,'2K'],[.720,'5K']].forEach(k=>lab(k[0],.24,8,k[1]));
       textC(d,PL+16,(PT+PH)-4,F.barlow,18,rgb(228,230,234),'electric','left');
       textC(d,(PL+PW)-60,H*0.5,F.barlow,20,rgb(228,230,234),'B600F','right');
