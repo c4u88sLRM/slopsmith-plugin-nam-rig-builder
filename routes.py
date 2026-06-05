@@ -3204,14 +3204,18 @@ def _write_ir_f32(path: Path, samples, sr: int) -> None:
 
 
 def _di_cab_blend_samples(cab):
-    """0.7*delta(@peak) + 0.3*(cab/||cab||2). IDENTICAL formula to
-    tools/make_di_cab_irs.make_blend — the precomputed makeup depends on it."""
+    """DI*delta(@peak) + CAB*(cab/||cab||2), then SCALED so the whole blend has
+    the same L2 as a normal RS cab (_IR_REF_L2). That makes the engine treat the
+    blend exactly like any other cab IR loudness-wise (so the big DI delta inside
+    it doesn't get processed quietly), while preserving the DI:cab ratio."""
     l2 = (sum(x * x for x in cab) ** 0.5) or 1.0
     scale = _DI_CAB_CAB / l2
     blend = [x * scale for x in cab]
     peak = max(range(len(cab)), key=lambda i: abs(cab[i]))
     blend[peak] += _DI_CAB_DI
-    return blend
+    bl2 = (sum(x * x for x in blend) ** 0.5) or 1.0
+    norm = _IR_REF_L2 / bl2
+    return [x * norm for x in blend]
 
 
 def _di_cab_blend_file(cab_path: Path) -> Path | None:
@@ -3223,7 +3227,7 @@ def _di_cab_blend_file(cab_path: Path) -> Path | None:
     try:
         # Versioned by the DI/cab ratio so changing it regenerates (stale blends
         # of a previous ratio are never reused). Kept under a 'rocksmith' path.
-        sub = "rocksmith_dicab_%d_%d" % (round(_DI_CAB_DI * 100), round(_DI_CAB_CAB * 100))
+        sub = "rocksmith_dicab2_%d_%d" % (round(_DI_CAB_DI * 100), round(_DI_CAB_CAB * 100))
         out = _config_dir / "nam_irs" / sub / cab_path.name
         try:
             if out.exists() and out.stat().st_mtime_ns >= cab_path.stat().st_mtime_ns:
