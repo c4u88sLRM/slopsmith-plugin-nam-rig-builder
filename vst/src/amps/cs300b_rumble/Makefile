@@ -1,5 +1,5 @@
 #!/usr/bin/make -f
-# Bender Fumble 800 — Fender Rumble Bass all-tube head model (DPF plugin)
+# Bender Fumble 800 — Fender Rumble 800 modern Class-D bass head model (DPF plugin)
 
 NAME = BenderFumble800
 

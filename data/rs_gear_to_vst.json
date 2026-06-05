@@ -2139,7 +2139,7 @@
    "url": "",
    "free": true,
    "bundled": "vst/amps/BenderFumble800.vst3",
-   "notes": "Bundled Fender Rumble Bass style all-tube head (Rocksmith 'CS300B'): component-level model from the 1995 Fender Rumble Bass schematic (FMIC 048406/048411) — 12AX7 preamp + Fender passive Treble/Bass/Middle tone stack + Bright + 6x 6550WA push-pull (~300 W). RS Gain->Gain; RS Bass/Mid/Treble->tone stack."
+   "notes": "Bundled Fender Rumble 800 style modern Class-D bass head (Rocksmith 'CS300B'): model from the Rumble 800 front panel — solid-state Gain, Bright/Contour/Vintage voicing, footswitch-style Overdrive (Drive/Level), 4-band EQ (Bass/Low Mid/High Mid/Treble), Class-D power. RS Gain->Gain; RS Bass/Mid/Treble->Bass/Low Mid/Treble."
   }
  ],
  "Bass_Amp_EdenE300": [

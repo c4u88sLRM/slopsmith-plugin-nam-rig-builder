@@ -3151,26 +3151,39 @@
       lab(.531,.18,7,'GRAPHIC EQ  (±15 dB)',dim);
       textC(d,(PL+PW)-14,(PT+PH)-8,F.crete,20,rgb(26,28,34),'PeeBee','right'); } };
 
-  // Bender Fumble 800 — Fender Rumble Bass all-tube head (parody). Black face,
-  // Gain/Bass/Middle/Treble/Master + Bright switch. ids 0..5.
-  P.benderfumble800 = { w:760, h:220,
+  // Bender Fumble 800 — Fender Rumble 800 modern Class-D head (parody). Black
+  // face, cream knobs: Gain, Bright/Contour/Vintage buttons, Overdrive Drive+
+  // Level, 4-band EQ (Bass/Low Mid/High Mid/Treble), Master. ids 0..10.
+  P.benderfumble800 = { w:920, h:200,
     knobs:[
-      {id:0,cx:.150,cy:.46,r:.032,style:'pointer',cap:[22,22,24]},
-      {id:1,cx:.300,cy:.46,r:.032,style:'pointer',cap:[22,22,24]},
-      {id:2,cx:.420,cy:.46,r:.032,style:'pointer',cap:[22,22,24]},
-      {id:3,cx:.540,cy:.46,r:.032,style:'pointer',cap:[22,22,24]},
-      {id:4,cx:.800,cy:.46,r:.032,style:'pointer',cap:[22,22,24]}],
-    switches:[{id:5,cx:.660,cy:.46,hs:.016,dark:true}],
-    names:['Gain','Bass','Middle','Treble','Master','Bright'],
-    tick:rgb(150,152,158), ptr:rgb(244,245,248),
-    draw(d,vals){ const {ctx:c,W,H}=d; const ink=rgb(214,216,220);
-      box(d, 28,29,32, true);
-      textC(d,.025*W,.10*H,F.bebas,14,rgb(206,208,214),'FUMBLE BASS','left');
-      const jack=(x,y)=>{ c.beginPath();c.arc(x*W,y*H,9,0,7);c.fillStyle=rgb(16,16,18);c.fill();c.strokeStyle=rgb(120,122,126);c.lineWidth=1.5;c.stroke(); };
-      jack(.055,.46); textC(d,.055*W,.62*H,F.barlow,8,ink,'INPUT');
-      [[.150,'GAIN'],[.300,'BASS'],[.420,'MIDDLE'],[.540,'TREBLE'],[.800,'MASTER']].forEach(k=>textC(d,k[0]*W,.64*H,F.barlow,9.5,ink,k[1]));
-      textC(d,.660*W,.66*H,F.barlow,9,ink,'BRIGHT');
-      textC(d,.965*W,.93*H,F.crete,22,rgb(232,234,238),'Bender','right'); } };
+      {id:0,cx:.115,cy:.48,r:.038,style:'cream'},
+      {id:1,cx:.305,cy:.48,r:.038,style:'cream'},
+      {id:2,cx:.380,cy:.48,r:.038,style:'cream'},
+      {id:3,cx:.475,cy:.48,r:.038,style:'cream'},
+      {id:4,cx:.560,cy:.48,r:.038,style:'cream'},
+      {id:5,cx:.645,cy:.48,r:.038,style:'cream'},
+      {id:6,cx:.730,cy:.48,r:.038,style:'cream'},
+      {id:7,cx:.845,cy:.48,r:.038,style:'cream'}],
+    switches:[{id:8,cx:.190,cy:.28,hs:.010,dark:true},{id:9,cx:.190,cy:.50,hs:.010,dark:true},{id:10,cx:.190,cy:.72,hs:.010,dark:true}],
+    names:['Gain','Drive','Level','Bass','Low Mid','High Mid','Treble','Master','Bright','Contour','Vintage'],
+    tick:rgb(120,116,104), ptr:rgb(40,38,34),
+    draw(d,vals){ const {ctx:c,W,H}=d; const ink=rgb(232,233,236), dim=rgb(150,152,156);
+      c.fillStyle=rgb(180,182,186); c.fillRect(0,0,W,H);
+      rr(c,4,4,W-8,H-8,5); c.fillStyle=rgb(20,20,22); c.fill(); rr(c,4,4,W-8,H-8,5); c.strokeStyle=rgb(60,60,64); c.lineWidth=1.2; c.stroke();
+      const lab=(cx,y,sz,t,col,al)=>textC(d,cx*W,y*H,F.barlow,sz,col||ink,t,al);
+      c.beginPath();c.arc(.045*W,.48*H,9,0,7);c.fillStyle=rgb(40,40,44);c.fill();c.strokeStyle=rgb(150,152,156);c.lineWidth=1.5;c.stroke();
+      c.beginPath();c.arc(.045*W,.48*H,3.5,0,7);c.fillStyle=rgb(16,16,18);c.fill();
+      lab(.045,.30,9,'INPUT');
+      [[.115,'GAIN'],[.305,'DRIVE'],[.380,'LEVEL'],[.475,'BASS'],[.560,'LOW MID'],[.645,'HIGH MID'],[.730,'TREBLE'],[.845,'MASTER']].forEach(k=>lab(k[0],.20,9,k[1]));
+      [[.28,'BRIGHT'],[.50,'CONTOUR'],[.72,'VINTAGE']].forEach(b=>lab(.235,b[0],8.5,b[1],ink,'left'));
+      c.beginPath();c.arc(.3425*W,.255*H,4,0,7);c.fillStyle=rgb(80,28,26);c.fill();
+      c.strokeStyle=dim; c.lineWidth=1.2;
+      c.beginPath(); c.moveTo(.275*W,.74*H); c.lineTo(.275*W,.78*H); c.lineTo(.410*W,.78*H); c.lineTo(.410*W,.74*H); c.stroke();
+      lab(.3425,.84,8.5,'OVERDRIVE',rgb(210,212,216));
+      c.beginPath(); c.moveTo(.445*W,.74*H); c.lineTo(.445*W,.78*H); c.lineTo(.760*W,.78*H); c.lineTo(.760*W,.74*H); c.stroke();
+      lab(.6025,.84,8.5,'EQUALIZATION',rgb(210,212,216));
+      c.beginPath();c.arc(.945*W,.30*H,5,0,7);c.fillStyle=rgb(230,40,30);c.fill();
+      textC(d,(W-16),(H-10),F.crete,19,rgb(236,237,240),'Fumble 800','right'); } };
 
   // Aiden GT-300/550/880 — Eden WT Valve-Tech hybrid preamp (parody). Gold/tan
   // panel: Gain (blue) + Enhance (white) + Bass (red) + 3-band semi-parametric
