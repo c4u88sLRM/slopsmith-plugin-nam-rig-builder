@@ -4986,6 +4986,85 @@
       // ── parody maker ──
       textSpaced(d,W*.5,py+ph*.06,F.bebas,12,rgb(150,128,74),'MARSTEN',0.10); } };
 
+  // ── MARSTEN JCM800 (Marshall JCM800 2204, 50W master-volume) — black tolex
+  //    head, gold brushed control panel, "Marsten" gold script. 6 knobs:
+  //    0 Preamp(Gain) 1 Bass 2 Middle 3 Treble 4 Presence 5 Master + High/Low
+  //    inputs. RS: Gain->Preamp Vol, Bass/Mid/Treble->stack, Pres->Presence.
+  P.marstenjcm800 = { w:1560, h:600, ptr:rgb(244,242,236),
+    knobs:[
+      {id:4,cx:.330,cy:.770,r:.020,style:'pointer',cap:[24,22,22]},  // PRESENCE
+      {id:1,cx:.405,cy:.770,r:.020,style:'pointer',cap:[24,22,22]},  // BASS
+      {id:2,cx:.480,cy:.770,r:.020,style:'pointer',cap:[24,22,22]},  // MIDDLE
+      {id:3,cx:.555,cy:.770,r:.020,style:'pointer',cap:[24,22,22]},  // TREBLE
+      {id:5,cx:.630,cy:.770,r:.020,style:'pointer',cap:[24,22,22]},  // MASTER VOL
+      {id:0,cx:.705,cy:.770,r:.020,style:'pointer',cap:[24,22,22]} ],// PREAMP VOL (gain)
+    draw(d,vals){ const {ctx:c,W,H,s}=d;
+      const gold=rgb(200,176,108), goldHi=rgb(224,202,140), goldLo=rgb(150,128,74),
+            ink=rgb(30,26,20), inkF='rgba(30,26,20,0.6)';
+      // ── black tolex head ──
+      const bgr=c.createLinearGradient(0,0,0,H); bgr.addColorStop(0,rgb(26,25,27)); bgr.addColorStop(0.5,rgb(17,16,18)); bgr.addColorStop(1,rgb(10,9,11));
+      c.fillStyle=bgr; c.fillRect(0,0,W,H);
+      c.save(); c.beginPath(); c.rect(0,0,W,H); c.clip(); c.lineWidth=1;
+      c.strokeStyle='rgba(255,255,255,0.018)';
+      for(let x=-H;x<W;x+=7*s){ c.beginPath(); c.moveTo(x,0); c.lineTo(x+H,H); c.stroke(); }
+      c.restore();
+      const bolt=(x,y,r)=>{ r=r||3*s; const g=c.createRadialGradient(x-r*0.3,y-r*0.3,r*0.15,x,y,r);
+        g.addColorStop(0,rgb(232,234,238)); g.addColorStop(1,rgb(110,114,120));
+        c.beginPath(); c.arc(x,y,r,0,7); c.fillStyle=g; c.fill(); c.strokeStyle=rgb(48,50,54); c.lineWidth=0.7*s; c.stroke(); };
+      const hx0=.43*W,hx1=.57*W,hcy=H*.05,hh=H*.032;
+      rr(c,hx0,hcy-hh,hx1-hx0,2*hh,hh); const hg=c.createLinearGradient(0,hcy-hh,0,hcy+hh); hg.addColorStop(0,rgb(40,40,44)); hg.addColorStop(1,rgb(13,13,15));
+      c.fillStyle=hg; c.fill(); c.strokeStyle=rgb(8,8,10); c.lineWidth=1.2*s; c.stroke();
+      [hx0,hx1].forEach(bx=>bolt(bx,hcy,3*s));
+      // gold piping frame around the upper tolex + salt-and-pepper grille
+      rr(c,W*.035,H*.135,W*.93,H*.40,8*s); c.strokeStyle=gold; c.lineWidth=2.4*s; c.stroke();
+      c.save(); rr(c,W*.046,H*.150,W*.908,H*.37,6*s); c.clip();
+      for(let yy=H*.15; yy<H*.52; yy+=3*s){ for(let xx=W*.046; xx<W*.954; xx+=3*s){
+        const n=((xx*13+yy*7)%19); if(n<2){ c.fillStyle='rgba(214,206,180,0.10)'; c.fillRect(xx,yy,1.3*s,1.3*s); } } }
+      c.restore();
+      rr(c,W*.046,H*.150,W*.908,H*.37,6*s); c.strokeStyle='rgba(120,100,56,0.5)'; c.lineWidth=1*s; c.stroke();
+      // ── "Marsten" gold script logo (centre) ──
+      c.save(); c.textAlign='center'; c.textBaseline='middle';
+      setFont(d,F.ink,82); c.lineWidth=5*s; c.strokeStyle='rgba(0,0,0,0.4)'; c.strokeText('Marsten',W*.5,H*.315);
+      const lg=c.createLinearGradient(0,H*.25,0,H*.38); lg.addColorStop(0,goldHi); lg.addColorStop(1,goldLo);
+      c.fillStyle=lg; c.fillText('Marsten',W*.5,H*.315); c.restore();
+      textSpaced(d,W*.5,H*.445,F.bebas,16,gold,'JCM800',0.20);
+      // ── corner caps ──
+      const corner=(cxx,cyy,dx,dy)=>{ const k=H*.10; c.beginPath();
+        c.moveTo(cxx,cyy+dy*k); c.lineTo(cxx,cyy); c.lineTo(cxx+dx*k,cyy);
+        c.quadraticCurveTo(cxx+dx*k*0.35,cyy+dy*k*0.35,cxx,cyy+dy*k); c.closePath();
+        c.fillStyle=rgb(9,9,10); c.fill(); bolt(cxx+dx*k*0.42,cyy+dy*k*0.42,2.6*s); };
+      corner(0,0,1,1); corner(W,0,-1,1); corner(0,H,1,-1); corner(W,H,-1,-1);
+      // ── gold brushed control panel (lower strip) ──
+      const py=H*.62, ph=H*.30, px=W*.05, pw=W*.90, lblY=py+ph*.22;
+      const pg=c.createLinearGradient(0,py,0,py+ph); pg.addColorStop(0,goldHi); pg.addColorStop(0.5,gold); pg.addColorStop(1,goldLo);
+      rr(c,px,py,pw,ph,5*s); c.fillStyle=pg; c.fill();
+      c.save(); rr(c,px,py,pw,ph,5*s); c.clip(); c.strokeStyle='rgba(255,255,255,0.06)'; c.lineWidth=1;
+      for(let xx=px; xx<px+pw; xx+=2.4*s){ c.beginPath(); c.moveTo(xx,py); c.lineTo(xx,py+ph); c.stroke(); }
+      c.restore();
+      rr(c,px,py,pw,ph,5*s); c.strokeStyle=goldLo; c.lineWidth=1.4*s; c.stroke();
+      bolt(px+12*s,py+ph*.5,2.6*s); bolt(px+pw-12*s,py+ph*.5,2.6*s);
+      const lbl=(cx,t,sz)=>textSpaced(d,cx*W,lblY,F.barlow,sz||9,ink,t,0.03);
+      lbl(.330,'PRESENCE',8); lbl(.405,'BASS'); lbl(.480,'MIDDLE',8.5); lbl(.555,'TREBLE',8.5);
+      lbl(.630,'MASTER VOL',7); lbl(.705,'PREAMP VOL',7);
+      // ── left: MAINS + STANDBY toggles + red jewel ──
+      batToggle(d,.090*W,py+ph*.46,8*s,true); batToggle(d,.140*W,py+ph*.46,8*s,true);
+      textSpaced(d,.090*W,lblY,F.barlow,8,ink,'MAINS',0.03); textSpaced(d,.140*W,lblY,F.barlow,7.5,ink,'STANDBY',0.02);
+      textSpaced(d,.090*W,py+ph*.84,F.barlow,6.5,inkF,'ON',0.04); textSpaced(d,.140*W,py+ph*.84,F.barlow,6.5,inkF,'ON',0.04);
+      const jcx=.190*W, jcy=py+ph*.44;
+      c.beginPath(); c.arc(jcx,jcy,9*s,0,7); c.fillStyle=rgb(40,8,6); c.fill();
+      const jg=c.createRadialGradient(jcx-2*s,jcy-2*s,1*s,jcx,jcy,9*s); jg.addColorStop(0,rgb(255,130,96)); jg.addColorStop(0.5,rgb(220,42,30)); jg.addColorStop(1,rgb(108,12,10));
+      c.beginPath(); c.arc(jcx,jcy,6.5*s,0,7); c.fillStyle=jg; c.fill();
+      c.strokeStyle=goldLo; c.lineWidth=1.6*s; c.beginPath(); c.arc(jcx,jcy,9*s,0,7); c.stroke();
+      // ── right: High / Low INPUT jacks ──
+      const ix=.840*W, iy0=py+ph*.40, iy1=py+ph*.72;
+      const jack=(jx2,jy2)=>{ c.beginPath(); c.arc(jx2,jy2,8*s,0,7); c.fillStyle=rgb(16,14,14); c.fill();
+        c.strokeStyle=rgb(150,128,74); c.lineWidth=2*s; c.stroke(); c.beginPath(); c.arc(jx2,jy2,2.6*s,0,7); c.fillStyle=rgb(54,52,48); c.fill(); };
+      jack(ix,iy0); jack(ix,iy1);
+      textSpaced(d,ix,lblY,F.barlow,8.5,ink,'INPUT',0.04);
+      textSpaced(d,ix-16*s,iy0,F.barlow,7.5,ink,'HI',0); textSpaced(d,ix-16*s,iy1,F.barlow,7.5,ink,'LO',0);
+      // ── parody maker ──
+      textSpaced(d,(px+pw)-44*s,py+ph*.90,F.bebas,12,rgb(40,34,24),'MARSTEN',0.08); } };
+
   // ── RANEY AOR50 (Laney AOR 50 Pro Tube Lead) — black tolex head, "RANEY"
   //    badge, bottom control panel with 8 knobs + 5 pull-switches. ids:
   //    0 Channel(PullAOR) 1 AorPreamp 2 AorMaster 3 AorBright 4 Ch1Preamp

@@ -5336,5 +5336,39 @@
     "_hint": "RS Treble 0-100 (50=flat) -> Treble 0..1."
    }
   }
+ },
+ "Amp_MarshallJCM800": {
+  "marstenjcm800": {
+   "_hint": "Marsten JCM800 = Marshall JCM800 2204 (50W master-volume). RS Gain -> PREAMP VOL (the 2204 cascaded drive), Bass/Mid/Treble -> Marshall tone stack, Pres -> Presence. _static pins the master Volume.",
+   "Gain": {
+    "param": "Gain",
+    "scale": 0.01,
+    "_hint": "RS Gain -> PREAMP VOL (the 2204 drive). Loudness held ~flat by the makeup."
+   },
+   "Bass": {
+    "param": "Bass",
+    "scale": 0.01,
+    "_hint": "RS Bass -> Marshall tone-stack bass (1M)."
+   },
+   "Mid": {
+    "param": "Middle",
+    "scale": 0.01,
+    "_hint": "RS Mid -> Marshall tone-stack middle (22k)."
+   },
+   "Treble": {
+    "param": "Treble",
+    "scale": 0.01,
+    "_hint": "RS Treble -> Marshall tone-stack treble (220k, 470pF)."
+   },
+   "Pres": {
+    "param": "Presence",
+    "scale": 0.01,
+    "_hint": "RS Pres -> Presence (power-amp NFB)."
+   },
+   "_static": {
+    "Volume": 0.6,
+    "_note": "Master Volume past noon. Dial on the face by hand."
+   }
+  }
  }
 }

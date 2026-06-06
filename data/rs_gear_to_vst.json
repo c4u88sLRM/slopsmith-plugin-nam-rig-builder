@@ -2493,5 +2493,16 @@
    "bundled": "vst/amps/HipzonGA88.vst3",
    "notes": "Bundled Gibson GA-88S stereo style guitar amp (Rocksmith 'GibsonGA88'): component-level from the GA-88S schematic. 12AX7 preamp, passive Bass/Treble, 4x 6BQ5 (EL84) push-pull (~30W, clean PA headroom); modeled mono. RS Volume/Bass/Treble."
   }
+ ],
+ "Amp_MarshallJCM800": [
+  {
+   "name": "Marsten JCM800",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "url": "",
+   "free": true,
+   "bundled": "vst/amps/MarstenJCM800.vst3",
+   "notes": "Bundled Marshall JCM800 2204 (50W master-volume) style head (parody brand 'Marsten'), full front panel (Presence, Bass, Middle, Treble, Master Vol, Preamp Vol + High/Low inputs) modelled component-by-component from the official Marshall 2204 STD schematic (2204prem/2204pwrm). Cascaded 12AX7 preamp (Preamp Vol = the drive) -> Marshall TMB tone stack (Treble 220k, Bass 1M, Middle 22k, slope 33k, 470pF/22n) -> master -> 2xEL34 (~50W) + Presence NFB. Rocksmith's Gain drives the Preamp Vol; Bass/Mid/Treble->tone stack, Pres->Presence (Master via _static)."
+  }
  ]
 }
