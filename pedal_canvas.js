@@ -3601,9 +3601,9 @@
   // Power/Speaker/Footswitch + Bright/Normal/Dark input jacks. ids 0..3.
   P.epicallcentura = { w:1000, h:300,
     knobs:[
-      {id:1,cx:.430,cy:.74,r:.044,style:'pointer',cap:[18,18,20]},
-      {id:0,cx:.560,cy:.74,r:.044,style:'pointer',cap:[18,18,20]},
-      {id:2,cx:.690,cy:.74,r:.038,style:'pointer',cap:[18,18,20]}],
+      {id:1,cx:.430,cy:.74,r:.034,style:'pointer',cap:[18,18,20]},
+      {id:0,cx:.560,cy:.74,r:.034,style:'pointer',cap:[18,18,20]},
+      {id:2,cx:.690,cy:.74,r:.030,style:'pointer',cap:[18,18,20]}],
     switches:[{id:3,cx:.820,cy:.74,hs:.012,dark:true}],
     names:['Volume','Tone','Voice','Boost'],
     tick:rgb(120,116,104), ptr:rgb(244,245,248),
@@ -3612,7 +3612,7 @@
       c.fillStyle=cg; c.fillRect(0,0,W,H);                                          // amber tweed cabinet
       rr(c,.04*W,.07*H,.92*W,.34*H,6); c.fillStyle=rgb(40,30,22); c.fill();         // grille
       c.strokeStyle=rgb(150,110,60); c.lineWidth=1.2; for(let i=1;i<22;++i){ c.beginPath(); c.moveTo(.04*W+i*.92*W/22,.07*H); c.lineTo(.04*W+i*.92*W/22,.41*H); c.stroke(); }
-      textC(d,.50*W,.245*H,F.graffiti,40,rgb(236,225,200),'Epicall');
+      textC(d,.50*W,.245*H,F.anton,44,rgb(236,225,200),'EPICALL');
       // black control strip
       rr(c,.04*W,.50*H,.92*W,.44*H,5); c.fillStyle=rgb(18,18,20); c.fill();
       c.fillStyle=rgb(214,150,78); c.fillRect(.04*W,.535*H,.92*W,.045*H);           // amber band
