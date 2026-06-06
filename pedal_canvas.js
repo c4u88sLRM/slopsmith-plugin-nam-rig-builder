@@ -3548,6 +3548,54 @@
       ledDot(d,.300*W,.78*H,true,232,60,40);                                       // red pilot jewel
       c.beginPath(); c.arc(.900*W,.78*H,9,0,7); c.fillStyle=rgb(16,16,18); c.fill(); c.strokeStyle=rgb(120,122,126); c.lineWidth=1.5; c.stroke(); } };
 
+  // Citrus Rumbleverb 50 — Orange Rockerverb 50 MkII (parody). Orange tolex head,
+  // cream strip with the 'Citrus' logo + RUMBLEVERB 50, a black control panel:
+  // MASTER (Output, Reverb) · DIRTY channel (Volume/Treble/Middle/Bass/Gain) ·
+  // CLEAN channel (Volume/Bass/Treble), channel toggle + input jack. ids 0..10.
+  P.citrusrumbleverb50 = { w:1200, h:300,
+    knobs:[
+      {id:9,cx:.150,cy:.62,r:.030,style:'pointer',cap:[18,18,20]},
+      {id:8,cx:.220,cy:.62,r:.030,style:'pointer',cap:[18,18,20]},
+      {id:4,cx:.330,cy:.62,r:.030,style:'pointer',cap:[18,18,20]},
+      {id:3,cx:.395,cy:.62,r:.030,style:'pointer',cap:[18,18,20]},
+      {id:2,cx:.460,cy:.62,r:.030,style:'pointer',cap:[18,18,20]},
+      {id:1,cx:.525,cy:.62,r:.030,style:'pointer',cap:[18,18,20]},
+      {id:0,cx:.590,cy:.62,r:.030,style:'pointer',cap:[18,18,20]},
+      {id:5,cx:.705,cy:.62,r:.030,style:'pointer',cap:[18,18,20]},
+      {id:6,cx:.770,cy:.62,r:.030,style:'pointer',cap:[18,18,20]},
+      {id:7,cx:.835,cy:.62,r:.030,style:'pointer',cap:[18,18,20]}],
+    switches:[{id:10,cx:.078,cy:.62,hs:.012,dark:true}],
+    names:['Gain','Bass','Middle','Treble','Volume','Clean Volume','Clean Bass','Clean Treble','Reverb','Output','Channel'],
+    tick:rgb(120,116,104), ptr:rgb(244,245,248),
+    draw(d,vals){ const {ctx:c,W,H}=d; vals=vals||{};
+      c.fillStyle=rgb(236,118,24); c.fillRect(0,0,W,H);                            // orange tolex
+      rr(c,.025*W,.05*H,.950*W,.24*H,5); c.fillStyle=rgb(238,235,228); c.fill();   // cream logo strip
+      rr(c,.025*W,.05*H,.950*W,.24*H,5); c.strokeStyle=rgb(150,146,134); c.lineWidth=1.3; c.stroke();
+      textC(d,.055*W,.175*H,F.graffiti,62,rgb(24,22,20),'Citrus','left');
+      textC(d,.470*W,.135*H,F.barlow,20,rgb(58,54,48),'RUMBLEVERB 50','left');
+      textC(d,.470*W,.215*H,F.barlow,13,rgb(120,80,40),'MkII','left');
+      rr(c,.880*W,.085*H,.080*W,.17*H,3); c.fillStyle=rgb(232,120,28); c.fill();   // crest badge
+      rr(c,.880*W,.085*H,.080*W,.17*H,3); c.strokeStyle=rgb(150,80,20); c.lineWidth=1; c.stroke();
+      // black control panel
+      rr(c,.025*W,.34*H,.950*W,.60*H,5); c.fillStyle=rgb(16,16,18); c.fill();
+      const lab=(cx,y,sz,t,col)=>textC(d,cx*W,y*H,F.barlow,sz,col||rgb(232,233,236),t);
+      // orange section blocks behind each group
+      const block=(x0,x1)=>{ rr(c,x0*W,.40*H,(x1-x0)*W,.46*H,4); c.fillStyle=rgb(232,112,22); c.fill(); };
+      block(.118,.258); block(.295,.625); block(.672,.870);
+      // knob labels (above each)
+      [[.150,'OUTPUT'],[.220,'REVERB'],[.330,'VOLUME'],[.395,'TREBLE'],[.460,'MIDDLE'],[.525,'BASS'],[.590,'GAIN'],
+       [.705,'VOLUME'],[.770,'BASS'],[.835,'TREBLE']].forEach(k=>lab(k[0],.475,7.5,k[1],rgb(28,22,16)));
+      // section titles (below)
+      lab(.188,.90,9,'MASTER',rgb(238,235,228)); lab(.460,.90,9,'OVERDRIVE',rgb(238,235,228)); lab(.771,.90,9,'CLEAN',rgb(238,235,228));
+      // channel toggle (Clean/Dirty) + power (cosmetic)
+      const dirty=(vals[10]||0)>0.5;
+      lab(.078,.45,7,'CHANNEL',rgb(232,233,236));
+      lab(.078,.84,6.5,dirty?'DIRTY':'CLEAN',rgb(236,170,60));
+      ledDot(d,.045*W,.62*H,true,232,60,40);                                        // pilot jewel
+      // input jack (far right)
+      c.beginPath(); c.arc(.935*W,.62*H,9,0,7); c.fillStyle=rgb(16,16,18); c.fill(); c.strokeStyle=rgb(120,122,126); c.lineWidth=1.5; c.stroke();
+      lab(.935,.80,7,'INPUT',rgb(238,235,228)); } };
+
   // ── generic fallback: any VST without a hand-built spec gets a clean knob
   //    grid built from its live parameter metadata (so nothing opens in a
   //    native window). params = [{id|paramId|index, name, value}, …]. ──────────

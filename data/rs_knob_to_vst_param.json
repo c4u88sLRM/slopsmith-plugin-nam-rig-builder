@@ -4750,5 +4750,29 @@
     "_hint": "RS Tone 0-100 -> passive tone tilt 0..1 (0.5 flat)."
    }
   }
+ },
+ "Amp_OrangeRockerverb": {
+  "citrusrumbleverb50": {
+   "Gain": {
+    "param": "Gain",
+    "scale": 0.01,
+    "_hint": "RS Gain 0-100 -> Dirty channel gain 0..1."
+   },
+   "Bass": {
+    "param": "Bass",
+    "scale": 0.01,
+    "_hint": "RS Bass 0-100 (50=flat) -> Dirty Bass 0..1."
+   },
+   "Mid": {
+    "param": "Middle",
+    "scale": 0.01,
+    "_hint": "RS Mid 0-100 (50=flat) -> Dirty Middle 0..1."
+   },
+   "Treble": {
+    "param": "Treble",
+    "scale": 0.01,
+    "_hint": "RS Treble 0-100 (50=flat) -> Dirty Treble 0..1."
+   }
+  }
  }
 }

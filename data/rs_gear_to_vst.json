@@ -2284,5 +2284,16 @@
    "bundled": "vst/amps/CitrusBigTremor.vst3",
    "notes": "Bundled Orange Tiny Terror style single-channel guitar head (Rocksmith 'OrangeTinyTerror'): component-level model from the Tiny Terror schematic. Two 12AX7 gain stages, single passive Tone, Volume, 2x EL84 cathode-biased push-pull (~15 W; 7 W Half mode). RS Gain->Gain; RS Tone->Tone."
   }
+ ],
+ "Amp_OrangeRockerverb": [
+  {
+   "name": "CitrusRumbleverb50",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "url": "",
+   "free": true,
+   "bundled": "vst/amps/CitrusRumbleverb50.vst3",
+   "notes": "Bundled Orange Rockerverb 50 MkII style 2-channel guitar head (Rocksmith 'OrangeRockerverb'): component-level model from the Rockerverb 50 schematic. Clean (Vol/Bass/Treble) + Dirty (Gain/Bass/Middle/Treble/Vol) channels, valve spring Reverb, Output master, 2x EL34 push-pull. RS Gain/Bass/Mid/Treble drive the Dirty channel (default channel)."
+  }
  ]
 }
