@@ -3518,9 +3518,9 @@
   // Gain knobs, the 15W/7W Half-power toggle, a red pilot jewel + input jack.
   P.citrusbigtremor = { w:1000, h:300,
     knobs:[
-      {id:0,cx:.470,cy:.79,r:.038,style:'pointer',cap:[18,18,20]},
-      {id:1,cx:.600,cy:.79,r:.038,style:'pointer',cap:[18,18,20]},
-      {id:2,cx:.730,cy:.79,r:.038,style:'pointer',cap:[18,18,20]}],
+      {id:0,cx:.470,cy:.79,r:.032,style:'pointer',cap:[18,18,20]},
+      {id:1,cx:.600,cy:.79,r:.032,style:'pointer',cap:[18,18,20]},
+      {id:2,cx:.730,cy:.79,r:.032,style:'pointer',cap:[18,18,20]}],
     switches:[{id:3,cx:.185,cy:.78,hs:.012,dark:true}],
     names:['Volume','Tone','Gain','Half Power'],
     tick:rgb(120,120,124), ptr:rgb(20,20,22),
@@ -3539,12 +3539,12 @@
       c.fillStyle=rgb(232,120,28); c.fillRect(.030*W,.55*H,.940*W,.075*H);        // orange band
       const lab=(cx,y,sz,t,col)=>textC(d,cx*W,y*H,F.barlow,sz,col||rgb(232,233,236),t);
       [[.085,'POWER'],[.185,'OUTPUT'],[.470,'VOLUME'],[.600,'TONE'],[.730,'GAIN'],[.900,'GUITAR']]
-        .forEach(s=>lab(s[0],.592,8.5,s[1],rgb(28,22,16)));
+        .forEach(s=>lab(s[0],.592,11.5,s[1],rgb(28,22,16)));
       // power toggle (cosmetic) + OFF/ON
       const tog=(x,up)=>{ rr(c,x*W-9,.78*H-16,18,32,2); c.fillStyle=rgb(36,36,40); c.fill(); rr(c,x*W-9,.78*H-16,18,32,2); c.strokeStyle=rgb(90,92,96); c.lineWidth=1; c.stroke();
         rr(c,x*W-7,up?.78*H-14:.78*H,14,14,2); c.fillStyle=rgb(200,200,206); c.fill(); };
-      tog(.085,true); lab(.085,.92,6.5,'ON / OFF',rgb(60,58,54));
-      lab(.185,.92,6.5,'15W / 7W',rgb(60,58,54));
+      tog(.085,true); lab(.085,.93,8,'ON / OFF',rgb(60,58,54));
+      lab(.185,.93,8,'15W / 7W',rgb(60,58,54));
       ledDot(d,.300*W,.78*H,true,232,60,40);                                       // red pilot jewel
       c.beginPath(); c.arc(.900*W,.78*H,9,0,7); c.fillStyle=rgb(16,16,18); c.fill(); c.strokeStyle=rgb(120,122,126); c.lineWidth=1.5; c.stroke(); } };
 
@@ -3584,17 +3584,17 @@
       block(.118,.258); block(.295,.625); block(.672,.870);
       // knob labels (above each)
       [[.150,'OUTPUT'],[.220,'REVERB'],[.330,'VOLUME'],[.395,'TREBLE'],[.460,'MIDDLE'],[.525,'BASS'],[.590,'GAIN'],
-       [.705,'VOLUME'],[.770,'BASS'],[.835,'TREBLE']].forEach(k=>lab(k[0],.475,7.5,k[1],rgb(28,22,16)));
+       [.705,'VOLUME'],[.770,'BASS'],[.835,'TREBLE']].forEach(k=>lab(k[0],.47,9.5,k[1],rgb(28,22,16)));
       // section titles (below)
-      lab(.188,.90,9,'MASTER',rgb(238,235,228)); lab(.460,.90,9,'OVERDRIVE',rgb(238,235,228)); lab(.771,.90,9,'CLEAN',rgb(238,235,228));
+      lab(.188,.90,11.5,'MASTER',rgb(238,235,228)); lab(.460,.90,11.5,'OVERDRIVE',rgb(238,235,228)); lab(.771,.90,11.5,'CLEAN',rgb(238,235,228));
       // channel toggle (Clean/Dirty) + power (cosmetic)
       const dirty=(vals[10]||0)>0.5;
-      lab(.078,.50,7,'CHANNEL',rgb(232,233,236));
-      lab(.078,.85,6.5,dirty?'DIRTY':'CLEAN',rgb(236,170,60));
+      lab(.078,.49,8.5,'CHANNEL',rgb(232,233,236));
+      lab(.078,.85,8,dirty?'DIRTY':'CLEAN',rgb(236,170,60));
       ledDot(d,.045*W,.66*H,true,232,60,40);                                        // pilot jewel
       // input jack (far right)
       c.beginPath(); c.arc(.935*W,.66*H,9,0,7); c.fillStyle=rgb(16,16,18); c.fill(); c.strokeStyle=rgb(120,122,126); c.lineWidth=1.5; c.stroke();
-      lab(.935,.80,7,'INPUT',rgb(238,235,228)); } };
+      lab(.935,.82,8,'INPUT',rgb(238,235,228)); } };
 
   // ── generic fallback: any VST without a hand-built spec gets a clean knob
   //    grid built from its live parameter metadata (so nothing opens in a
