@@ -3518,9 +3518,9 @@
   // Gain knobs, the 15W/7W Half-power toggle, a red pilot jewel + input jack.
   P.citrusbigtremor = { w:1000, h:300,
     knobs:[
-      {id:0,cx:.470,cy:.78,r:.050,style:'pointer',cap:[18,18,20]},
-      {id:1,cx:.600,cy:.78,r:.050,style:'pointer',cap:[18,18,20]},
-      {id:2,cx:.730,cy:.78,r:.050,style:'pointer',cap:[18,18,20]}],
+      {id:0,cx:.470,cy:.79,r:.038,style:'pointer',cap:[18,18,20]},
+      {id:1,cx:.600,cy:.79,r:.038,style:'pointer',cap:[18,18,20]},
+      {id:2,cx:.730,cy:.79,r:.038,style:'pointer',cap:[18,18,20]}],
     switches:[{id:3,cx:.185,cy:.78,hs:.012,dark:true}],
     names:['Volume','Tone','Gain','Half Power'],
     tick:rgb(120,120,124), ptr:rgb(20,20,22),
@@ -3554,17 +3554,17 @@
   // CLEAN channel (Volume/Bass/Treble), channel toggle + input jack. ids 0..10.
   P.citrusrumbleverb50 = { w:1200, h:300,
     knobs:[
-      {id:9,cx:.150,cy:.62,r:.030,style:'pointer',cap:[18,18,20]},
-      {id:8,cx:.220,cy:.62,r:.030,style:'pointer',cap:[18,18,20]},
-      {id:4,cx:.330,cy:.62,r:.030,style:'pointer',cap:[18,18,20]},
-      {id:3,cx:.395,cy:.62,r:.030,style:'pointer',cap:[18,18,20]},
-      {id:2,cx:.460,cy:.62,r:.030,style:'pointer',cap:[18,18,20]},
-      {id:1,cx:.525,cy:.62,r:.030,style:'pointer',cap:[18,18,20]},
-      {id:0,cx:.590,cy:.62,r:.030,style:'pointer',cap:[18,18,20]},
-      {id:5,cx:.705,cy:.62,r:.030,style:'pointer',cap:[18,18,20]},
-      {id:6,cx:.770,cy:.62,r:.030,style:'pointer',cap:[18,18,20]},
-      {id:7,cx:.835,cy:.62,r:.030,style:'pointer',cap:[18,18,20]}],
-    switches:[{id:10,cx:.078,cy:.62,hs:.012,dark:true}],
+      {id:9,cx:.150,cy:.66,r:.024,style:'pointer',cap:[18,18,20]},
+      {id:8,cx:.220,cy:.66,r:.024,style:'pointer',cap:[18,18,20]},
+      {id:4,cx:.330,cy:.66,r:.024,style:'pointer',cap:[18,18,20]},
+      {id:3,cx:.395,cy:.66,r:.024,style:'pointer',cap:[18,18,20]},
+      {id:2,cx:.460,cy:.66,r:.024,style:'pointer',cap:[18,18,20]},
+      {id:1,cx:.525,cy:.66,r:.024,style:'pointer',cap:[18,18,20]},
+      {id:0,cx:.590,cy:.66,r:.024,style:'pointer',cap:[18,18,20]},
+      {id:5,cx:.705,cy:.66,r:.024,style:'pointer',cap:[18,18,20]},
+      {id:6,cx:.770,cy:.66,r:.024,style:'pointer',cap:[18,18,20]},
+      {id:7,cx:.835,cy:.66,r:.024,style:'pointer',cap:[18,18,20]}],
+    switches:[{id:10,cx:.078,cy:.66,hs:.012,dark:true}],
     names:['Gain','Bass','Middle','Treble','Volume','Clean Volume','Clean Bass','Clean Treble','Reverb','Output','Channel'],
     tick:rgb(120,116,104), ptr:rgb(244,245,248),
     draw(d,vals){ const {ctx:c,W,H}=d; vals=vals||{};
@@ -3589,11 +3589,11 @@
       lab(.188,.90,9,'MASTER',rgb(238,235,228)); lab(.460,.90,9,'OVERDRIVE',rgb(238,235,228)); lab(.771,.90,9,'CLEAN',rgb(238,235,228));
       // channel toggle (Clean/Dirty) + power (cosmetic)
       const dirty=(vals[10]||0)>0.5;
-      lab(.078,.45,7,'CHANNEL',rgb(232,233,236));
-      lab(.078,.84,6.5,dirty?'DIRTY':'CLEAN',rgb(236,170,60));
-      ledDot(d,.045*W,.62*H,true,232,60,40);                                        // pilot jewel
+      lab(.078,.50,7,'CHANNEL',rgb(232,233,236));
+      lab(.078,.85,6.5,dirty?'DIRTY':'CLEAN',rgb(236,170,60));
+      ledDot(d,.045*W,.66*H,true,232,60,40);                                        // pilot jewel
       // input jack (far right)
-      c.beginPath(); c.arc(.935*W,.62*H,9,0,7); c.fillStyle=rgb(16,16,18); c.fill(); c.strokeStyle=rgb(120,122,126); c.lineWidth=1.5; c.stroke();
+      c.beginPath(); c.arc(.935*W,.66*H,9,0,7); c.fillStyle=rgb(16,16,18); c.fill(); c.strokeStyle=rgb(120,122,126); c.lineWidth=1.5; c.stroke();
       lab(.935,.80,7,'INPUT',rgb(238,235,228)); } };
 
   // ── generic fallback: any VST without a hand-built spec gets a clean knob
