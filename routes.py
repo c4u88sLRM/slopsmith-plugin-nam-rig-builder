@@ -638,11 +638,11 @@ def _migrate_assign_bundled_primary_once() -> None:
         ("__rig_builder_master_pre__",),
     ).fetchone()
     marker = json.loads(marker_row[0] or "{}") if marker_row else {}
-    if marker.get("bundled_primary_assigned_v8"):
+    if marker.get("bundled_primary_assigned_v22"):
         return
     if _db_path:
         try:
-            shutil.copy2(_db_path, f"{_db_path}.pre-bundled-primary-v8.bak")
+            shutil.copy2(_db_path, f"{_db_path}.pre-bundled-primary-v22.bak")
         except OSError:
             log.exception("pre-bundled-primary backup failed; skipping")
             return
@@ -683,7 +683,7 @@ def _migrate_assign_bundled_primary_once() -> None:
         changed += 1
     mpid = _get_master_preset_id("pre")
     if mpid is not None:
-        marker["bundled_primary_assigned_v8"] = True
+        marker["bundled_primary_assigned_v22"] = True
         conn.execute("UPDATE presets SET settings_json = ? WHERE id = ?",
                      (json.dumps(marker), mpid))
     conn.commit()
@@ -1334,6 +1334,18 @@ def _gear_display_name(rs_gear: str, fallback: str = "") -> str:
                 m[g] = dn
         _GEAR_DISPLAY_NAME_CACHE = m
     return _GEAR_DISPLAY_NAME_CACHE.get(rs_gear) or fallback
+
+
+def _gear_bundled_vst(rs_gear: str) -> str | None:
+    """The bundled VST path a gear resolves to (first entry in
+    rs_gear_to_vst.json), or None. Used to collapse gears that REUSE the same
+    bundled amp (e.g. Amp_AT20 reusing Bass_Amp_BT975B's Sampleg SBT-CL) so the
+    catalog/picker lists each bundled model once."""
+    arr = (_load_vst_seed_catalog() or {}).get(rs_gear)
+    if not isinstance(arr, list):
+        return None
+    return next((e.get("bundled") for e in arr
+                 if isinstance(e, dict) and e.get("bundled")), None)
 
 
 def _bundled_vst_plugins() -> list[dict]:
@@ -6082,9 +6094,18 @@ def setup(app, context):
         rs_map = _load_rs_to_real()
         type_tags = _load_pedal_type_tags()
         out: list[dict] = []
+        # Collapse gears that REUSE the same bundled VST (e.g. Amp_AT20 reusing
+        # Bass_Amp_BT975B's Sampleg SBT-CL) so the picker lists each bundled
+        # model once instead of two identical cards.
+        seen_bundled: set[str] = set()
         for rs_gear, info in rs_map.items():
             if rs_gear.startswith("_") or not isinstance(info, dict):
                 continue
+            b = _gear_bundled_vst(rs_gear)
+            if b:
+                if b in seen_bundled:
+                    continue
+                seen_bundled.add(b)
             category = info.get("category") or _gear_category(rs_gear) or "other"
             out.append({
                 "rs_gear": rs_gear,
@@ -8191,12 +8212,20 @@ def setup(app, context):
         # (rs_cab_mic_map / per-song picker).
         mic_suffix_re = re.compile(r"_(?:[0-9]?[a-z]{1,2})$")
         seen_bases: set[str] = set()
+        seen_bundled: set[str] = set()
         for k, info in rs_map.items():
             if not isinstance(info, dict):
                 continue
             cat = (info.get("category") or "").lower()
             if cat != category.lower():
                 continue
+            # Collapse gears that REUSE the same bundled VST (e.g. Amp_AT20 ->
+            # Bass_Amp_BT975B's Sampleg SBT-CL) so the picker lists it once.
+            b = _gear_bundled_vst(k)
+            if b:
+                if b in seen_bundled:
+                    continue
+                seen_bundled.add(b)
             if is_cab:
                 base = mic_suffix_re.sub("", k)
                 if base in seen_bases:

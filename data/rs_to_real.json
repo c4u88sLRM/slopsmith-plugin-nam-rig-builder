@@ -304,13 +304,13 @@
   },
   "make": "Mesa Boogie",
   "manifest": "gear_amp_ca38",
-  "model": "Mark IV",
-  "name": "Mesa Boogie Mark IV",
-  "name_correction_note": "corrected Cali mapping: user re-curated as Mesa Boogie Mark IV for bundled VST (was previously treated as Mark III / Mark V)",
+  "model": "Mark IIB",
+  "name": "Mesa Boogie Mark II",
+  "name_correction_note": "corrected Cali mapping: user re-curated as Mesa Boogie Mark IIB for the bundled VST (the CA_38 folder, boogie_mkii.pdf schematic and panel photos are the Mark IIB; was previously mislabelled Mark IV / Mark III / Mark V)",
   "query_source": "override",
   "sound_bank": "amp_ca38",
   "tone3000_gears": "amp",
-  "tone3000_query": "Mesa Boogie Mark IV"
+  "tone3000_query": "Mesa Boogie Mark II"
  },
  "Amp_CA85": {
   "art_asset": "ca85",
@@ -1112,15 +1112,15 @@
     "tone3000_id": 41532
    }
   },
-  "make": "Peavey",
+  "make": "Marshall",
   "manifest": "gear_amp_hg180",
-  "model": "180",
-  "name": "Peavey 180",
-  "name_correction_note": "user re-curated as Peavey 6505 (was 'Peavey 180')",
-  "query_source": "series",
+  "model": "VS100RH",
+  "name": "Marshall VS100RH",
+  "name_correction_note": "user re-curated as Marshall Valvestate VS100RH for the bundled VST (Marsten VS100); was the wrong 'Peavey 180' placeholder",
+  "query_source": "override",
   "sound_bank": "amp_hg180",
   "tone3000_gears": "amp",
-  "tone3000_query": "Peavey"
+  "tone3000_query": "Marshall Valvestate VS100"
  },
  "Amp_HG500": {
   "art_asset": "hg500",

@@ -1,6 +1,6 @@
 /*
- * REGIS DSL100 - Marshall JCM2000 DSL100(H) for Rocksmith's Amp_MarshallDSL100H.
- * Parody brand "Regis" (matches the GM-2 / UV-1 Marshall-copy pedals); the face
+ * MARSTEN DSL100 - Marshall JCM2000 DSL100(H) for Rocksmith's Amp_MarshallDSL100H.
+ * Parody brand "Marsten" (matches the GM-2 / UV-1 Marshall-copy pedals); the face
  * must never read "Marshall".
  *
  * Local references (full circuit, component-by-component):

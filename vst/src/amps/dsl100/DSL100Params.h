@@ -2,8 +2,8 @@
 #define DSL100_PARAMS_H
 
 /*
- * REGIS DSL100 = Marshall JCM2000 DSL100(H) — the FULL front panel, 1:1, from
- * the local schematics (JCM2-60..64). Parody brand "Regis" (same as the GM-2 /
+ * MARSTEN DSL100 = Marshall JCM2000 DSL100(H) — the FULL front panel, 1:1, from
+ * the local schematics (JCM2-60..64). Parody brand "Marsten" (same as the GM-2 /
  * UV-1 Marshall-copy pedals); the face must never read "Marshall".
  *
  * Two footswitchable channels off a shared 3x ECC83 preamp + EL34 power amp:

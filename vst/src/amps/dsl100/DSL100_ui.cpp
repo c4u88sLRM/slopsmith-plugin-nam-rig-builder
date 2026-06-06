@@ -1,8 +1,8 @@
 /* DSL100 fallback DPF UI — shared pedal_ui template. The real in-app face is
- * drawn by pedal_canvas.js (P.dsl100, "Regis" brand). Knob count + labels come
+ * drawn by pedal_canvas.js (P.dsl100, "Marsten" brand). Knob count + labels come
  * from the plugin params (19, the full DSL100HR panel). */
 #include "DSL100Params.h"
-#define PEDAL_TITLE  "REGIS DSL100"
+#define PEDAL_TITLE  "MARSTEN DSL100"
 #define PEDAL_NAMES  kDSL100Names
 #define PEDAL_DEFS   kDSL100Def
 #define PEDAL_ACR 24

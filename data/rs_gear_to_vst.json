@@ -1979,24 +1979,24 @@
  ],
  "Amp_CA38": [
   {
-   "name": "MarkIV",
+   "name": "Silla Boogie Mark II",
    "manufacturer": "RigBuilder",
    "format": "VST3",
    "url": "",
    "free": true,
-   "bundled": "vst/amps/MarkIV.vst3",
-   "notes": "Bundled Mesa-Boogie Mark IV lead-channel style amp based on the local Mark IV schematic, using Rocksmith's Gain, Bass, Mid, and Treble knobs."
+   "bundled": "vst/amps/MarkII.vst3",
+   "notes": "Bundled Mesa/Boogie Mark IIB style amp (parody brand 'Silla'), full head panel (Volume 1[pull Bright], Treble[pull Shift], Bass, Middle, Master 1[pull Gain Boost], Lead Drive[pull Lead], Lead Master[pull Bright], Reverb, 100/60 RMS power) modelled component-by-component from the local Mark II schematic (boogie_mkii.pdf) + the panel photos. The CA_38 folder/schematic/photos are the Mark IIB (the gear-map name wrongly said 'Mark IV'). NO graphic EQ (unlike the III/IV). Two voices off the scooped Boogie tone stack (Rhythm Volume->Master, Lead Drive cascade->Lead Master), 4x6L6 ~100W. Rocksmith's Gain drives the Lead Drive; Bass/Mid/Treble->tone stack (Channel pinned Lead, reverb/pulls off via _static)."
   }
  ],
  "Amp_CA85": [
   {
-   "name": "MarkIII",
+   "name": "Silla Boogie Mark III",
    "manufacturer": "RigBuilder",
    "format": "VST3",
    "url": "",
    "free": true,
    "bundled": "vst/amps/MarkIII.vst3",
-   "notes": "Bundled Mesa-Boogie Mark III R2 / crunch-mode style amp based on the local Mark III schematic, using Rocksmith's Gain, Bass, Mid, and Treble knobs."
+   "notes": "Bundled Mesa/Boogie Mark III style amp (parody brand 'Silla'), full head panel (Volume[pull Bright], Treble, Bass, Middle, Master, Lead Drive, Lead Master, 5-band graphic EQ, Lead/EQ switches) modelled component-by-component from the local Mark III schematic. Two voices (Rhythm + cascaded Lead) off the scooped Boogie tone stack; 6L6/EL34 Simul-Class power. Rocksmith's Gain drives the Lead Drive (lead distortion); Bass/Mid/Treble->tone stack (Channel pinned Lead + the GEQ 'V' via _static)."
   }
  ],
  "Amp_CS90": [
@@ -2034,13 +2034,112 @@
  ],
  "Amp_MarshallDSL100H": [
   {
-   "name": "Regis DSL100",
+   "name": "Marsten DSL100",
    "manufacturer": "RigBuilder",
    "format": "VST3",
    "url": "",
    "free": true,
    "bundled": "vst/amps/DSL100.vst3",
-   "notes": "Bundled Marshall JCM2000 DSL100 style amp (parody brand 'Regis'), full 2-channel front panel (Classic Clean/Crunch + Ultra OD1/OD2, Tone Shift, Resonance, Presence, dual Master, per-channel reverb, Low/High output) modelled component-by-component from the local DSL100 schematics. Rocksmith's Gain knob drives the channel morph (clean->crunch->ultra); Bass/Mid/Treble->tone stack, Pres->Presence, Res->Resonance."
+   "notes": "Bundled Marshall JCM2000 DSL100 style amp (parody brand 'Marsten'), full 2-channel front panel (Classic Clean/Crunch + Ultra OD1/OD2, Tone Shift, Resonance, Presence, dual Master, per-channel reverb, Low/High output) modelled component-by-component from the local DSL100 schematics. Rocksmith's Gain knob drives the channel morph (clean->crunch->ultra); Bass/Mid/Treble->tone stack, Pres->Presence, Res->Resonance."
+  }
+ ],
+ "Amp_MarshallPlexi": [
+  {
+   "name": "Marsten Plexi",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "url": "",
+   "free": true,
+   "bundled": "vst/amps/Plexi.vst3",
+   "notes": "Bundled Marshall 1959 Super Lead 100W (Plexi/JMP) style amp (parody brand 'Marsten'), full 1959 front panel (Presence, Bass, Middle, Treble, Loudness I + Loudness II, 4 inputs) modelled component-by-component from the local 1959SLP schematic. NON-master amp: the Loudness pots ARE the gain, so Rocksmith's Gain knob drives Loudness I (clean->crunch->roar); Bass/Mid/Treble->Marshall tone stack (33K slope, 500pF treble cap), Pres->Presence. 4x EL34 power-amp grind."
+  }
+ ],
+ "Amp_BT45": [
+  {
+   "name": "Ganddi Superdrive 45",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "url": "",
+   "free": true,
+   "bundled": "vst/amps/Superdrive45.vst3",
+   "notes": "Bundled Budda Superdrive 45 Series II style amp (parody brand 'Ganddi'), full front panel (Master[pull Channel], Bass, Mid[pull Modern], Treble, Drive, Rhythm[pull Brite], Input/Footswitch) modelled component-by-component from the local Superdrive45 manual + schematic. Two channels (Rhythm clean + Hi-gain lead off the cascaded Drive); 3x12AX7 + 2xKT66. Rocksmith's Gain knob drives the Drive (hi-gain distortion); Bass/Mid/Treble->Budda tone stack (Channel pinned Hi-gain + Modern ON via _static)."
+  }
+ ],
+ "Amp_HG500": [
+  {
+   "name": "Lovolt DR504",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "url": "",
+   "free": true,
+   "bundled": "vst/amps/LovoltDR504.vst3",
+   "notes": "Bundled Hiwatt DR504 'Custom Hiwatt 50' style amp (parody brand 'Lovolt'), full front panel (Normal Vol, Brilliant Vol, Bass, Treble, Middle, Presence, Master Vol, 4 jumperable inputs) modelled component-by-component from the local DR504 schematic. A high-headroom clean-and-loud EL34 amp (3xECC83 + ECC81 PI + 2xEL34 ~50W) with two jumperable channels + a shared tone stack (strong Hiwatt mids, 100K mid pot) + Master Volume. Rocksmith's Gain knob drives the Brilliant Vol (the breakup driver); Bass/Mid/Treble->tone stack, Pres->Presence (input pinned BOTH/jumpered via _static)."
+  }
+ ],
+ "Amp_HG100": [
+  {
+   "name": "Lovolt DR103",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "url": "",
+   "free": true,
+   "bundled": "vst/amps/LovoltDR103.vst3",
+   "notes": "Bundled Hiwatt DR103 'Custom Hiwatt 100' style amp (parody brand 'Lovolt'), the 100W sibling of the DR504. Same panel (Normal Vol, Brilliant Vol, Bass, Treble, Middle, Presence, Master Vol, 4 jumperable inputs) + same preamp/tone stack, but a 4xEL34 (~100W) power amp: even more clean headroom, less sag, bigger/tighter lows (the big clean-and-loud DR103, incl. the bridged jumpered voice). Rocksmith's Gain drives the Brilliant Vol; Bass/Mid/Treble->tone stack, Pres->Presence (input pinned BOTH via _static)."
+  }
+ ],
+ "Amp_HG180": [
+  {
+   "name": "Marsten VS100",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "url": "",
+   "free": true,
+   "bundled": "vst/amps/MarstenVS100.vst3",
+   "notes": "Bundled Marshall Valvestate VS100RH style HYBRID head (parody brand 'Marsten'), full front panel (Clean Volume/Bass/Middle/Treble, Overdrive 1 Gain/Volume, Overdrive 2 Gain/Contour/Volume/Bass/Middle/Treble, FX Mix, Clean Reverb, OD Reverb, 3-mode channel) modelled component-by-component from the local v100-6x schematics. Solid-state op-amp preamp + a 12AX7 warmth stage into a solid-state power amp: CLEAN, OD1 crunch, and the OD2 diode-clip high-gain lead. Rocksmith's Gain drives OD2 Gain (the lead voice); Bass/Mid/Treble->OD2 stack (Channel pinned OD2 + reverb/FX off via _static)."
+  }
+ ],
+ "Amp_BT30": [
+  {
+   "name": "Unparallel DC30",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "url": "",
+   "free": true,
+   "bundled": "vst/amps/UnparallelDC30.vst3",
+   "notes": "Bundled Matchless DC30 style boutique head (parody brand 'Unparallel'), full front panel (Channel 1 Brilliant: Volume/Bass/Treble; Channel 2 EF86: Volume/Tone; shared Cut/Master) modelled component-by-component from the local DC30 schematic. A hand-wired AC30-class amp: 4xEL84 CLASS-A power, no global negative feedback (very chimey, jangly, blooms at volume). Rocksmith's Gain drives the Channel 1 Volume (the EL84 breakup); Bass/Treble->Ch1 top-boost stack (Channel pinned Ch1 Brilliant, Ch2/Tone/Cut/Master via _static)."
+  }
+ ],
+ "Amp_BT15": [
+  {
+   "name": "Unparallel Chieftain",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "url": "",
+   "free": true,
+   "bundled": "vst/amps/UnparallelChieftain.vst3",
+   "notes": "Bundled Matchless Chieftain (Reverb) style boutique head (parody brand 'Unparallel'), full front panel (Volume, Bass, Middle, Treble, Brilliance, Master, Reverb) modelled component-by-component from the local Chieftain schematic. A single-channel clean/crunch amp with big headroom: 2xEL34 cathode-biased class AB (~40W), Marshall-style TMB stack with a warm 5.1nF treble cap, presence (Brilliance) on the PI, spring reverb. Rocksmith's Gain drives the Volume; Bass/Mid/Treble->tone stack (Brilliance/Master/Reverb via _static)."
+  }
+ ],
+ "Amp_GB38": [
+  {
+   "name": "Mr. Y MAZ 18",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "url": "",
+   "free": true,
+   "bundled": "vst/amps/MrYMaz18.vst3",
+   "notes": "Bundled Dr. Z Maz 18 Jr Reverb style head (parody brand 'Mr. Y'), full front panel (Volume, Treble, Middle, Bass, Cut, Master, Reverb) modelled component-by-component from the local Maz 18 Jr Reverb schematic. A 2xEL84 (~18W) class-AB head with a GZ34 tube rectifier (noticeable sag, touch-sensitive); voiced Vox-meets-Fender, chimey + midrange-forward, with spring reverb. Rocksmith's Gain drives the Volume; Bass/Mid/Treble->tone stack (Cut/Master/Reverb via _static)."
+  }
+ ],
+ "Amp_GB50": [
+  {
+   "name": "Mr. Y EMS",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "url": "",
+   "free": true,
+   "bundled": "vst/amps/MrYEMS.vst3",
+   "notes": "Bundled Dr. Z EMS style head (parody brand 'Mr. Y'), a Marshall JCM800/JTM50-style master-volume amp: full panel (Presence, Bass, Middle, Treble, Volume[master], Gain[preamp] + HI/LO gain switch) modelled from the EMS reference (a JCM800 2204 + HI/LO). Cascaded 12AX7 preamp -> Marshall TMB tone stack -> master -> 2xEL34 (~50W) + presence NFB; HI = full JCM800 gain, LO = JTM50 levels. Rocksmith's Gain drives the GAIN (preamp drive); Bass/Mid/Treble->tone stack, Pres->Presence (Master + HI via _static)."
   }
  ],
  "Amp_TW22": [
@@ -2085,6 +2184,50 @@
    "free": true,
    "bundled": "vst/amps/FreddyKrueger800BR.vst3",
    "notes": "Bundled Gallien-Krueger 800RB style bass head (Rocksmith 'BT880B' = GK RB800) modeled from the 800RB service manual, using Rocksmith's Gain, Bass, Mid, and Treble knobs."
+  }
+ ],
+ "Amp_AT20": [
+  {
+   "name": "SamplegSBTCL",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "url": "",
+   "free": true,
+   "bundled": "vst/amps/SamplegSBTCL.vst3",
+   "notes": "Rocksmith's Amp_AT20 is the Ampeg SVT-CL (the gear map's generic name is 'Marshall JCM 1'). It reuses the SAME bundled amp as Bass_Amp_BT975B — the Sampleg SBT-CL (Ampeg SVT-CL parody) — so AT-20 songs play the SVT-CL model. RS Gain/Bass/Mid/Treble map exactly as the BT975B."
+  }
+ ],
+ "Amp_AT120": [
+  {
+   "name": "Sampleg VH-140C",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "url": "",
+   "free": true,
+   "bundled": "vst/amps/SamplegVH140C.vst3",
+   "notes": "Bundled Ampeg VH-140C style amp (parody brand 'Sampleg'), full front panel (Chorus Rate/Depth A/B, Reverb A/B, Channel B Level/High/Mid/Low/Gain, Channel A Level/High/Ultra-Mid/Low/Gain, channel select) modelled component-by-component from the local VH-140C service schematic. A SOLID-STATE 2x70W head (op-amps + 1N914 diode clipping, TDA power): Channel A clean + Channel B the famous tight diode-clipped lead/metal distortion. Rocksmith's Gain drives Channel B Gain; Bass/Mid/Treble->Channel B Low/Mid/High (Channel pinned B + reverb/chorus OFF via _static)."
+  }
+ ],
+ "Amp_OrangeOR100": [
+  {
+   "name": "Citrus OR100",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "url": "",
+   "free": true,
+   "bundled": "vst/amps/CitrusOR100.vst3",
+   "notes": "Bundled Orange OR100 (vintage 'Graphic' head) style amp (parody brand 'Citrus'), full panel (Gain[HF Drive], Bass, Middle[FAC], Treble, Depth, Volume + FULL/HALF) modelled component-by-component from the complete local OR100 hand-drawn schematic. Single-channel British EL34 (~100W) with a thick, midrange-forward 'Orange' voice (the doom/stoner chunk) and the Depth low-end voicing. Rocksmith's Gain drives the Gain; Bass/Mid/Treble->tone stack (Volume + Depth pinned via _static)."
+  }
+ ],
+ "Amp_OrangeOR50H": [
+  {
+   "name": "Citrus OR50",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "url": "",
+   "free": true,
+   "bundled": "vst/amps/CitrusOR50.vst3",
+   "notes": "Bundled Orange OR50H style amp (parody brand 'Citrus'), the 50W sibling of the OR100. No separate OR50 schematic was available, so it is reconstructed from the complete OR100 schematic with a 2xEL34 (~50W) power amp: same panel (Gain, Bass, Middle, Treble, Depth, Volume + FULL/HALF) + preamp/tone stack, but less headroom, earlier breakup, a bit more sag and tighter lows. Rocksmith's Gain drives the Gain; Bass/Mid/Treble->tone stack (Volume + Depth pinned via _static)."
   }
  ],
  "Bass_Amp_BT975B": [

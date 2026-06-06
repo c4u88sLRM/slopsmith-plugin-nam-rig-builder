@@ -3916,50 +3916,79 @@
   }
  },
  "Amp_CA38": {
-  "markiv": {
+  "markii": {
+   "_hint": "Silla Boogie Mark IIB = the FULL Mesa/Boogie Mark IIB panel (8 knobs + 5 pull-switches, NO graphic EQ). The CA_38 folder/schematic/photos are the Mark II (the gear-map name wrongly said 'Mark IV'). RS exposes only Gain/Bass/Mid/Treble: Gain -> LEAD DRIVE (the cascaded lead distortion), Bass/Mid/Treble -> the scooped Boogie tone stack placed before the gain. _static pins the LEAD channel, masters/volume at musical defaults, reverb + all pulls off, FULL (100W) power.",
    "Gain": {
-    "param": "Gain",
+    "param": "Lead Drive",
     "scale": 0.01,
-    "_hint": "Rocksmith Gain morphs the Mark IV from clean to fat gain to tight lead."
+    "_hint": "RS Gain -> LEAD DRIVE (the cascaded Mark II lead gain). Loudness held ~flat by the makeup."
    },
    "Bass": {
     "param": "Bass",
     "scale": 0.01,
-    "_hint": "Maps to the Mark pre-gain bass shaping with tighter low end as Gain rises."
+    "_hint": "RS Bass -> Mark tone-stack bass (1M)."
    },
    "Mid": {
-    "param": "Mid",
+    "param": "Middle",
     "scale": 0.01,
-    "_hint": "Maps to the Mark mid control and moderates the internal post-preamp graphic-EQ scoop."
+    "_hint": "RS Mid -> Mark tone-stack middle (10K, the scooped Boogie mid)."
    },
    "Treble": {
     "param": "Treble",
     "scale": 0.01,
-    "_hint": "Maps to the pre-gain treble control, lead bite, and derived presence behavior."
+    "_hint": "RS Treble -> Mark tone-stack treble (250K)."
+   },
+   "_static": {
+    "Lead": 1.0,
+    "Volume 1": 0.5,
+    "Master 1": 0.5,
+    "Lead Master": 0.5,
+    "Reverb": 0.0,
+    "Bright 1": 0.0,
+    "Shift": 0.0,
+    "Gain Boost": 0.0,
+    "Bright Lead": 0.0,
+    "Half Power": 0.0,
+    "_note": "LEAD channel. Volume 1 / Master 1 / Lead Master at noon, reverb off, all pull-switches out, FULL 100W. Switch to Rhythm / pull Shift / Gain Boost / Bright on the face by hand."
    }
   }
  },
  "Amp_CA85": {
   "markiii": {
+   "_hint": "Silla Boogie Mark III = the FULL Mesa/Boogie Mark III panel (7 knobs + 5-band graphic EQ + Lead/Bright/EQ-In). RS exposes only Gain/Bass/Mid/Treble: Gain -> LEAD DRIVE (the cascaded lead distortion), Bass/Mid/Treble -> the scooped Boogie tone stack. _static pins the LEAD channel, the GEQ 'V' smile (80/6600 up, 750 down), EQ engaged, Bright off, and the masters/volume at musical defaults. The pulls + GEQ faders stay editable on the face.",
    "Gain": {
-    "param": "Gain",
+    "param": "Lead Drive",
     "scale": 0.01,
-    "_hint": "Rocksmith Gain controls the Mark III crunch-mode drive and lead-stage push."
+    "_hint": "RS Gain -> LEAD DRIVE (cascaded lead distortion). Higher = more singing Boogie lead gain. Loudness held ~flat by the makeup."
    },
    "Bass": {
     "param": "Bass",
     "scale": 0.01,
-    "_hint": "Maps to the Mark III pre-gain bass shaping with bass-shift style low-end control."
+    "_hint": "RS Bass -> Mark tone-stack bass (1M)."
    },
    "Mid": {
-    "param": "Mid",
+    "param": "Middle",
     "scale": 0.01,
-    "_hint": "Maps to the Mark III mid control and moderates the internal graphic-EQ scoop."
+    "_hint": "RS Mid -> Mark tone-stack middle (10K, the scooped Boogie mid)."
    },
    "Treble": {
     "param": "Treble",
     "scale": 0.01,
-    "_hint": "Maps to the pre-gain treble, pull-bright character, crunch bite, and derived presence."
+    "_hint": "RS Treble -> Mark tone-stack treble (250K)."
+   },
+   "_static": {
+    "Lead": 1.0,
+    "Bright": 0.0,
+    "EQ In": 1.0,
+    "Volume": 0.5,
+    "Master": 0.5,
+    "Lead Master": 0.5,
+    "EQ 80": 0.6,
+    "EQ 240": 0.5,
+    "EQ 750": 0.38,
+    "EQ 2200": 0.5,
+    "EQ 6600": 0.58,
+    "_note": "LEAD channel, EQ engaged with the classic Boogie 'V' (lows + highs up, 750 down). Volume/Masters at noon. Switch to Rhythm / pull Bright / reshape the GEQ on the face by hand."
    }
   }
  },
@@ -4089,7 +4118,7 @@
  },
  "Amp_MarshallDSL100H": {
   "dsl100": {
-   "_hint": "Regis DSL100 = the FULL JCM2000 DSL100 panel (CLASSIC Clean/Crunch + ULTRA OD1/OD2). The Gain knob DRIVES THE CHANNEL morph — low Gain = Classic clean, mid = Classic crunch, high = Ultra OD — matching the gain_variants split. Tone stack + Presence/Resonance map 1:1; per-channel Gain/Vol, modes and masters sit at musical defaults (_static).",
+   "_hint": "Marsten DSL100 = the FULL JCM2000 DSL100 panel (CLASSIC Clean/Crunch + ULTRA OD1/OD2). The Gain knob DRIVES THE CHANNEL morph — low Gain = Classic clean, mid = Classic crunch, high = Ultra OD — matching the gain_variants split. Tone stack + Presence/Resonance map 1:1; per-channel Gain/Vol, modes and masters sit at musical defaults (_static).",
    "Gain": {
     "param": "Channel",
     "scale": 0.01,
@@ -4256,6 +4285,330 @@
    }
   }
  },
+ "Amp_MarshallPlexi": {
+  "plexi": {
+   "_hint": "Marsten Plexi = the FULL Marshall 1959 Super Lead panel. The RS amp exposes the two Loudness pots directly (gain_proxy_knobs = Loudness1/Loudness2), NOT a generic Gain — so they map 1:1: Loudness1 -> HIGH TREBLE/bright channel (Loudness I), Loudness2 -> NORMAL channel (Loudness II). The Loudness pots ARE the gain (non-master amp), so cranking them drives the EL34 grind. Bass/Mid/Treble -> Marshall tone stack (33K slope, 500pF treble cap), Pres -> Presence. Aliases (Middle/Presence/HighTreble/Normal/Gain) are tolerated for whatever the tone actually carries; absent keys are ignored.",
+   "Loudness1": {
+    "param": "Loudness I",
+    "scale": 0.01,
+    "_hint": "RS Loudness1 -> Loudness I (HIGH TREBLE / bright channel). The plexi breaks up via loudness; higher = more EL34 power-amp grind. Held ~flat by the makeup."
+   },
+   "Loudness2": {
+    "param": "Loudness II",
+    "scale": 0.01,
+    "_hint": "RS Loudness2 -> Loudness II (NORMAL channel). Up = the fuller jumpered plexi voice."
+   },
+   "Bass": {
+    "param": "Bass",
+    "scale": 0.01,
+    "_hint": "RS Bass -> Marshall tone-stack bass (1M)."
+   },
+   "Mid": {
+    "param": "Middle",
+    "scale": 0.01,
+    "_hint": "RS Mid -> Marshall tone-stack middle (25K)."
+   },
+   "Middle": {
+    "param": "Middle",
+    "scale": 0.01,
+    "_hint": "alias: some tones spell the mid knob 'Middle'."
+   },
+   "Treble": {
+    "param": "Treble",
+    "scale": 0.01,
+    "_hint": "RS Treble -> Marshall tone-stack treble (250K, 500pF) + bright-channel sparkle."
+   },
+   "Pres": {
+    "param": "Presence",
+    "scale": 0.01,
+    "_hint": "RS Pres -> Presence (power-amp NFB) + upper speaker bite."
+   },
+   "Presence": {
+    "param": "Presence",
+    "scale": 0.01,
+    "_hint": "alias: some tones spell it 'Presence'."
+   },
+   "Gain": {
+    "param": "Loudness I",
+    "scale": 0.01,
+    "_hint": "fallback: if a tone exposes a generic Gain instead of Loudness1, drive Loudness I."
+   },
+   "_static": {
+    "Input": 0.5,
+    "_note": "Input pinned to BOTH (jumpered) so both RS Loudness pots feed the amp — the classic fat plexi tone. Click the input cable on the face to switch to Bright-only / Normal-only."
+   }
+  }
+ },
+ "Amp_BT45": {
+  "superdrive45": {
+   "_hint": "Ganddi Superdrive 45 = the Budda Superdrive 45 Series II (the gear map's generic name is 'Vox AC50' but the curated gain_variants are 'Budda Super Drive Clean/Crunch/Lead Modern'). RS Gain -> DRIVE (the hi-gain channel distortion), Bass/Mid/Treble -> Budda tone stack. _static pins Channel = Hi-gain and Modern = ON (the variants were captured Modern); Master/Rhythm sit at musical defaults. The three pull-pots (Channel/Modern/Brite) stay editable on the face.",
+   "Gain": {
+    "param": "Drive",
+    "scale": 0.01,
+    "_hint": "RS Gain -> DRIVE (hi-gain channel distortion). Higher = more cascaded 12AX7 grind into the KT66s. Loudness held ~flat by the makeup."
+   },
+   "Bass": {
+    "param": "Bass",
+    "scale": 0.01,
+    "_hint": "RS Bass -> Budda tone-stack bass (500K)."
+   },
+   "Mid": {
+    "param": "Mid",
+    "scale": 0.01,
+    "_hint": "RS Mid -> Budda tone-stack middle (50K)."
+   },
+   "Treble": {
+    "param": "Treble",
+    "scale": 0.01,
+    "_hint": "RS Treble -> Budda tone-stack treble (500K, 220pF)."
+   },
+   "_static": {
+    "Channel": 1.0,
+    "Modern": 1.0,
+    "Brite": 0.0,
+    "Master": 0.5,
+    "Rhythm": 0.4,
+    "_note": "Channel pulled to Hi-gain + Modern ON (matches the captured 'Modern' variants). Master ~noon, Rhythm at a musical clean-channel default. Pull the pots on the face to change channel / voicing by hand."
+   }
+  }
+ },
+ "Amp_HG500": {
+  "lovoltdr504": {
+   "_hint": "Lovolt DR504 = the Hiwatt DR504 'Custom 50' (the gear map's generic name is 'Peavey 5150' but the folder + schematic are the Hiwatt DR504). No gain knob, so RS Gain -> BRILLIANT VOL (the brilliant channel volume = the breakup driver). Bass/Mid/Treble -> tone stack, Pres -> Presence. _static pins the input to BOTH (jumpered), Normal Vol + Master Vol at musical defaults. Switch the input cable / volumes on the face by hand.",
+   "Gain": {
+    "param": "Brilliant Vol",
+    "scale": 0.01,
+    "_hint": "RS Gain -> BRILLIANT VOL (the bright channel volume; the Hiwatt has no gain knob). Higher = more breakup. Loudness held ~flat by the makeup."
+   },
+   "Bass": {
+    "param": "Bass",
+    "scale": 0.01,
+    "_hint": "RS Bass -> Hiwatt tone-stack bass (500K)."
+   },
+   "Mid": {
+    "param": "Middle",
+    "scale": 0.01,
+    "_hint": "RS Mid -> Hiwatt tone-stack middle (100K, the strong Hiwatt mids)."
+   },
+   "Treble": {
+    "param": "Treble",
+    "scale": 0.01,
+    "_hint": "RS Treble -> Hiwatt tone-stack treble (250K)."
+   },
+   "Pres": {
+    "param": "Presence",
+    "scale": 0.01,
+    "_hint": "RS Pres -> Presence (100K, power-amp NFB)."
+   },
+   "_static": {
+    "Input": 0.5,
+    "Normal Vol": 0.4,
+    "Master Vol": 0.55,
+    "_note": "Input pinned to BOTH (jumpered Normal+Brilliant). Normal Vol as the blend, Master past noon for the clean-loud Hiwatt punch. Volumes + the input cable stay editable by hand."
+   }
+  }
+ },
+ "Amp_HG100": {
+  "lovoltdr103": {
+   "_hint": "Lovolt DR103 = the Hiwatt DR103 'Custom 100' (the 100W sibling of the DR504). No gain knob, so RS Gain -> BRILLIANT VOL (the breakup driver). Bass/Mid/Treble -> tone stack, Pres -> Presence. _static pins the input to BOTH (jumpered = the bridged DR103 voice), Normal Vol + Master Vol at musical defaults.",
+   "Gain": {
+    "param": "Brilliant Vol",
+    "scale": 0.01,
+    "_hint": "RS Gain -> BRILLIANT VOL (the bright channel volume; the Hiwatt has no gain knob). Higher = more breakup (the 100W stays clean even longer). Loudness held ~flat by the makeup."
+   },
+   "Bass": {
+    "param": "Bass",
+    "scale": 0.01,
+    "_hint": "RS Bass -> Hiwatt tone-stack bass (500K)."
+   },
+   "Mid": {
+    "param": "Middle",
+    "scale": 0.01,
+    "_hint": "RS Mid -> Hiwatt tone-stack middle (100K, the strong Hiwatt mids)."
+   },
+   "Treble": {
+    "param": "Treble",
+    "scale": 0.01,
+    "_hint": "RS Treble -> Hiwatt tone-stack treble (250K)."
+   },
+   "Pres": {
+    "param": "Presence",
+    "scale": 0.01,
+    "_hint": "RS Pres -> Presence (100K, power-amp NFB)."
+   },
+   "_static": {
+    "Input": 0.5,
+    "Normal Vol": 0.4,
+    "Master Vol": 0.55,
+    "_note": "Input pinned to BOTH (the bridged jumpered DR103 voice). Normal Vol as the blend, Master past noon for the big clean-loud Hiwatt punch. Volumes + the input cable stay editable by hand."
+   }
+  }
+ },
+ "Amp_HG180": {
+  "marstenvs100": {
+   "_hint": "Marsten VS100 = the Marshall Valvestate VS100RH hybrid head. Three modes (Clean / OD1 crunch / OD2 lead); the OD2 lead is the voice for songs, so RS Gain -> OD2 GAIN (the Valvestate diode-clip lead distortion), Bass/Mid/Treble -> the OD2 tone stack. _static pins the CHANNEL to OD2, OD2 Volume + Contour at musical defaults, reverb/FX off, and the Clean/OD1 controls at sensible idles. Switch channel, dial reverb/FX, or reshape Clean/OD1 on the face by hand.",
+   "Gain": {
+    "param": "OD2 Gain",
+    "scale": 0.01,
+    "_hint": "RS Gain -> OD2 GAIN (the high-gain Valvestate lead). Loudness held ~flat by the makeup."
+   },
+   "Bass": {
+    "param": "OD2 Bass",
+    "scale": 0.01,
+    "_hint": "RS Bass -> OD2 tone-stack bass."
+   },
+   "Mid": {
+    "param": "OD2 Middle",
+    "scale": 0.01,
+    "_hint": "RS Mid -> OD2 tone-stack middle."
+   },
+   "Treble": {
+    "param": "OD2 Treble",
+    "scale": 0.01,
+    "_hint": "RS Treble -> OD2 tone-stack treble."
+   },
+   "_static": {
+    "Channel": 1.0,
+    "OD2 Contour": 0.4,
+    "OD2 Volume": 0.5,
+    "Cl Volume": 0.5,
+    "Cl Bass": 0.5,
+    "Cl Middle": 0.5,
+    "Cl Treble": 0.55,
+    "OD1 Gain": 0.5,
+    "OD1 Volume": 0.5,
+    "FX Mix": 0.0,
+    "Clean Reverb": 0.0,
+    "OD Reverb": 0.0,
+    "_note": "CHANNEL pinned to OD2 (the lead). OD2 Volume at noon, Contour with a gentle scoop. Reverb + FX loop off. Clean/OD1 sit at idle clean/crunch defaults — switch channel or add reverb/FX on the face by hand."
+   }
+  }
+ },
+ "Amp_BT30": {
+  "unparalleldc30": {
+   "_hint": "Unparallel DC30 = the Matchless DC30 (a hand-wired AC30-class amp, NOT a Vox AC30 — the gear-map name was a wrong placeholder). No gain knob: the channel Volume drives the EL84 breakup. RS Gain -> CH1 VOLUME (the Brilliant channel), Bass/Treble -> the Ch1 VOX top-boost stack. Channel 1 has NO mid control, so RS Mid is not mapped. _static pins the Brilliant channel, the EF86 channel + Tone, Cut and Master at musical defaults.",
+   "Gain": {
+    "param": "Ch1 Volume",
+    "scale": 0.01,
+    "_hint": "RS Gain -> CH1 VOLUME (the Brilliant channel volume = the class-A EL84 breakup driver). Loudness held ~flat by the makeup."
+   },
+   "Bass": {
+    "param": "Bass",
+    "scale": 0.01,
+    "_hint": "RS Bass -> Ch1 top-boost bass."
+   },
+   "Treble": {
+    "param": "Treble",
+    "scale": 0.01,
+    "_hint": "RS Treble -> Ch1 top-boost treble."
+   },
+   "_static": {
+    "Channel": 0.0,
+    "Ch2 Volume": 0.5,
+    "Tone": 0.5,
+    "Cut": 0.4,
+    "Master": 0.7,
+    "_note": "CH1 Brilliant channel selected. EF86 channel + its Tone at noon, Cut just below noon, Master past noon for the class-A bloom. Switch to the EF86 channel / dial Cut on the face by hand."
+   }
+  }
+ },
+ "Amp_BT15": {
+  "unparallelchieftain": {
+   "_hint": "Unparallel Chieftain = the Matchless Chieftain Reverb (a clean/crunch boutique EL34 head, NOT a Vox AC15 — the gear-map name was a wrong placeholder). No gain knob: the Volume drives the preamp into the EL34s. RS Gain -> VOLUME, Bass/Mid/Treble -> the Marshall-style tone stack. _static pins Brilliance (presence), Master and Reverb.",
+   "Gain": {
+    "param": "Volume",
+    "scale": 0.01,
+    "_hint": "RS Gain -> VOLUME (drives the preamp into the EL34 power amp). Loudness held ~flat by the makeup."
+   },
+   "Bass": {
+    "param": "Bass",
+    "scale": 0.01,
+    "_hint": "RS Bass -> Chieftain tone-stack bass (1M)."
+   },
+   "Mid": {
+    "param": "Middle",
+    "scale": 0.01,
+    "_hint": "RS Mid -> Chieftain tone-stack middle (250K)."
+   },
+   "Treble": {
+    "param": "Treble",
+    "scale": 0.01,
+    "_hint": "RS Treble -> Chieftain tone-stack treble (1M, warm 5.1nF cap)."
+   },
+   "_static": {
+    "Brilliance": 0.4,
+    "Master": 0.7,
+    "Reverb": 0.0,
+    "_note": "Brilliance (presence) just below noon, Master past noon for headroom, Reverb off. Add Brilliance / Reverb on the face by hand."
+   }
+  }
+ },
+ "Amp_GB38": {
+  "mrymaz18": {
+   "_hint": "Mr. Y MAZ 18 = the Dr. Z Maz 18 Jr Reverb (2xEL84 ~18W, GZ34 sag, Vox-meets-Fender). No gain knob: the Volume drives the preamp. RS Gain -> VOLUME, Bass/Mid/Treble -> the tone stack. _static pins Cut, Master and Reverb.",
+   "Gain": {
+    "param": "Volume",
+    "scale": 0.01,
+    "_hint": "RS Gain -> VOLUME (drives the preamp into the EL84s; the GZ34 sag adds touch-feel). Loudness held ~flat by the makeup."
+   },
+   "Bass": {
+    "param": "Bass",
+    "scale": 0.01,
+    "_hint": "RS Bass -> Maz tone-stack bass."
+   },
+   "Mid": {
+    "param": "Middle",
+    "scale": 0.01,
+    "_hint": "RS Mid -> Maz tone-stack middle (10K)."
+   },
+   "Treble": {
+    "param": "Treble",
+    "scale": 0.01,
+    "_hint": "RS Treble -> Maz tone-stack treble (250K, 250pF cap)."
+   },
+   "_static": {
+    "Cut": 0.4,
+    "Master": 0.7,
+    "Reverb": 0.0,
+    "_note": "Cut just below noon (higher = darker), Master past noon, Reverb off. Dial Cut / Reverb on the face by hand."
+   }
+  }
+ },
+ "Amp_GB50": {
+  "mryems": {
+   "_hint": "Mr. Y EMS = Dr. Z EMS, a Marshall JCM800 2204-style master-volume head with a HI/LO gain switch. RS Gain -> GAIN (the JCM800 preamp drive), Bass/Mid/Treble -> Marshall tone stack, Pres -> Presence. _static pins the master Volume + HI gain mode.",
+   "Gain": {
+    "param": "Gain",
+    "scale": 0.01,
+    "_hint": "RS Gain -> GAIN (the cascaded JCM800 preamp drive). Loudness held ~flat by the makeup."
+   },
+   "Bass": {
+    "param": "Bass",
+    "scale": 0.01,
+    "_hint": "RS Bass -> Marshall tone-stack bass (1M)."
+   },
+   "Mid": {
+    "param": "Middle",
+    "scale": 0.01,
+    "_hint": "RS Mid -> Marshall tone-stack middle (25K)."
+   },
+   "Treble": {
+    "param": "Treble",
+    "scale": 0.01,
+    "_hint": "RS Treble -> Marshall tone-stack treble (220K, 470pF)."
+   },
+   "Pres": {
+    "param": "Presence",
+    "scale": 0.01,
+    "_hint": "RS Pres -> Presence (power-amp NFB)."
+   },
+   "_static": {
+    "Volume": 0.6,
+    "Hi Lo": 0.0,
+    "_note": "Master Volume past noon, HI gain mode (full JCM800). Switch to LO / dial the master on the face by hand."
+   }
+  }
+ },
  "Bass_Amp_BT880B": {
   "freddykrueger800br": {
    "Gain": {
@@ -4280,6 +4633,130 @@
     "offset": 0.5,
     "scale": 0.033333,
     "_hint": "RS Treble +/-15 dB -> 4 kHz high-shelf 0..1 (0.5 = flat)."
+   }
+  }
+ },
+ "Amp_AT20": {
+  "samplegsbtcl": {
+   "_hint": "Amp_AT20 is the Ampeg SVT-CL (gear map's generic name 'Marshall JCM 1'). It reuses the SAME bundled amp as Bass_Amp_BT975B — the Sampleg SBT-CL — with the identical knob mapping.",
+   "Gain": {
+    "param": "Gain",
+    "scale": 0.033,
+    "_hint": "RS Gain -> preamp Gain/drive 0..1 (the 12AX7 SVT growl)."
+   },
+   "Bass": {
+    "param": "Bass",
+    "offset": 0.5,
+    "scale": 0.033333,
+    "_hint": "RS Bass +/-15 dB -> ~70 Hz low-shelf 0..1 (0.5 flat)."
+   },
+   "Mid": {
+    "param": "Midrange",
+    "offset": 0.5,
+    "scale": 0.033333,
+    "_hint": "RS Mid +/-15 dB -> Midrange peak 0..1 (0.5 flat) at the Frequency-selected centre (default 800 Hz)."
+   },
+   "Treble": {
+    "param": "Treble",
+    "offset": 0.5,
+    "scale": 0.033333,
+    "_hint": "RS Treble +/-15 dB -> ~5 kHz high-shelf 0..1 (0.5 flat)."
+   }
+  }
+ },
+ "Amp_AT120": {
+  "samplegvh140c": {
+   "_hint": "Sampleg VH-140C = the Ampeg VH-140C (gear map's generic name 'Marshall JCM 800'). The lead voice is CHANNEL B, so RS Gain -> Channel B Gain (the diode-clip drive), Bass/Mid/Treble -> Channel B Low/Mid/High. _static pins the LEAD channel (B), reverb + chorus OFF (RS adds those), and Channel A at a clean default. All editable on the face.",
+   "Gain": {
+    "param": "B Gain",
+    "scale": 0.01,
+    "_hint": "RS Gain -> CHANNEL B Gain (the 1N914 diode distortion drive). Higher = tighter, more aggressive. Loudness held ~flat by the makeup."
+   },
+   "Bass": {
+    "param": "B Low",
+    "scale": 0.01,
+    "_hint": "RS Bass -> Channel B Low (active EQ)."
+   },
+   "Mid": {
+    "param": "B Mid",
+    "scale": 0.01,
+    "_hint": "RS Mid -> Channel B Mid (active EQ)."
+   },
+   "Treble": {
+    "param": "B High",
+    "scale": 0.01,
+    "_hint": "RS Treble -> Channel B High (active EQ)."
+   },
+   "_static": {
+    "Channel": 1.0,
+    "B Level": 0.55,
+    "Reverb B": 0.0,
+    "Reverb A": 0.0,
+    "Depth B": 0.0,
+    "Depth A": 0.0,
+    "_note": "LEAD channel (B), Level at noon, onboard reverb + chorus OFF for songs (Rocksmith adds its own). Switch to Channel A / dial reverb + chorus on the face by hand."
+   }
+  }
+ },
+ "Amp_OrangeOR100": {
+  "citrusor100": {
+   "_hint": "Citrus OR100 = the Orange OR100 (vintage Graphic head). RS Gain -> GAIN (the HF Drive), Bass/Mid/Treble -> the tone stack (Middle = the FAC). _static pins Volume (master) + Depth at musical defaults and FULL power. Dial Volume/Depth/HALF on the face by hand.",
+   "Gain": {
+    "param": "Gain",
+    "scale": 0.01,
+    "_hint": "RS Gain -> GAIN (HF Drive). Higher = more EL34 grind (the Orange doom chunk). Loudness held ~flat by the makeup."
+   },
+   "Bass": {
+    "param": "Bass",
+    "scale": 0.01,
+    "_hint": "RS Bass -> tone-stack bass."
+   },
+   "Mid": {
+    "param": "Middle",
+    "scale": 0.01,
+    "_hint": "RS Mid -> tone-stack middle (the Orange FAC)."
+   },
+   "Treble": {
+    "param": "Treble",
+    "scale": 0.01,
+    "_hint": "RS Treble -> tone-stack treble."
+   },
+   "_static": {
+    "Volume": 0.55,
+    "Depth": 0.5,
+    "Half Power": 0.0,
+    "_note": "Volume (master) at noon, Depth centred, FULL power. Tweak Volume/Depth + the FULL/HALF switch on the face by hand."
+   }
+  }
+ },
+ "Amp_OrangeOR50H": {
+  "citrusor50": {
+   "_hint": "Citrus OR50 = the Orange OR50H (the 50W sibling of the OR100, reconstructed from the OR100 schematic). RS Gain -> GAIN, Bass/Mid/Treble -> tone stack (Middle = the FAC). _static pins Volume + Depth at musical defaults and FULL power.",
+   "Gain": {
+    "param": "Gain",
+    "scale": 0.01,
+    "_hint": "RS Gain -> GAIN (HF Drive). The 50W breaks up a touch earlier than the OR100. Loudness held ~flat by the makeup."
+   },
+   "Bass": {
+    "param": "Bass",
+    "scale": 0.01,
+    "_hint": "RS Bass -> tone-stack bass."
+   },
+   "Mid": {
+    "param": "Middle",
+    "scale": 0.01,
+    "_hint": "RS Mid -> tone-stack middle (the Orange FAC)."
+   },
+   "Treble": {
+    "param": "Treble",
+    "scale": 0.01,
+    "_hint": "RS Treble -> tone-stack treble."
+   },
+   "_static": {
+    "Volume": 0.55,
+    "Depth": 0.5,
+    "Half Power": 0.0,
+    "_note": "Volume (master) at noon, Depth centred, FULL power. Tweak Volume/Depth + the FULL/HALF switch on the face by hand."
    }
   }
  },

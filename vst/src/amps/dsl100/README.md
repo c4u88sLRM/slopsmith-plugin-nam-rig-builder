@@ -1,8 +1,8 @@
-# DSL100 — "Regis DSL100"
+# DSL100 — "Marsten DSL100"
 
 Bundled RigBuilder amp for Rocksmith's `Amp_MarshallDSL100H`. Models the
 **Marshall JCM2000 DSL100(H)** — the full two-channel front panel, 1:1.
-Parody brand **"Regis"** (the same brand used for the GM-2 / UV-1 Marshall-copy
+Parody brand **"Marsten"** (the same brand used for the GM-2 / UV-1 Marshall-copy
 pedals); the in-app face must never read "Marshall".
 
 Local references (modelled component-by-component):
