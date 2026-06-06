@@ -2273,5 +2273,16 @@
    "bundled": "vst/amps/MarstenDBS7400.vst3",
    "notes": "Bundled Marshall DBS 7400 (Dynamic Bass System) style solid-state bass head (Rocksmith 'CS350B'/'CLH-350B'); component-level model from the 7400 schematic (op-amp preamp + Lo/Hi Primary EQ + Depth-only compressor + the real 9-band gyrator graphic EQ 50/80/160/320/640/1.25k/2.5k/5k/8k). Uses RS Gain, Bass->Lo, Treble->Hi; RS's 7 graphic bands are remapped to the nearest of the 9."
   }
+ ],
+ "Amp_OrangeTinyTerror": [
+  {
+   "name": "CitrusBigTremor",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "url": "",
+   "free": true,
+   "bundled": "vst/amps/CitrusBigTremor.vst3",
+   "notes": "Bundled Orange Tiny Terror style single-channel guitar head (Rocksmith 'OrangeTinyTerror'): component-level model from the Tiny Terror schematic. Two 12AX7 gain stages, single passive Tone, Volume, 2x EL84 cathode-biased push-pull (~15 W; 7 W Half mode). RS Gain->Gain; RS Tone->Tone."
+  }
  ]
 }

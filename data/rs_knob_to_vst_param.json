@@ -4736,5 +4736,19 @@
     "scale": 0.033333
    }
   }
+ },
+ "Amp_OrangeTinyTerror": {
+  "citrusbigtremor": {
+   "Gain": {
+    "param": "Gain",
+    "scale": 0.01,
+    "_hint": "RS Gain 0-100 -> preamp drive 0..1."
+   },
+   "Tone": {
+    "param": "Tone",
+    "scale": 0.01,
+    "_hint": "RS Tone 0-100 -> passive tone tilt 0..1 (0.5 flat)."
+   }
+  }
  }
 }

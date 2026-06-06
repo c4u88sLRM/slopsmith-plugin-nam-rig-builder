@@ -3512,6 +3512,42 @@
       textC(d,(PL+PW)-60,H*0.5,F.barlow,20,rgb(228,230,234),'B600F','right');
       c.beginPath(); c.arc(.945*W,H*0.5,4.5,0,7); c.fillStyle=rgb(40,90,220); c.fill(); } };
 
+  // Citrus Big Tremor — Orange Tiny Terror (parody). White tolex head, cream
+  // panel with the 'Citrus' bubble logo + BIG TREMOR + crest, a black/orange
+  // control strip (POWER · OUTPUT · VOLUME · TONE · GAIN · GUITAR), Volume/Tone/
+  // Gain knobs, the 15W/7W Half-power toggle, a red pilot jewel + input jack.
+  P.citrusbigtremor = { w:1000, h:300,
+    knobs:[
+      {id:0,cx:.470,cy:.78,r:.050,style:'pointer',cap:[18,18,20]},
+      {id:1,cx:.600,cy:.78,r:.050,style:'pointer',cap:[18,18,20]},
+      {id:2,cx:.730,cy:.78,r:.050,style:'pointer',cap:[18,18,20]}],
+    switches:[{id:3,cx:.185,cy:.78,hs:.012,dark:true}],
+    names:['Volume','Tone','Gain','Half Power'],
+    tick:rgb(120,120,124), ptr:rgb(20,20,22),
+    draw(d,vals){ const {ctx:c,W,H}=d; vals=vals||{};
+      c.fillStyle=rgb(228,228,224); c.fillRect(0,0,W,H);                          // white tolex
+      rr(c,.030*W,.05*H,.940*W,.42*H,6); c.fillStyle=rgb(240,239,234); c.fill();  // cream upper panel
+      rr(c,.030*W,.05*H,.940*W,.42*H,6); c.strokeStyle=rgb(150,148,140); c.lineWidth=1.4; c.stroke();
+      textC(d,.065*W,.245*H,F.graffiti,86,rgb(22,20,18),'Citrus','left');         // bubble logo
+      textC(d,.585*W,.175*H,F.bebas,30,rgb(40,38,34),'BIG','left');
+      textC(d,.585*W,.300*H,F.bebas,30,rgb(40,38,34),'TREMOR','left');
+      rr(c,.855*W,.10*H,.085*W,.30*H,3); c.fillStyle=rgb(232,120,28); c.fill();   // crest badge
+      rr(c,.855*W,.10*H,.085*W,.30*H,3); c.strokeStyle=rgb(150,80,20); c.lineWidth=1; c.stroke();
+      // black control strip with an orange band + white icon labels
+      const SY=.50*H, SH=.50*H;
+      rr(c,.030*W,SY,.940*W,SH-.04*H,5); c.fillStyle=rgb(18,18,20); c.fill();
+      c.fillStyle=rgb(232,120,28); c.fillRect(.030*W,.55*H,.940*W,.075*H);        // orange band
+      const lab=(cx,y,sz,t,col)=>textC(d,cx*W,y*H,F.barlow,sz,col||rgb(232,233,236),t);
+      [[.085,'POWER'],[.185,'OUTPUT'],[.470,'VOLUME'],[.600,'TONE'],[.730,'GAIN'],[.900,'GUITAR']]
+        .forEach(s=>lab(s[0],.592,8.5,s[1],rgb(28,22,16)));
+      // power toggle (cosmetic) + OFF/ON
+      const tog=(x,up)=>{ rr(c,x*W-9,.78*H-16,18,32,2); c.fillStyle=rgb(36,36,40); c.fill(); rr(c,x*W-9,.78*H-16,18,32,2); c.strokeStyle=rgb(90,92,96); c.lineWidth=1; c.stroke();
+        rr(c,x*W-7,up?.78*H-14:.78*H,14,14,2); c.fillStyle=rgb(200,200,206); c.fill(); };
+      tog(.085,true); lab(.085,.92,6.5,'ON / OFF',rgb(60,58,54));
+      lab(.185,.92,6.5,'15W / 7W',rgb(60,58,54));
+      ledDot(d,.300*W,.78*H,true,232,60,40);                                       // red pilot jewel
+      c.beginPath(); c.arc(.900*W,.78*H,9,0,7); c.fillStyle=rgb(16,16,18); c.fill(); c.strokeStyle=rgb(120,122,126); c.lineWidth=1.5; c.stroke(); } };
+
   // ── generic fallback: any VST without a hand-built spec gets a clean knob
   //    grid built from its live parameter metadata (so nothing opens in a
   //    native window). params = [{id|paramId|index, name, value}, …]. ──────────
