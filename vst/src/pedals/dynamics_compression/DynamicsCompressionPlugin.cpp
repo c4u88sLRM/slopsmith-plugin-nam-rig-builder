@@ -167,10 +167,11 @@ public:
         const float dryKeep = 0.04f + 0.10f * attack;
         float y = wet * (1.0f - dryKeep) + x * dryKeep;
 
-        // Sustain makeup follows the Dyna Comp idea but is trimmed so the
-        // pedal does not behave like a pure boost.
-        const float makeupDb = 0.8f + 6.2f * comp;
-        y *= dbToAmp(makeupDb) * (0.62f + 0.08f * (1.0f - comp));
+        // Auto-makeup tracks the gain-reduction so raising Comp keeps the OUTPUT
+        // level ~constant (loudness-transparent, ~unity) instead of ducking the
+        // signal. Tuned offline against a multitone Comp sweep. See AMP_LOUDNESS.md.
+        const float makeupDb = 3.8f + 16.5f * comp + 1.1f * comp * comp;
+        y *= dbToAmp(makeupDb);
 
         y = softClip(y * (0.94f + 0.08f * comp)) * 0.98f;
         y = lowPass(y);

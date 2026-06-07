@@ -87,7 +87,10 @@ class LimiterPlugin : public Plugin
         thresholdDb = -5.5f - 31.0f * amount;
         ratio = 8.0f + 32.0f * amount;
         kneeDb = 5.5f - 2.6f * amount;
-        makeupDb = std::fmin(5.8f, (-thresholdDb - 5.5f) * (0.14f + 0.15f * amount));
+        // Auto-makeup tracks the threshold/GR so raising Limit holds the OUTPUT
+        // level ~constant (loudness-transparent) instead of ducking. Tuned offline
+        // against a multitone Limit sweep. See AMP_LOUDNESS.md.
+        makeupDb = std::fmin(24.0f, 2.5f + (-thresholdDb - 5.5f) * (0.30f + 0.55f * amount));
 
         const float attackMs = 0.22f + 1.20f * (1.0f - amount);
         const float releaseMs = 55.0f + 720.0f * std::pow(1.0f - rate, 1.55f);
