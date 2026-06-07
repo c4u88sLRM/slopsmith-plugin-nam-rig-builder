@@ -302,14 +302,16 @@ function rbApplyChainInputDrive(opts) {
 //                                         without the Rocksmith cab" report)
 //   active amp + no cab IR        → ×0.5 (knock the raw-amp spike down)
 //   no active amp / fallback      → ×1.0 (don't change anything)
+// Extra lift for VST-amp chains (they output below the NAM loudness reference).
+const RB_VST_AMP_BOOST = 10.0;   // ~+10 dB
 function rbChainGainTargetFor(chainSpec) {
     // User "Chain volume" trim (chain_makeup, default 1.0) — the ONLY level
     // the engine respects (per-stage IR gain is ignored). Multiplies the
     // auto-leveled base below.
-    const makeup = (typeof window.__rbChainMakeup === 'number') ? window.__rbChainMakeup : 4.0;
+    const makeup = (typeof window.__rbChainMakeup === 'number') ? window.__rbChainMakeup : 1.0;
     let base = 1.0;
     if (Array.isArray(chainSpec)) {
-        let hasActiveAmp = false, hasRsCab = false, hasOtherCab = false, activeNamCount = 0;
+        let hasActiveAmp = false, hasActiveVstAmp = false, hasRsCab = false, hasOtherCab = false, activeNamCount = 0;
         let rsCabMakeup = 1.0;
         for (const stage of chainSpec) {
             if (!stage || stage.bypassed) continue;
@@ -317,6 +319,7 @@ function rbChainGainTargetFor(chainSpec) {
                 activeNamCount++;
                 if (stage.slot === 'amp') hasActiveAmp = true;
             }
+            if (stage.type === 0 && stage.slot === 'amp') hasActiveVstAmp = true;
             // type 2 = IR. A Rocksmith cab IR lives under nam_irs/rocksmith/ and
             // is RAW (quiet → needs +6 dB). A tone3000 IR is already normalized
             // (boosting it is what saturated non-RS-cab tones), so 0 dB.
@@ -335,8 +338,12 @@ function rbChainGainTargetFor(chainSpec) {
         }
         // Auto makeup (dB): +6 for a Rocksmith cab, 0 for a non-RS (tone3000)
         // cab, -6 if amp-only; +2 per extra NAM beyond the first; capped at +18.
-        // Only when an amp is active — otherwise leave at 1.
-        if (hasActiveAmp) {
+        // Applies to an active NAM amp OR a VST amp — the VST-amp case used to be
+        // skipped, so VST-amp cabs got no boost and played far quieter than the
+        // direct (cab-bypassed) signal. The cab IR convolution is heavily
+        // attenuated by the engine, so this +6 dB (× the per-cab RMS match) is
+        // what brings the cab back up to the DI level instead of being lost.
+        if (hasActiveAmp || hasActiveVstAmp) {
             const cabDb = hasRsCab ? 6 : (hasOtherCab ? 0 : -6);
             let dB = cabDb + 2 * Math.max(0, activeNamCount - 1);
             dB = Math.max(-12, Math.min(18, dB));
@@ -346,6 +353,13 @@ function rbChainGainTargetFor(chainSpec) {
             // never clipped. rbClampChainGainTarget still bounds the final target.
             if (hasRsCab) base *= rsCabMakeup;
             base *= rbPostAmpMakeupForChain(chainSpec);
+            // VST amps output lower than the loudness-normalized NAM reference the
+            // chain gain is calibrated for, so the whole VST-amp chain (amp+cab)
+            // plays quiet — users had to crank the Chain volume well above default.
+            // Lift pure VST-amp chains so the DEFAULT Chain volume already sounds
+            // right. (Empirical: a user sitting at ~×10 needed ~+8 dB to reach the
+            // ×4 default. Tunable via RB_VST_AMP_BOOST.)
+            if (hasActiveVstAmp && !hasActiveAmp) base *= RB_VST_AMP_BOOST;
         }
     }
     window.__rbChainBaseTarget = base;   // remember (pre-trim) for live makeup changes
@@ -354,7 +368,7 @@ function rbChainGainTargetFor(chainSpec) {
 
 function rbClampChainGainTarget(targetGain) {
     return (typeof targetGain === 'number' && isFinite(targetGain) && targetGain >= 0)
-        ? Math.max(0, Math.min(32, targetGain))
+        ? Math.max(0, Math.min(64, targetGain))
         : 1.0;
 }
 
@@ -370,13 +384,60 @@ async function rbApplyChainOutputGain(opts) {
     });
 }
 
+// Rotary knob widget for the Setup "Levels" controls. Renders an SVG knob into
+// `containerId`, vertical-drag to change (full range over ~150 px), double-click
+// to reset to default. opts: {min,max,def,value,onChange}. Returns {set,get}.
+function rbAttachKnob(containerId, opts) {
+    const el = document.getElementById(containerId);
+    if (!el) return null;
+    const min = opts.min, max = opts.max, def = opts.def;
+    let val = (typeof opts.value === 'number') ? opts.value : def;
+    const clamp = (v) => Math.max(min, Math.min(max, v));
+    el.innerHTML =
+        '<svg width="84" height="84" viewBox="0 0 64 64" style="cursor:ns-resize;touch-action:none">' +
+        '<circle cx="32" cy="32" r="27" fill="#1a1a1c" stroke="#3f3f46" stroke-width="2"/>' +
+        '<circle cx="32" cy="32" r="23" fill="#26262b"/>' +
+        '<line class="rb-knob-ptr" x1="32" y1="32" x2="32" y2="11" stroke="#c4b5fd" stroke-width="3" stroke-linecap="round"/>' +
+        '</svg>';
+    const ptr = el.querySelector('.rb-knob-ptr');
+    function render() {
+        const t = (max > min) ? (val - min) / (max - min) : 0;
+        const a = (-135 + t * 270) * Math.PI / 180;       // -135°(min) .. +135°(max), 0=up
+        ptr.setAttribute('x2', (32 + Math.sin(a) * 21).toFixed(2));
+        ptr.setAttribute('y2', (32 - Math.cos(a) * 21).toFixed(2));
+    }
+    let startY = 0, startVal = 0, dragging = false;
+    const onMove = (e) => {
+        if (!dragging) return;
+        const y = (e.touches ? e.touches[0].clientY : e.clientY);
+        val = clamp(startVal + (startY - y) / 150 * (max - min));
+        render(); if (opts.onChange) opts.onChange(val);
+        e.preventDefault();
+    };
+    const onUp = () => { dragging = false;
+        window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp);
+        window.removeEventListener('touchmove', onMove); window.removeEventListener('touchend', onUp); };
+    const onDown = (e) => { dragging = true; startVal = val;
+        startY = (e.touches ? e.touches[0].clientY : e.clientY);
+        window.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onUp);
+        window.addEventListener('touchmove', onMove, { passive: false }); window.addEventListener('touchend', onUp);
+        e.preventDefault(); };
+    el.addEventListener('mousedown', onDown);
+    el.addEventListener('touchstart', onDown, { passive: false });
+    el.addEventListener('dblclick', () => { val = def; render(); if (opts.onChange) opts.onChange(val); });
+    render();
+    return { set(v) { val = clamp(v); render(); }, get() { return val; } };
+}
+
 // User cab/chain volume trim. Persists to /settings and applies LIVE via
 // setGain('chain', base × trim) — the only gain the engine honours.
+// Range 0–5, default 1× (the knob value IS the multiplier).
 async function rbSetChainMakeup(v) {
-    const val = Math.max(0.1, Math.min(8.0, parseFloat(v) || 1.0));
+    let n = parseFloat(v); if (!Number.isFinite(n)) n = 1.0;
+    const val = Math.max(0, Math.min(5.0, n));
     window.__rbChainMakeup = val;
     const cmVal = document.getElementById('rb-chain-makeup-val');
-    if (cmVal) cmVal.textContent = val.toFixed(2) + '×';
+    if (cmVal) cmVal.textContent = val.toFixed(1) + '×';
     const audio = window.slopsmithDesktop && window.slopsmithDesktop.audio;
     if (audio && typeof audio.setGain === 'function') {
         const base = (typeof window.__rbChainBaseTarget === 'number') ? window.__rbChainBaseTarget : 1.0;
@@ -388,12 +449,13 @@ async function rbSetChainMakeup(v) {
     }).catch(() => {});
 }
 
-// User "Amp drive" trim — the pre-NAM input gain for GUITAR amps (bass auto-
-// uses 1×). Default 8× (≈+18 dB); lower it if amp captures sound over-driven.
-// Persists to /settings (nam_chain_input_drive) and re-applies live through
-// rbApplyChainInputDrive (which keeps the bass/guitar branch correct).
+// User "Amp drive" / input-chain trim — the pre-NAM input gain for GUITAR amps
+// (bass auto-uses 1×). Range 0–5, default 1× (no boost). Persists to /settings
+// (nam_chain_input_drive) and re-applies live through rbApplyChainInputDrive
+// (which keeps the bass/guitar branch correct).
 async function rbSetAmpDrive(v) {
-    const val = Math.max(0.1, Math.min(16.0, parseFloat(v) || 8.0));
+    let n = parseFloat(v); if (!Number.isFinite(n)) n = 1.0;
+    const val = Math.max(0, Math.min(5.0, n));
     window.__rbChainInputDrive = val;
     const el = document.getElementById('rb-amp-drive-val');
     if (el) el.textContent = val.toFixed(1) + '×';
@@ -421,8 +483,19 @@ async function rbSetAmpDrive(v) {
 // conservative 100 ms baseline + 50 ms/stage (chain of 5 → 350 ms).
 // Override with `window.__rbMutePreLoadHold` if it feels too long.
 let _rbMuteInFlight = false;
-async function rbPreLoadMute(chainLen, targetGain) {
+let _rbUnmuteRun = null;     // the pending unmute closure (event-driven trigger)
+let _rbUnmuteTimer = null;   // safety-fallback timer handle
+// Event-driven unmute: a caller that KNOWS the chain finished loading (the
+// mega-chain build awaits loadPreset + getChainState + the VST-param re-apply)
+// calls this so the un-mute fires on the REAL completion instead of a fixed
+// timer. Fixes the "slow PCs still hear the load peaks" report — the old timer
+// could fire mid-load and un-mute while NAMs/VSTs were still initialising.
+async function rbSignalChainLoaded() {
+    if (_rbUnmuteRun) { const f = _rbUnmuteRun; await f(); }
+}
+async function rbPreLoadMute(chainLen, targetGain, opts) {
     if (window.__rbMutePreLoad === false) return;
+    const deferUnmute = !!(opts && opts.deferUnmute);
     const pendingTarget = rbClampChainGainTarget(targetGain);
     window.__rbPendingChainGainTarget = pendingTarget;
     if (_rbMuteInFlight) return;            // coalesce rapid tone changes
@@ -442,6 +515,12 @@ async function rbPreLoadMute(chainLen, targetGain) {
     const hold = (typeof window.__rbMutePreLoadHold === 'number')
         ? Math.max(20, window.__rbMutePreLoadHold | 0)
         : 250 + 120 * Math.max(1, chainLen | 0);
+    // When the caller will explicitly signal completion (deferUnmute — the
+    // mega-chain path awaits the real load), the timer becomes a LONG safety net
+    // (the unmute really happens via rbSignalChainLoaded the moment the load
+    // resolves, however long that takes on a slow PC). Otherwise the timer IS
+    // the unmute, sized to the load estimate.
+    const fallbackMs = deferUnmute ? Math.max(hold, 10000) : hold;
     // During load we want the player to hear ONLY the clean dry guitar/bass,
     // not the chain forming. chain gain 0 kills the wet path (and its load
     // peaks); leaving the input monitor UN-muted lets the dry signal through so
@@ -459,7 +538,12 @@ async function rbPreLoadMute(chainLen, targetGain) {
         if (typeof audio.setMonitorMute === 'function')
             await audio.setMonitorMute(dryDuringLoad ? false : true);
     } catch (_) {}
-    setTimeout(async () => {
+    // The actual un-mute. Runs ONCE — whichever fires first wins: the explicit
+    // rbSignalChainLoaded() (load really finished) or the safety-fallback timer.
+    const doUnmute = async () => {
+        if (_rbUnmuteRun !== doUnmute) return;     // already ran / superseded
+        _rbUnmuteRun = null;
+        if (_rbUnmuteTimer) { clearTimeout(_rbUnmuteTimer); _rbUnmuteTimer = null; }
         try {
             // Restore the monitor to whatever it was before the load (dry mode
             // forced it on; put it back so normal play isn't doubled).
@@ -478,7 +562,9 @@ async function rbPreLoadMute(chainLen, targetGain) {
             }
         } catch (_) {}
         _rbMuteInFlight = false;
-    }, hold);
+    };
+    _rbUnmuteRun = doUnmute;
+    _rbUnmuteTimer = setTimeout(doUnmute, fallbackMs);
 }
 
 // NOTE: an earlier version of this file tried to monkey-patch
@@ -620,7 +706,7 @@ let rbState = {
     status: null,
     songTones: null,        // currently inspected song
     batchPoll: null,        // setInterval handle while batch is running
-    currentTab: 'song',        // post-restructure default (Songs is the working tab)
+    currentTab: 'gear',        // default landing tab = Gear (user pref 2026-06)
     currentGearFilter: 'all',  // chip filter inside the Gear tab
     currentSongFile: null,  // filename of the song open in the per-song view
     listeningTone: null,    // toneIdx currently previewed, or null
@@ -698,10 +784,10 @@ const RbMegaChain = (function () {
     let _indexToSlotId = [];   // chain index → engine slotId
 
     function _settingOn() {
-        if (window.__rbMegaChain === false) return false;
-        // Mirror written by rbSaveSettings; falls back to false until
-        // /settings has been fetched at least once.
-        return !!window.__rbMegaChainSetting;
+        // Chain preloader is ALWAYS on now (the Setup toggle was removed).
+        // The DevTools kill-switch `window.__rbMegaChain = false` still works
+        // as an escape hatch for debugging a misbehaving song / weak PC.
+        return window.__rbMegaChain !== false;
     }
 
     function _api() {
@@ -917,7 +1003,8 @@ const RbMegaChain = (function () {
         //    initial song load" — Discord report).
         await rbPreLoadMute(
             mega.native_preset.chain.length,
-            rbChainGainTargetFor(mega.native_preset.chain)
+            rbChainGainTargetFor(mega.native_preset.chain),
+            { deferUnmute: true }   // we explicitly un-mute below once the load truly finishes
         ).catch(() => {});
         try {
             if (api.clearChain) await api.clearChain().catch(() => {});
@@ -1003,6 +1090,10 @@ const RbMegaChain = (function () {
         const initialKey = _resolveActiveToneKey();
         const initialTone = initialKey ? _findToneByKey(initialKey) : null;
         await _applyActiveTone(initialTone ? initialTone.tone_key : null);
+        // The chain is fully loaded, VST params re-applied, and the active tone's
+        // bypass is set — NOW it's safe to un-mute (event-driven, not on a timer
+        // that could fire mid-load on a slow PC).
+        await rbSignalChainLoaded();
         console.log(`[rig_builder mega-chain] initial tone → ${initialTone
             ? `"${initialTone.tone_key}" (from highway)`
             : 'NONE (highway not ready yet — waiting for first recheck)'}`);
@@ -3120,10 +3211,10 @@ function rbCanvasDisplayWidth(stem) {
     const sp = window.RBPedalCanvas && window.RBPedalCanvas.specs && window.RBPedalCanvas.specs[stem];
     if (!sp || sp.w <= sp.h * 1.15) return 240;          // portrait
     const aspect = sp.w / sp.h;
-    // Very wide (1U racks ≈ 4.4:1) need more width so the small labels stay
-    // legible; moderate landscape (Eden/Q-Tron) scales with the aspect.
-    // max-width:100% in the markup keeps it from overflowing a narrow panel.
-    if (aspect > 3) return 820;
+    // Very wide (1U racks ≈ 4.4:1, amp heads ≈ 3.3:1) need more width so the
+    // small labels stay legible; moderate landscape (Eden/Q-Tron) scales with
+    // the aspect. max-width:100% in the markup keeps it from overflowing.
+    if (aspect > 3) return 1320;
     return Math.max(360, Math.min(440, Math.round(aspect * 256)));
 }
 
@@ -3144,7 +3235,24 @@ function rbCanvasParamModel(piece) {
 function rbCanvasThumbValues(piece) {
     const v = rbCanvasParamModel(piece).values;
     if (Object.keys(v).length) return v;
-    try { return rbParseVstStateParams(rbEffVstState(piece)) || {}; } catch (_) { return {}; }
+    let byName = {};
+    try { byName = rbParseVstStateParams(rbEffVstState(piece)) || {}; } catch (_) { byName = {}; }
+    if (!Object.keys(byName).length) return byName;
+    // A saved vst_state is keyed by VST param NAME. Specs whose controls use
+    // numeric logical ids (e.g. the amps) won't resolve those — so when the
+    // spec declares a `names` array (logical id -> param name), project the
+    // name-keyed values onto the numeric ids too. Name keys are kept as well
+    // (harmless; specs that read by name still work).
+    try {
+        const stem = rbCanvasStem(piece);
+        const spec = window.RBPedalCanvas && window.RBPedalCanvas.specs && window.RBPedalCanvas.specs[stem];
+        if (spec && Array.isArray(spec.names)) {
+            const out = {};
+            spec.names.forEach((nm, id) => { if (nm && byName[nm] != null) out[id] = byName[nm]; });
+            return Object.assign(out, byName);
+        }
+    } catch (_) { /* fall through to name-keyed */ }
+    return byName;
 }
 
 function rbToneRenderInlineVstParams(toneIdx, pIdx) {
@@ -7892,17 +8000,20 @@ async function rbLoadSettings() {
     if (typeof s.nam_chain_input_drive === 'number') {
         window.__rbChainInputDrive = s.nam_chain_input_drive;
     }
+    // Input chain (amp drive) knob — range 0–5, default 1×.
     const adv = (typeof s.nam_chain_input_drive === 'number') ? s.nam_chain_input_drive : 1.0;
-    const adSlider = document.getElementById('rb-amp-drive');
+    if (!window.__rbAmpDriveKnob)
+        window.__rbAmpDriveKnob = rbAttachKnob('rb-amp-drive-knob', { min: 0, max: 5, def: 1, value: adv, onChange: rbSetAmpDrive });
+    else window.__rbAmpDriveKnob.set(adv);
     const adVal = document.getElementById('rb-amp-drive-val');
-    if (adSlider) adSlider.value = String(adv);
     if (adVal) adVal.textContent = adv.toFixed(1) + '×';
-    // Chain volume trim (user cab/chain makeup). Default 4.0.
-    window.__rbChainMakeup = (typeof s.chain_makeup === 'number') ? s.chain_makeup : 4.0;
-    const cmSlider = document.getElementById('rb-chain-makeup');
+    // Output chain (chain volume) knob — range 0–5, default 1×.
+    window.__rbChainMakeup = (typeof s.chain_makeup === 'number') ? s.chain_makeup : 1.0;
+    if (!window.__rbChainMakeupKnob)
+        window.__rbChainMakeupKnob = rbAttachKnob('rb-chain-makeup-knob', { min: 0, max: 5, def: 1, value: window.__rbChainMakeup, onChange: rbSetChainMakeup });
+    else window.__rbChainMakeupKnob.set(window.__rbChainMakeup);
     const cmVal = document.getElementById('rb-chain-makeup-val');
-    if (cmSlider) cmSlider.value = String(window.__rbChainMakeup);
-    if (cmVal) cmVal.textContent = window.__rbChainMakeup.toFixed(2) + '×';
+    if (cmVal) cmVal.textContent = window.__rbChainMakeup.toFixed(1) + '×';
     // OAuth (Connect with tone3000) state.
     const oauthStatus = document.getElementById('rb-oauth-status');
     const oauthBtn = document.getElementById('rb-oauth-btn');

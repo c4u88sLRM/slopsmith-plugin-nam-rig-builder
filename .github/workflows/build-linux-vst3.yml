@@ -169,6 +169,9 @@ jobs:
               Enbiggenator.vst3)       echo "MIME.vst3";;
               BassEnbig.vst3)          echo "ENBIGGEN.vst3";;
               EdenWTDI.vst3)           echo "WT-DX.vst3";;
+              EN30.vst3)               echo "BOX DC30.vst3";;
+              TW22.vst3)               echo "BENDER SUPERNOVA 22.vst3";;
+              TW26.vst3)               echo "BENDER DELUXE.vst3";;
               *)              echo "$1";;
             esac
           }

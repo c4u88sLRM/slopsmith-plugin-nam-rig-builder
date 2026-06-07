@@ -274,6 +274,11 @@ _DEFAULT_SETTINGS = {
     # own external cab sim. Stored just for the checkbox state; the actual
     # effect is the per-piece `bypassed` flag the toggle writes.
     "bypass_all_cabs": False,
+    # Bass DI + Cab blend (real bass rigs run mostly DI with a little mic'd cab).
+    # When on, every BASS cab IR is replaced by a single IR that bakes a fixed
+    # 70% DI (dry) + 30% cab blend, level-matched so the cab is audible and the
+    # bass-band loudness is preserved (see _ir_stage / tools/make_di_cab_irs.py).
+    "bass_di_cab": True,
 }
 
 # Tone3000 platform value to request per Rocksmith category. Amps and
@@ -388,6 +393,9 @@ _RENAMED_VST_BUNDLES = {
     "Enbiggenator.vst3":         "MIME.vst3",
     "BassEnbig.vst3":            "ENBIGGEN.vst3",
     "EdenWTDI.vst3":             "WT-DX.vst3",
+    "EN30.vst3":                 "BOX DC30.vst3",
+    "TW22.vst3":                 "BENDER SUPERNOVA 22.vst3",
+    "TW26.vst3":                 "BENDER DELUXE.vst3",
 }
 
 
@@ -465,6 +473,33 @@ def _get_conn() -> sqlite3.Connection:
                     "WHERE vst_path LIKE ?", (f"/{old}", f"/{new}", f"%/{old}"))
         except Exception:
             log.exception("renamed-VST path migration failed")
+        # vst/ folder reorg: bundles moved from a flat vst/<name>.vst3 into
+        # category subdirs (vst/amps|pedals|racks/<name>.vst3). Rewrite stored
+        # absolute paths so existing per-song assignments survive the move.
+        # Driven by the seed catalog's now-subdir'd `bundled` paths and
+        # idempotent (the flat "/vst/<name>" segment no longer matches once a
+        # path has been moved under a subdir).
+        try:
+            seed = _load_vst_seed_catalog() or {}
+            seen = set()
+            for arr in seed.values():
+                if not isinstance(arr, list):
+                    continue
+                for e in arr:
+                    b = (isinstance(e, dict) and e.get("bundled")) or ""
+                    parts = b.split("/")
+                    if (len(parts) == 3 and parts[0] == "vst"
+                            and parts[2].endswith((".vst3", ".component"))):
+                        fn = parts[2]
+                        if fn in seen:
+                            continue
+                        seen.add(fn)
+                        _conn.execute(
+                            "UPDATE preset_pieces SET vst_path = REPLACE(vst_path, ?, ?) "
+                            "WHERE vst_path LIKE ?",
+                            (f"/vst/{fn}", f"/{b}", f"%/vst/{fn}"))
+        except Exception:
+            log.exception("vst subdir path migration failed")
         _conn.commit()
         # v1.2 storage migration. Idempotent — guarded by sentinel file
         # so re-running on subsequent restarts is a no-op. Done here
@@ -589,8 +624,10 @@ def _migrate_assign_bundled_primary_once() -> None:
     DSP never loads ("still getting kHs Chorus", "FuzzWasHe won't open"). This
     reassigns every AUTO-assigned pedal/rack piece — plus any piece whose
     current VST file no longer exists (e.g. a renamed bundle) — to the bundled
-    primary and recomputes its vst_state from the RS knobs. Amps and cabs are
-    left untouched (they keep their NAM/IR). A still-valid MANUAL pick is
+    primary and recomputes its vst_state from the RS knobs. Amps flip too when
+    a bundled VST is installed for them (rs_gear_to_vst.json, e.g. BT880B ->
+    FreddyKrueger800BR); amps without one and cabs keep their NAM/IR. A
+    still-valid MANUAL pick is
     preserved. Sentinel-guarded so it runs exactly once (later manual choices
     stick). Backs the DB up first."""
     conn = _conn
@@ -601,11 +638,11 @@ def _migrate_assign_bundled_primary_once() -> None:
         ("__rig_builder_master_pre__",),
     ).fetchone()
     marker = json.loads(marker_row[0] or "{}") if marker_row else {}
-    if marker.get("bundled_primary_assigned_v1"):
+    if marker.get("bundled_primary_assigned_v27"):
         return
     if _db_path:
         try:
-            shutil.copy2(_db_path, f"{_db_path}.pre-bundled-primary.bak")
+            shutil.copy2(_db_path, f"{_db_path}.pre-bundled-primary-v27.bak")
         except OSError:
             log.exception("pre-bundled-primary backup failed; skipping")
             return
@@ -616,8 +653,11 @@ def _migrate_assign_bundled_primary_once() -> None:
     ).fetchall()
     changed = 0
     for pid, gear, pj, cur, mode in rows:
-        if not gear or _gear_category(gear) in ("amp", "cab"):
+        if not gear or _gear_category(gear) == "cab":
             continue
+        # Amps flip to a bundled VST only when one is actually installed for
+        # the gear (rs_gear_to_vst.json); _pick_installed_primary_vst returns
+        # None for amps without a bundled VST, so they keep their NAM below.
         pick = _pick_installed_primary_vst(gear, known)
         if not pick:
             continue
@@ -643,11 +683,11 @@ def _migrate_assign_bundled_primary_once() -> None:
         changed += 1
     mpid = _get_master_preset_id("pre")
     if mpid is not None:
-        marker["bundled_primary_assigned_v1"] = True
+        marker["bundled_primary_assigned_v27"] = True
         conn.execute("UPDATE presets SET settings_json = ? WHERE id = ?",
                      (json.dumps(marker), mpid))
     conn.commit()
-    log.info("bundled-primary migration: reassigned %d pedal/rack pieces", changed)
+    log.info("bundled-primary migration: reassigned %d pedal/rack/amp pieces", changed)
 
 
 def _load_settings() -> dict:
@@ -1296,6 +1336,18 @@ def _gear_display_name(rs_gear: str, fallback: str = "") -> str:
     return _GEAR_DISPLAY_NAME_CACHE.get(rs_gear) or fallback
 
 
+def _gear_bundled_vst(rs_gear: str) -> str | None:
+    """The bundled VST path a gear resolves to (first entry in
+    rs_gear_to_vst.json), or None. Used to collapse gears that REUSE the same
+    bundled amp (e.g. Amp_AT20 reusing Bass_Amp_BT975B's Sampleg SBT-CL) so the
+    catalog/picker lists each bundled model once."""
+    arr = (_load_vst_seed_catalog() or {}).get(rs_gear)
+    if not isinstance(arr, list):
+        return None
+    return next((e.get("bundled") for e in arr
+                 if isinstance(e, dict) and e.get("bundled")), None)
+
+
 def _bundled_vst_plugins() -> list[dict]:
     """Return VST/AU plugins shipped inside this plugin's own ``vst/`` dir.
 
@@ -1306,9 +1358,20 @@ def _bundled_vst_plugins() -> list[dict]:
     root = _plugin_dir / "vst"
     if not root.exists():
         return []
+    # The bundles are filed under category subdirs (vst/amps, vst/pedals,
+    # vst/racks); search the root and those one-level subdirs but NOT the C++
+    # `src/` tree and NOT inside the .vst3 bundles themselves (which embed
+    # per-platform binaries like Contents/x86_64-win/<name>.vst3).
+    search_dirs = [root]
+    for d in sorted(root.iterdir()):
+        if d.is_dir() and d.name != "src" and not d.name.endswith((".vst3", ".component")):
+            search_dirs.append(d)
     out = []
     for suffix, fmt in ((".vst3", "VST3"), (".component", "AudioUnit")):
-        for entry in sorted(root.glob(f"*{suffix}")):
+        entries = []
+        for base in search_dirs:
+            entries.extend(base.glob(f"*{suffix}"))
+        for entry in sorted(entries):
             if not entry.exists():
                 continue
             name = entry.name[:-len(suffix)]
@@ -2981,11 +3044,21 @@ def _nam_stage(path, *, bypassed, input_level=1.0, output_drive=None,
     return stage
 
 
-# NOTE: the native engine IGNORES the per-stage IR `gain` (confirmed — see the
-# screen.js note near rbNormalizeRsIrs). So this stays at unity / no-op; the
-# real, engine-respected cab+chain level is `setGain('chain', X)`, driven by
-# rbChainGainTargetFor + the user "Chain volume" trim (chain_makeup) in screen.js.
-_RS_IR_MAKEUP = 1.0
+# RS cab IR makeup, applied via the per-stage IR `gain` (in `_state_b64`).
+# CORRECTION (2026-06-04): the native engine DOES read+apply the per-stage IR
+# `gain` — confirmed by (a) the slopsmith_audio.node binary exposing `irPath`/
+# `gain`/`state` state keys, (b) the v1.3.2 double-attenuation bug (IR gain 0.5
+# × chainOutputGain 0.5 = −12 dB), and (c) IRLoader.cpp reading outputGain off
+# the slot state. The old "engine IGNORES per-stage IR gain" note was wrong.
+#
+# Why +12 dB: the engine loads cab IRs with juce::dsp::Convolution `Normalise::
+# yes`, which force-renormalizes EVERY IR to a broadband gain of 0.125 (−18.1
+# dB) — discarding the extractor's L2=2.4 (+7.6 dB) calibration. That flat −18
+# dB is what made cabs (esp. bass, energy in 40–250 Hz) sound quiet/thin. This
+# per-cab gain recovers it at the IR stage (robust on every chain path, unlike
+# the fragile `setGain('chain')` makeup). 4.0 (+12 dB) lands the RS cab at a
+# healthy level with the existing chain_makeup untouched; tune by ear.
+_RS_IR_MAKEUP = 4.0
 
 
 # Per-cab RMS matching. A cab IR's broadband convolution gain — i.e. how much
@@ -3062,12 +3135,164 @@ def _ir_rms_makeup(path: Path) -> float:
     return max(1.0, min(_IR_MAKEUP_MAX, _IR_REF_L2 / l2))
 
 
+# ── DI + Cab blend for bass cabs (the "70% DI / 30% cab" feature) ─────────────
+# Real bass is amplified/recorded mostly via DI with a little mic'd cab. The
+# native engine is series-only (no parallel dry/wet on an IR), so the blend is
+# baked into ONE impulse response:
+#     blend = 0.7*delta(@cab peak) + 0.3*(cab / ||cab||2)
+# Convolving with it = 0.7*DI(dry) + 0.3*cab, with DI and cab at the SAME
+# broadband level (then weighted 70/30); the delta aligns to the cab's peak to
+# minimise comb filtering. The blend is brighter than the cab alone, so matching
+# it by broadband RMS would make bass tones ~4 dB quieter — instead each cab's
+# stage `cab_rms_makeup` is the precomputed factor that keeps the BASS-band
+# loudness equal to the cab-alone path (data/di_cab_makeup.json, cross-validated
+# to <0.5 dB). Generation is pure-python (no numpy) so it runs in the chain
+# builder; the makeup table is precomputed offline by tools/make_di_cab_irs.py.
+_DI_CAB_DI = 0.8
+_DI_CAB_CAB = 0.2
+_di_cab_makeup_tbl: dict | None = None
+
+
+def _di_cab_enabled() -> bool:
+    return bool(_load_settings().get("bass_di_cab", True))
+
+
+def _is_bass_cab_ir(ir_path) -> bool:
+    return "bass_cab" in Path(ir_path).name.lower()
+
+
+def _load_di_cab_makeup() -> dict:
+    global _di_cab_makeup_tbl
+    if _di_cab_makeup_tbl is None:
+        try:
+            p = _data_path("di_cab_makeup.json")
+            _di_cab_makeup_tbl = (json.loads(p.read_text()).get("makeup", {})
+                                  if p.exists() else {})
+        except (OSError, ValueError):
+            _di_cab_makeup_tbl = {}
+    return _di_cab_makeup_tbl
+
+
+def _read_ir_samples(path: Path):
+    """(samples:list[float], sr:int) for a mono float32 cab IR, or None."""
+    try:
+        blob = path.read_bytes()
+    except OSError:
+        return None
+    if blob[:4] != b"RIFF" or blob[8:12] != b"WAVE":
+        return None
+    pos = 12
+    fmt_tag = ch = sr = bps = None
+    data_off = data_size = None
+    while pos < len(blob) - 8:
+        cid = blob[pos:pos + 4]
+        csize = struct.unpack("<I", blob[pos + 4:pos + 8])[0]
+        if cid == b"fmt ":
+            fmt_tag, ch, sr, _, _, bps = struct.unpack(
+                "<HHIIHH", blob[pos + 8:pos + 8 + 16])
+        elif cid == b"data":
+            data_off, data_size = pos + 8, csize
+        pos += 8 + csize + (csize & 1)
+    if (fmt_tag, bps) != (3, 32) or data_off is None or ch != 1 or not data_size:
+        return None
+    n = data_size // 4
+    if n == 0:
+        return None
+    return list(struct.unpack("<%df" % n, blob[data_off:data_off + data_size])), sr
+
+
+def _write_ir_f32(path: Path, samples, sr: int) -> None:
+    raw = struct.pack("<%df" % len(samples), *samples)
+    with open(path, "wb") as f:
+        f.write(b"RIFF")
+        f.write(struct.pack("<I", 4 + 8 + 16 + 8 + len(raw)))
+        f.write(b"WAVE")
+        f.write(b"fmt ")
+        f.write(struct.pack("<I", 16))
+        f.write(struct.pack("<HHIIHH", 3, 1, sr, sr * 4, 4, 32))
+        f.write(b"data")
+        f.write(struct.pack("<I", len(raw)))
+        f.write(raw)
+
+
+def _di_cab_blend_samples(cab):
+    """DI*delta(@peak) + CAB*(cab/||cab||2), then SCALED so the whole blend has
+    the same L2 as a normal RS cab (_IR_REF_L2). That makes the engine treat the
+    blend exactly like any other cab IR loudness-wise (so the big DI delta inside
+    it doesn't get processed quietly), while preserving the DI:cab ratio."""
+    l2 = (sum(x * x for x in cab) ** 0.5) or 1.0
+    scale = _DI_CAB_CAB / l2
+    blend = [x * scale for x in cab]
+    peak = max(range(len(cab)), key=lambda i: abs(cab[i]))
+    blend[peak] += _DI_CAB_DI
+    bl2 = (sum(x * x for x in blend) ** 0.5) or 1.0
+    norm = _IR_REF_L2 / bl2
+    return [x * norm for x in blend]
+
+
+def _di_cab_blend_file(cab_path: Path) -> Path | None:
+    """Generate (and cache) the DI+cab blend IR for a bass cab. Pure-python;
+    cached under nam_irs/rocksmith_dicab/ (kept under a 'rocksmith' path so
+    screen.js still treats it as an RS cab: +6 dB + cab_rms_makeup)."""
+    if not _config_dir:
+        return None
+    try:
+        # Versioned by the DI/cab ratio so changing it regenerates (stale blends
+        # of a previous ratio are never reused). Kept under a 'rocksmith' path.
+        sub = "rocksmith_dicab2_%d_%d" % (round(_DI_CAB_DI * 100), round(_DI_CAB_CAB * 100))
+        out = _config_dir / "nam_irs" / sub / cab_path.name
+        try:
+            if out.exists() and out.stat().st_mtime_ns >= cab_path.stat().st_mtime_ns:
+                return out
+        except OSError:
+            pass
+        r = _read_ir_samples(cab_path)
+        if not r:
+            return None
+        samples, sr = r
+        blend = _di_cab_blend_samples(samples)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        _write_ir_f32(out, blend, sr)
+        return out
+    except Exception:
+        log.warning("di_cab blend failed for %s", cab_path, exc_info=True)
+        return None
+
+
+def _di_cab_makeup_for(cab_path: Path, blend_path: Path) -> float:
+    """cab_rms_makeup for the blend stage: the precomputed bass-loudness-
+    preserving factor, else a broadband normalize of the blend (fallback)."""
+    mk = _load_di_cab_makeup().get(cab_path.stem)
+    if mk:
+        try:
+            return float(mk)
+        except (TypeError, ValueError):
+            pass
+    return _ir_rms_makeup(blend_path)
+
+
 def _ir_stage(ir_path, *, bypassed, gain=1.0,
-              slot=None, rs_gear=None, tone_key=None) -> dict:
+              slot=None, rs_gear=None, tone_key=None, di_cab=False) -> dict:
     """Build a type-2 (cab IR) chain stage. `gain` is unity by default — the
     engine's chainOutputGain already applies the preset's output_gain, so the
     IR stays at 1.0 except in the single-IR audition where the caller passes
-    its own gain (see the −12 dB double-attenuation fix)."""
+    its own gain (see the −12 dB double-attenuation fix).
+
+    `di_cab` (set only by the per-tone chain builders) swaps a BASS cab IR for
+    its DI+cab blend when the feature is on — see the DI+Cab helpers."""
+    ir_path = str(ir_path)
+    di_cab_blend = False
+    if di_cab and _is_bass_cab_ir(ir_path) and _di_cab_enabled():
+        blended = _di_cab_blend_file(Path(ir_path))
+        if blended is not None:
+            # Keep the cab's own IR gain (_RS_IR_MAKEUP for RS cabs) — the raw cab
+            # played at a fine level with it, and the blend is DI-dominant (0.9),
+            # so at the same gain it sits at least as loud as the raw cab did.
+            # (An earlier 1/DI override dropped it ~4×, which is what made the bass
+            # play very quiet vs running no cab.) The engine applies this `gain`
+            # unconditionally, so VST-amp chains get it too.
+            ir_path = str(blended)
+            di_cab_blend = True
     stage = {"type": 2, "name": Path(ir_path).stem, "path": str(ir_path),
              "bypassed": bypassed}
     if slot is not None:
@@ -3079,9 +3304,12 @@ def _ir_stage(ir_path, *, bypassed, gain=1.0,
     # Per-cab RMS-match factor for screen.js (engine ignores it, like slot/
     # rs_gear). Only RS cab IRs vary in L2 after the clip-safe peak cap; other
     # IRs (tone3000) are already loudness-normalized, so we leave them alone.
+    # For a DI+cab blend the bass-loudness makeup is already baked into the IR
+    # `gain` above (engine-applied, works for VST + NAM amps alike), so keep the
+    # chain-gain cab makeup neutral here — else NAM-amp chains would double it.
     p = Path(ir_path)
     if "rocksmith" in p.as_posix().lower():
-        stage["cab_rms_makeup"] = round(_ir_rms_makeup(p), 4)
+        stage["cab_rms_makeup"] = round(1.0 if di_cab_blend else _ir_rms_makeup(p), 4)
     stage["state"] = _state_b64({"irPath": str(ir_path), "gain": gain})
     return stage
 
@@ -3319,6 +3547,25 @@ def _resolve_gear_assignment(rs_gear: str, level: str | None,
                     "tone3000_id": None,
                     "vst_path": None, "vst_format": None, "vst_state": None}
         return None
+
+    # ── Amp bundled-VST preference (amps-vst branch) ───────────
+    # An amp that ships an installed bundled VST (rs_gear_to_vst.json) plays
+    # that VST instead of a NAM capture — the whole point of shipping amp
+    # VSTs (e.g. BT880B = GK 800RB -> FreddyKrueger800BR.vst3). Scoped to
+    # amps: pedals/racks get their bundled VST via the batch/migration paths
+    # and may legitimately resolve to an external plugin below, and only the
+    # amps we actually built VSTs for appear in rs_gear_to_vst.json, so other
+    # amps fall straight through to their gain_variants/NAM as before.
+    if category == "amp":
+        amp_vst = _pick_installed_primary_vst(rs_gear, _build_known_vst_lookup())
+        if amp_vst and amp_vst.get("vst_path"):
+            return {"kind": "vst",
+                    "file": None,
+                    "tone3000_id": None,
+                    "vst_path": amp_vst["vst_path"],
+                    "vst_format": amp_vst.get("vst_format") or "VST3",
+                    "vst_state": _compute_vst_state_for_piece(
+                        rs_gear, amp_vst["vst_path"], None)}
 
     # ── Amp / pedal / rack branch: NAMs ────────────────────────
     # Step 1 — curated gain_variants (amps with clean/crunch/dist
@@ -5649,9 +5896,9 @@ def setup(app, context):
             # at every chain load — value of 8.0 = +18 dB feeds NAM amps
             # at capture-time levels so they actually saturate.
             "nam_chain_input_drive": float(s.get("nam_chain_input_drive", 1.0)),
-            # User "Chain volume" trim (setGain('chain') multiplier). Default 4×
-            # — the guitar chain runs much quieter than the backing track.
-            "chain_makeup": float(s.get("chain_makeup", 4.0)),
+            # User "Output chain" / chain-volume trim (setGain('chain')
+            # multiplier). Range 0–5, default 1× (the knob value IS the multiplier).
+            "chain_makeup": float(s.get("chain_makeup", 1.0)),
             "has_tone3000_key": bool(key),
             "tone3000_api_key_preview": (key[:6] + "…") if key else "",
             "tone3000_connected": bool(s.get("tone3000_access_token")),
@@ -5675,16 +5922,16 @@ def setup(app, context):
         if "nam_chain_input_drive" in data:
             try:
                 v = float(data["nam_chain_input_drive"])
-                # Clamp 0.1..16. 8.0 default is already aggressive;
-                # >16 is asking for digital clipping on hot pickups.
-                allowed["nam_chain_input_drive"] = max(0.1, min(16.0, v))
+                # Input-chain (amp drive) knob: range 0–5, default 1× (no boost).
+                allowed["nam_chain_input_drive"] = max(0.0, min(5.0, v))
             except (TypeError, ValueError):
                 pass
         if "chain_makeup" in data:
             try:
-                # User cab/chain volume trim — multiplies the auto chain-gain
+                # Output-chain / chain-volume trim — multiplies the auto chain-gain
                 # target (setGain('chain',X), the only level the engine respects).
-                allowed["chain_makeup"] = max(0.1, min(8.0, float(data["chain_makeup"])))
+                # Range 0–5, default 1×.
+                allowed["chain_makeup"] = max(0.0, min(5.0, float(data["chain_makeup"])))
             except (TypeError, ValueError):
                 pass
         if "bypass_all_cabs" in data:
@@ -5847,9 +6094,18 @@ def setup(app, context):
         rs_map = _load_rs_to_real()
         type_tags = _load_pedal_type_tags()
         out: list[dict] = []
+        # Collapse gears that REUSE the same bundled VST (e.g. Amp_AT20 reusing
+        # Bass_Amp_BT975B's Sampleg SBT-CL) so the picker lists each bundled
+        # model once instead of two identical cards.
+        seen_bundled: set[str] = set()
         for rs_gear, info in rs_map.items():
             if rs_gear.startswith("_") or not isinstance(info, dict):
                 continue
+            b = _gear_bundled_vst(rs_gear)
+            if b:
+                if b in seen_bundled:
+                    continue
+                seen_bundled.add(b)
             category = info.get("category") or _gear_category(rs_gear) or "other"
             out.append({
                 "rs_gear": rs_gear,
@@ -6481,7 +6737,7 @@ def setup(app, context):
                 # chainOutputGain applies the preset output_gain once (−12 dB
                 # fix); RS IRs get a fixed makeup since they're quieter.
                 chain.append(_ir_stage(ir_path, bypassed=ir_bypassed,
-                                       slot=ir_slot, rs_gear=ir_gear,
+                                       slot=ir_slot, rs_gear=ir_gear, di_cab=True,
                                        gain=_RS_IR_MAKEUP if ir_kind == "rs_ir" else 1.0))
             else:
                 missing.append(ir_file)
@@ -6640,7 +6896,7 @@ def setup(app, context):
                 ir_path = _safe_child(irs_dir, ir_file)
                 if ir_path and ir_path.exists():
                     tone_stages.append(_ir_stage(
-                        ir_path, bypassed=ir_bypassed,
+                        ir_path, bypassed=ir_bypassed, di_cab=True,
                         slot=ir_slot, rs_gear=ir_gear, tone_key=tone_key,
                         gain=_RS_IR_MAKEUP if ir_kind == "rs_ir" else 1.0))
                 else:
@@ -7956,12 +8212,20 @@ def setup(app, context):
         # (rs_cab_mic_map / per-song picker).
         mic_suffix_re = re.compile(r"_(?:[0-9]?[a-z]{1,2})$")
         seen_bases: set[str] = set()
+        seen_bundled: set[str] = set()
         for k, info in rs_map.items():
             if not isinstance(info, dict):
                 continue
             cat = (info.get("category") or "").lower()
             if cat != category.lower():
                 continue
+            # Collapse gears that REUSE the same bundled VST (e.g. Amp_AT20 ->
+            # Bass_Amp_BT975B's Sampleg SBT-CL) so the picker lists it once.
+            b = _gear_bundled_vst(k)
+            if b:
+                if b in seen_bundled:
+                    continue
+                seen_bundled.add(b)
             if is_cab:
                 base = mic_suffix_re.sub("", k)
                 if base in seen_bases:

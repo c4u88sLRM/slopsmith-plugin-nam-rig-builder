@@ -61,10 +61,14 @@ class ReverbCore {
     RvAllpass apL[4],     apR[4];
     // post modulation (Depth)
     float modBufL[2048], modBufR[2048]; int mw = 0;
-    float lfoPh = 0.f, lfoInc = 0.f, modDepth = 0.f;
-    float mix = 0.3f;
+    float lfoPh = 0.f, lfoInc = 0.f, modDepth = 0.f, modMix = 0.f;
+    // Equal-power dry/wet crossfade gains (precomputed in setParams). The raw
+    // comb sum is ~16-22 dB hotter than the dry, so `wetMix` folds in a
+    // level-match (so full wet ≈ dry) and the cos/sin law keeps the perceived
+    // volume ~constant as Mix rises (no "wet is way louder" / "19% = full room").
+    float dryMix = 1.0f, wetMix = 0.0f;
     // voicing
-    float sizeScale = 1.f, dampBias = 0.f, apFb = 0.5f;
+    float sizeScale = 1.f, dampBias = 0.f, apFb = 0.5f, wetMax = 1.f;
 
     inline float modRead(const float* buf, float delaySamp) {
         float rp = (float)mw - delaySamp;
@@ -77,6 +81,7 @@ public:
     void setVoicing(float sScale, float dBias, float apFeedback) {
         sizeScale = sScale; dampBias = dBias; apFb = apFeedback;
     }
+    void setWetMax(float w) { wetMax = (w < 0.f) ? 0.f : (w > 1.f ? 1.f : w); }
     void setSampleRate(float s) {
         fs = (s > 0.f) ? s : 48000.f;
         lfoInc = 6.2831853f * 0.7f / fs;
@@ -101,8 +106,19 @@ public:
             apL[i].set((int)(kAllpassTune[i] * sr), apFb);
             apR[i].set((int)((kAllpassTune[i] + kStereoSpread) * sr), apFb);
         }
-        modDepth = depth * 0.0022f * fs;                              // up to ~2.2 ms wet wobble
-        mix = mixP;
+        // Wet modulation OFF (JF): the Depth-driven chorus read as a phaser on the tail.
+        (void)depth;
+        modDepth = 0.f; modMix = 0.f;
+        // Level-match the wet to the dry: the 8 summed combs get hotter as the
+        // feedback (Time) rises, so scale by (1 - feedback); wetMax is the
+        // per-rack subtlety cap (JF). Then an equal-power (cos/sin) crossfade keeps
+        // the output loudness ~constant across Mix (no "wet way louder" / "19% =
+        // full room", and Mix no longer changes the volume).
+        const float wetLevel = (1.0f - feedback) * 0.85f;
+        float m = ((mixP < 0.f) ? 0.f : (mixP > 1.f ? 1.f : mixP)) * wetMax;
+        const float a = m * 1.5707963f;
+        dryMix = std::cos(a);
+        wetMix = std::sin(a) * wetLevel;
     }
     inline void process(float xL, float xR, float& outL, float& outR) {
         const float in = (xL + xR) * 0.5f * 0.30f;                    // mono feed, scaled (Freeverb gain)
@@ -110,19 +126,22 @@ public:
         for (int i = 0; i < 8; ++i) { wL += combL[i].process(in); wR += combR[i].process(in); }
         for (int i = 0; i < 4; ++i) { wL = apL[i].process(wL);  wR = apR[i].process(wR); }
 
-        // light wet modulation (Depth) — store then read with LFO offset
+        // subtle wet chorus (Depth) — fully OFF at Depth=0 so the tail has no
+        // fixed-comb/flanger/phaser coloration; a gentle ~11 ms base when engaged
         modBufL[mw] = wL; modBufR[mw] = wR;
-        lfoPh += lfoInc; if (lfoPh > 6.2831853f) lfoPh -= 6.2831853f;
-        const float off = 4.0f + modDepth * (0.5f + 0.5f * std::sin(lfoPh));
-        const float offR = 4.0f + modDepth * (0.5f + 0.5f * std::sin(lfoPh + 1.7f));
-        float mL = modRead(modBufL, off), mR = modRead(modBufR, offR);
+        if (modMix > 1e-4f) {
+            lfoPh += lfoInc; if (lfoPh > 6.2831853f) lfoPh -= 6.2831853f;
+            const float base = 0.011f * fs;
+            const float off  = base + modDepth * (0.5f + 0.5f * std::sin(lfoPh));
+            const float offR = base + modDepth * (0.5f + 0.5f * std::sin(lfoPh + 1.7f));
+            float mL = modRead(modBufL, off), mR = modRead(modBufR, offR);
+            wL = wL * (1.f - modMix) + mL * modMix;
+            wR = wR * (1.f - modMix) + mR * modMix;
+        }
         if (++mw >= 2048) mw = 0;
-        // blend a little modulated signal in (subtle)
-        wL = wL * 0.5f + mL * 0.5f;
-        wR = wR * 0.5f + mR * 0.5f;
 
-        outL = xL * (1.0f - mix) + wL * mix;
-        outR = xR * (1.0f - mix) + wR * mix;
+        outL = xL * dryMix + wL * wetMix;
+        outR = xR * dryMix + wR * wetMix;
     }
 };
 
