@@ -20,8 +20,8 @@
  * Panel (AC30C2, left -> right), per the schematic pot designators:
  *   INPUTS (Normal Hi/Lo, Top Boost Hi/Lo; cable selectable) | NORMAL Volume
  *   (VR1 500K) | TOP BOOST Volume (VR2 A500K) / Treble (VR3 A1M) / Bass (VR4 A1M)
- *   | REVERB Tone (VR8 A100K) / Level (VR5 A500K) | TREMOLO Speed (VR7 1M) /
- *   Depth (VR6 B500K) | MASTER Tone Cut (VR9 B220K) / Volume (VR10 A500K)
+ *   | REVERB Tone (VR5 A500K) / Level (VR6 B100K) | TREMOLO Speed (VR7 2M2) /
+ *   Depth (VR8 B500K) | MASTER Tone Cut (VR9 B220K) / Volume (VR10 A500K)
  *   | STANDBY | POWER
  */
 enum EN30ParamId
@@ -30,10 +30,10 @@ enum EN30ParamId
     kTBVol,           // TOP BOOST Volume     VR2 A500K     [RS Gain]
     kTreble,          // TOP BOOST Treble     VR3 A1M       [RS Treble]
     kBass,            // TOP BOOST Bass       VR4 A1M       [RS Bass]
-    kRevTone,         // REVERB Tone          VR8 A100K
-    kRevLevel,        // REVERB Level         VR5 A500K
-    kSpeed,           // TREMOLO Speed        VR7 1M
-    kDepth,           // TREMOLO Depth        VR6 B500K
+    kRevTone,         // REVERB Tone          VR5 A500K
+    kRevLevel,        // REVERB Level         VR6 B100K
+    kSpeed,           // TREMOLO Speed        VR7 2M2 (C-taper)
+    kDepth,           // TREMOLO Depth        VR8 B500K
     kCut,             // MASTER Tone Cut      VR9 B220K     [RS Pres, inverted]
     kMaster,          // MASTER Volume        VR10 A500K
     kInput,           // INPUT: Normal(0) / Both jumpered(0.5) / Top Boost(1)
