@@ -199,7 +199,9 @@ public:
         feedback = std::tanh(shifted) * (0.20f + 0.16f * d);
         const float wet = std::tanh(shifted * (1.02f + 0.10f * d));
         const float fixedMix = 0.50f + 0.32f * d;
-        const float y = x * (0.86f - 0.20f * fixedMix) - wet * (0.56f + 0.34f * fixedMix);
+        // dry−wet allpass residual sits ~22 dB below the other pedals; makeup
+        // brings it to the house ~unity level without changing voicing.
+        const float y = (x * (0.86f - 0.20f * fixedMix) - wet * (0.56f + 0.34f * fixedMix)) * 13.0f;
         return std::tanh(y * 0.94f) * 0.98f;
     }
 };

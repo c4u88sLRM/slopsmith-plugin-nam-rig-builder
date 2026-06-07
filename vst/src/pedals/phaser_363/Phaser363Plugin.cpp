@@ -189,7 +189,10 @@ public:
 
         feedback = std::tanh(shifted) * 0.32f;
         const float wet = std::tanh(shifted * 1.05f);
-        const float y = x * 0.70f - wet * 0.84f;
+        // The dry−wet mix nearly cancels (allpass residual), leaving the output
+        // ~20 dB below the rest of the pedals. Makeup brings it up to the house
+        // ~unity level without changing the phaser's voicing. See AMP_LOUDNESS.md.
+        const float y = (x * 0.70f - wet * 0.84f) * 8.5f;
         return std::tanh(y * 0.94f) * 0.98f;
     }
 };
