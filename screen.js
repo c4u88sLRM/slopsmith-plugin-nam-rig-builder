@@ -3998,7 +3998,7 @@ async function rbMasterEditVst(role, idx) {
         // before loading — closing its native window first avoids the crash.
         await rbTeardownVstEditor(api);
         await api.startAudio().catch(() => {});
-        const slotId = await api.loadVST(vstPath);
+        const slotId = await rbSafeLoadStandaloneVst(api, vstPath);
         if (slotId == null || slotId < 0) {
             editor.innerHTML = `<div class="text-xs text-red-400">${rbEsc(rbVstRefusedMsg())}</div>`;
             return;
@@ -5600,7 +5600,7 @@ async function rbLoadAndEditVst(toneIdx, pIdx) {
         // Clear any previous experimental load so the editor doesn't accumulate.
         await rbTeardownVstEditor(api);
         await api.startAudio().catch(() => {});
-        const slotId = await api.loadVST(path);
+        const slotId = await rbSafeLoadStandaloneVst(api, vstPath);
         if (slotId == null || slotId < 0) throw new Error(rbVstRefusedMsg());
         rbState._vstEditorSlot = slotId;
         // Render the inline params editor (HTML sliders driving setParameter
@@ -7887,7 +7887,7 @@ async function rbCatalogLoadAndEdit(panelId) {
     try {
         await rbTeardownVstEditor(api);
         await api.startAudio().catch(() => {});
-        const slotId = await api.loadVST(path);
+        const slotId = await rbSafeLoadStandaloneVst(api, vstPath);
         if (slotId == null || slotId < 0) throw new Error(rbVstRefusedMsg());
         rbState._vstEditorSlot = slotId;
         if (api.openPluginEditor) {
@@ -8043,6 +8043,79 @@ async function rbHardResetVstAudio(api) {
     } catch (_) {}
 }
 
+async function rbResetStandaloneVstHost(api) {
+    if (!api) return;
+
+    try { if (api.closePluginEditor && rbState._vstEditorSlot != null) await api.closePluginEditor(rbState._vstEditorSlot); } catch (_) {}
+
+    rbState._vstEditorSlot = null;
+    rbState._vstEditorInChain = false;
+
+    try {
+        if (api.setGain) {
+            await api.setGain('input', 0.0);
+            await api.setGain('chain', 0.0);
+        }
+        if (api.setMonitorMute) await api.setMonitorMute(true);
+        if (api.clearChain) await api.clearChain();
+    } catch (_) {}
+
+    await new Promise(r => setTimeout(r, 150));
+}
+
+async function rbRecoverFailedVstLoad(api, partialSlot = null) {
+    try { if (api?.closePluginEditor && partialSlot != null) await api.closePluginEditor(partialSlot); } catch (_) {}
+
+    try {
+        if (api?.setGain) {
+            await api.setGain('input', 0.0);
+            await api.setGain('chain', 0.0);
+        }
+        if (api?.setMonitorMute) await api.setMonitorMute(true);
+        if (api?.clearChain) await api.clearChain();
+        if (api?.stopAudio) await api.stopAudio();
+    } catch (_) {}
+
+    rbState._vstEditorSlot = null;
+    rbState._vstEditorInChain = false;
+
+    await new Promise(r => setTimeout(r, 250));
+
+    try {
+        if (api?.setGain) {
+            await api.setGain('input', 1.0);
+            await api.setGain('chain', 0.0);
+        }
+    } catch (_) {}
+}
+
+async function rbSafeLoadStandaloneVst(api, vstPath) {
+    console.log('[rig_builder vst] preparing clean host:', vstPath);
+
+    await rbResetStandaloneVstHost(api);
+
+    let slotId = null;
+
+    try {
+        slotId = await api.loadVST(vstPath);
+        console.log('[rig_builder vst] loadVST returned:', slotId);
+
+        if (slotId == null || slotId < 0) {
+            throw new Error(rbVstRefusedMsg());
+        }
+
+        rbState._vstEditorSlot = slotId;
+        rbState._vstEditorInChain = false;
+
+        return slotId;
+    } catch (e) {
+        console.warn('[rig_builder vst] load failed, recovering host:', e);
+        await rbRecoverFailedVstLoad(api, slotId);
+        console.log('[rig_builder vst] recovery completed');
+        throw e;
+    }
+}
+
 // Inline catalog editor: when we have an in-app canvas recreation of the
 // plugin UI, show it right in the expanded gear card (draggable knobs →
 // live setParameter) instead of popping the native window. Falls back to
@@ -8151,67 +8224,34 @@ async function rbCatalogEditInline(safeId, vstPath, vstFormat, rsGear, stem) {
     el.innerHTML = `<div class="text-xs text-gray-500">loading ${rbEsc(vstPath.split('/').pop())}…</div>`;
     const loadToken = rbStandaloneVstLoadToken();
     try {
-        await rbHardResetVstAudio(api);
         await rbCloseActiveVstEditor().catch(() => {});
-        if (rbState.listeningTone !== null || rbState._auditionId) await rbStopPreview().catch(() => {});
-
-        // MUTE ANTES DE CLEARCHAIN
-        if (api.setGain) {
-            await api.setGain('input', 0.0).catch(() => {});
-            await api.setGain('chain', 0.0).catch(() => {});
-        }
-        if (api.setMonitorMute) {
-            await api.setMonitorMute(true).catch(() => {});
+        if (rbState.listeningTone !== null || rbState._auditionId) {
+            await rbStopPreview().catch(() => {});
         }
 
-        // pequeña espera para que el motor procese el mute
-        await new Promise(r => setTimeout(r, 80));
-
-        if (api.clearChain) await api.clearChain().catch(() => {});
-
-        // otra espera antes de cargar el VST nuevo
-        await new Promise(r => setTimeout(r, 80));
-
-        const slotId = await api.loadVST(vstPath);
-
-        await new Promise(r => setTimeout(r, 180));
-
-        if (api.setGain) {
-            await api.setGain('input', 1.0).catch(() => {});
-        }
+        const slotId = await rbSafeLoadStandaloneVst(api, vstPath);
 
         if (!rbStandaloneVstLoadActive(loadToken)) return;
-        if (slotId == null || slotId < 0) throw new Error(rbVstRefusedMsg());
-        rbState._vstEditorSlot = slotId;
+
+        await rbApplyCatalogGearVstParams(api, slotId, vstPath, rsGear);
         await rbMakeStandaloneVstAudible(api, { noUnmute: true });
 
         setTimeout(async () => {
-
             try {
-
                 if (api.setGain) {
-
                     await api.setGain('chain', 0.15);
-
                     await new Promise(r => setTimeout(r, 20));
-
                     await api.setGain('chain', 0.35);
-
                     await new Promise(r => setTimeout(r, 20));
-
                     await api.setGain('chain', 0.65);
-
                     await new Promise(r => setTimeout(r, 20));
-
                     await api.setGain('chain', 1.0);
-
                 }
-
                 if (api.setMonitorMute) await api.setMonitorMute(false);
-
             } catch (_) {}
-
         }, 500);
+
+    
         setTimeout(() => rbSignalChainLoaded().catch(() => {}), 250);
         // Snapshot current params → canvas model (logical values + idMap).
         let model = { values: {}, idMap: {}, logicalParams: [] };
@@ -8263,7 +8303,7 @@ async function rbCatalogEditVst(vstPath, vstFormat, rsGear) {
             await rbStopPreview();
         }
         if (api.clearChain) await api.clearChain().catch(() => {});
-        const slotId = await api.loadVST(vstPath);
+        const slotId = await rbSafeLoadStandaloneVst(api, vstPath);
 
         if (!rbStandaloneVstLoadActive(loadToken)) return;
 
@@ -8285,7 +8325,7 @@ async function rbCatalogEditVst(vstPath, vstFormat, rsGear) {
     } catch (e) {
         await rbQuarantineFailedStandaloneVst(api, loadToken);
         if (rbStandaloneVstLoadActive(loadToken)) {
-            el.innerHTML = `<div class="text-xs text-red-400">load failed: ${rbEsc(rbFriendlyVstLoadError(e))}</div>`;
+            alert(`load failed: ${rbFriendlyVstLoadError(e)}`);
         }
     }
 }
@@ -8327,7 +8367,7 @@ async function rbAuditionVst(vstPath, vstFormat, btnId, rsGear) {
         if (typeof api.loadVST !== 'function') {
             throw new Error('engine has no loadVST API (WASM-only build?)');
         }
-        const slotId = await api.loadVST(vstPath);
+        const slotId = await rbSafeLoadStandaloneVst(api, vstPath);
         if (!rbStandaloneVstLoadActive(loadToken)) {
             rbRestoreAuditionButton(btn);
             return;
