@@ -1095,7 +1095,7 @@ def _nam_normalized_output_level(path: Path,
     # output never goes super-quiet for a sky-high input drive setting.
     effective_input = effective_input_drive
     if effective_input is None:
-        effective_input = float(settings.get("nam_input_drive", 1.0))
+        effective_input = float(settings.get("nam_input_drive", 2.5))
     effective_input = max(0.1, float(effective_input))
     return raw / effective_input
 
@@ -1134,7 +1134,7 @@ def _amp_input_drive_for(rs_gear: str | None, slot: str | None) -> float:
     if rs_gear and (rs_gear.startswith("Bass_") or rs_gear.startswith("DI_Amp_")):
         return 1.0
     settings = _load_settings()
-    return max(0.1, float(settings.get("nam_input_drive", 1.0)))
+    return max(0.1, float(settings.get("nam_input_drive", 2.5)))
 
 
 def _rs_gain_from_params_json(params_json: str | None, rs_gear: str | None = None):
@@ -2302,7 +2302,7 @@ def _build_master_stages(role: str, models_dir, irs_dir,
                 continue
             stages.append(_ir_stage(ir_path, bypassed=bypassed,
                                     slot=slot_tag, rs_gear=gear,
-                                    gain=_ir_stage_gain(kind, ir_path)))
+                                    gain=_RS_IR_MAKEUP if kind == "rs_ir" else 1.0))
         elif kind == "vst" and vst_path:
             vp = Path(vst_path)
             stages.append(_vst_stage(
@@ -3192,29 +3192,6 @@ def _nam_stage(path, *, bypassed, input_level=1.0, output_drive=None,
 _RS_IR_MAKEUP = 4.0
 
 
-def _is_rocksmith_ir_file(value: str | Path | None) -> bool:
-    if not value:
-        return False
-    return "rocksmith" in Path(value).as_posix().lower()
-
-
-def _ir_stage_gain(kind: str | None, ir_path: str | Path | None, base_gain: float = 1.0) -> float:
-    """Final IR gain sent to the native engine.
-
-    Rocksmith-extracted cab IRs need the same +12 dB makeup in every path:
-    full song chains, mega-chain playback, master-chain stages and Gear-catalog
-    audition. Gear audition sometimes sends kind="ir" even for files under
-    nam_irs/rocksmith/, so detect both by kind and by path.
-    """
-    try:
-        g = float(base_gain)
-    except (TypeError, ValueError):
-        g = 1.0
-    if (kind or "").lower() == "rs_ir" or _is_rocksmith_ir_file(ir_path):
-        return g * _RS_IR_MAKEUP
-    return g
-
-
 # Per-cab RMS matching. A cab IR's broadband convolution gain — i.e. how much
 # output RMS it imparts (output_RMS = input_RMS × ‖IR‖₂ for broadband input) —
 # is exactly its L2 norm. After the ±1.0 clip-safe peak cap, IRs no longer all
@@ -3462,7 +3439,7 @@ def _ir_stage(ir_path, *, bypassed, gain=1.0,
     # `gain` above (engine-applied, works for VST + NAM amps alike), so keep the
     # chain-gain cab makeup neutral here — else NAM-amp chains would double it.
     p = Path(ir_path)
-    if _is_rocksmith_ir_file(p):
+    if "rocksmith" in p.as_posix().lower():
         stage["cab_rms_makeup"] = round(1.0 if di_cab_blend else _ir_rms_makeup(p), 4)
     stage["state"] = _state_b64({"irPath": str(ir_path), "gain": gain})
     return stage
@@ -6892,7 +6869,7 @@ def setup(app, context):
                 # fix); RS IRs get a fixed makeup since they're quieter.
                 chain.append(_ir_stage(ir_path, bypassed=ir_bypassed,
                                        slot=ir_slot, rs_gear=ir_gear, di_cab=True,
-                                       gain=_ir_stage_gain(ir_kind, ir_path)))
+                                       gain=_RS_IR_MAKEUP if ir_kind == "rs_ir" else 1.0))
             else:
                 missing.append(ir_file)
 
@@ -7052,7 +7029,7 @@ def setup(app, context):
                     tone_stages.append(_ir_stage(
                         ir_path, bypassed=ir_bypassed, di_cab=True,
                         slot=ir_slot, rs_gear=ir_gear, tone_key=tone_key,
-                        gain=_ir_stage_gain(ir_kind, ir_path)))
+                        gain=_RS_IR_MAKEUP if ir_kind == "rs_ir" else 1.0))
                 else:
                     missing.append(ir_file)
             return tone_stages
@@ -7212,7 +7189,7 @@ def setup(app, context):
 
     # ── Single-stage audition (catalog "Escuchar") ────────────────────
     @app.get("/api/plugins/rig_builder/native_preset_one")
-    def native_preset_one(file: str = "", kind: str = "nam", gain: float = 1.0,
+    def native_preset_one(file: str = "", kind: str = "nam", gain: float = 0.5,
                           vst_path: str = "", vst_format: str = "VST3",
                           rs_gear: str = ""):
         """A native_preset with ONE stage to audition a single gear in
@@ -7242,7 +7219,7 @@ def setup(app, context):
             p = _safe_child(irs_dir, file)
             if not p or not p.exists():
                 return JSONResponse({"error": "ir not found"}, 404)
-            stage = _ir_stage(p, bypassed=False, gain=_ir_stage_gain(kind, p, gain))
+            stage = _ir_stage(p, bypassed=False, gain=float(gain))
         else:
             p = _safe_child(models_dir, file)
             if not p or not p.exists():
