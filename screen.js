@@ -3105,6 +3105,12 @@ function rbRenderPieceEditor(p, toneIdx, pIdx, filename) {
                         class="bg-amber-900/25 hover:bg-amber-900/45 text-amber-300 border border-amber-800/40 px-3 py-1.5 rounded text-xs">
                     🔁 Swap…
                 </button>
+                ${hasVst ? `
+                <button onclick="rbToneEditVst(${toneIdx}, ${pIdx})"
+                        title="Load this VST in the engine and edit its parameters with inline sliders — just for this song"
+                        class="bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border border-purple-800/40 px-3 py-1.5 rounded text-xs">
+                    🎛 Edit VST
+                </button>` : ''}
                 <div class="flex-1"></div>
                 <button onclick="rbRemovePiece(${toneIdx}, ${pIdx})"
                         title="Remove this piece from the chain"

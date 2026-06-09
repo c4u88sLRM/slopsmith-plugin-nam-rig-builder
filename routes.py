@@ -1780,7 +1780,16 @@ def _effective_vst_state_for_piece(
     if vst_state:
         try:
             env = json.loads(vst_state)
-            if isinstance(env, dict) and (env.get("opaque") or isinstance(env.get("params"), dict)):
+            # Honor a stored state only when it actually carries settings:
+            # an opaque blob, or a NON-EMPTY params dict. A stale
+            # `{"params": {}}` (saved when the gear's VST stem didn't yet
+            # resolve in rs_knob_to_vst_param.json) falls through so we
+            # recompute from the RS knobs below — otherwise the pedal/rack
+            # would keep playing at plugin defaults forever.
+            if isinstance(env, dict) and (
+                env.get("opaque")
+                or (isinstance(env.get("params"), dict) and env.get("params"))
+            ):
                 return vst_state
         except (ValueError, TypeError):
             return vst_state

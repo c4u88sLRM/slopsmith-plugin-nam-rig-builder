@@ -193,6 +193,24 @@ _VST_PARAM_RANGES: dict[str, dict[str, tuple[str, float, float]]] = {
 }
 
 
+# Bundled VSTs renamed for the no-copyright UI keep their display-domain range
+# table (_VST_PARAM_RANGES) under the ORIGINAL design stem. Map the shipped
+# file stem back to it so frequency/Q/dB params still normalize — otherwise a
+# Hz value (e.g. 1600) skips normalization and clamps to 1.0 (everything pinned
+# at max). Mirrors the file-stem aliases added to rs_knob_to_vst_param.json;
+# only the bundled stems that actually carry a range entry need listing here.
+_STEM_RANGE_ALIASES: dict[str, str] = {
+    "hzx":   "studiocomp",       # Rack_StudioCompressor
+    "lng":   "studioeq",         # Rack_StudioEQ
+    "g-550": "studiographiceq",  # Rack_StudioGraphicEQ
+}
+
+
+def _range_stem(vst_stem: str) -> str:
+    """Resolve a shipped file stem to the stem its ranges are keyed under."""
+    return _STEM_RANGE_ALIASES.get(vst_stem, vst_stem)
+
+
 def _normalize_display(value: float, kind: str, lo: float, hi: float) -> float:
     """Map a display-domain value to the engine's normalized [0,1].
 
@@ -255,7 +273,7 @@ def _translate_one_knob(rs_value, mapping: dict, vst_stem: str) -> tuple[str, fl
         return None
     # If the curator declared a display-domain range, normalize. Else
     # assume `out` is already normalized (curator chose scale=0.01 etc.).
-    rng = _VST_PARAM_RANGES.get(vst_stem, {}).get(param_name)
+    rng = _VST_PARAM_RANGES.get(_range_stem(vst_stem), {}).get(param_name)
     if rng:
         kind, lo, hi = rng
         out = _normalize_display(out, kind, lo, hi)
@@ -291,8 +309,8 @@ def _build_params_for_piece(
     # This fully defines the MEqualizer output; the per-knob loop is skipped.
     geq = vst_block.get("_graphic_eq")
     if isinstance(geq, list) and geq:
-        frng = _VST_PARAM_RANGES.get(stem, {}).get("Frequency 1 (EQ 1)") or ("log", 20.0, 20000.0)
-        grng = _VST_PARAM_RANGES.get(stem, {}).get("Gain 1 (EQ 1)") or ("linear", -24.0, 24.0)
+        frng = _VST_PARAM_RANGES.get(_range_stem(stem), {}).get("Frequency 1 (EQ 1)") or ("log", 20.0, 20000.0)
+        grng = _VST_PARAM_RANGES.get(_range_stem(stem), {}).get("Gain 1 (EQ 1)") or ("linear", -24.0, 24.0)
         for i, band in enumerate(geq[:16], 1):
             try:
                 freq = float(band.get("freq"))

@@ -1,5 +1,38 @@
 # Rig Builder — handoff doc
 
+> **RS-knob → VST param mapping fixed for pedals/racks (2026-06-09).** Symptom:
+> only AMPs responded to a song's knobs; pedals/racks played at plugin defaults.
+> Root cause: the bundled pedal/rack VSTs were **renamed** for the no-copyright
+> UI (`EQ8`→`GE-8`, `StudioComp`→`HZX`, `StudioEQ`→`LNG`, `MultiPitch`→`Multi
+> Pitch`, etc.) but `data/rs_knob_to_vst_param.json` still keyed each block under
+> the OLD design stem, so `_build_params_for_piece` (keyed on the assigned file
+> stem) returned `None` → empty params. Amps weren't renamed, hence they alone
+> worked. Fix = **added lowercased real-filename-stem aliases** for all 76
+> renamed bundled VSTs (each duplicates its own design block — additive, nothing
+> removed) + **authored real blocks** for the 2 gears that only had a kHs
+> fallback (`Bass_Pedal_BassWah` = Auto/Pedal/Sens/Speed; `Bass_Pedal_BassSubOctave`
+> = Mix/Tone). Audit: every gear with a `bundled` VST now resolves its stem (0
+> unresolved). Also fixed `_effective_vst_state_for_piece` (`routes.py`) so a
+> **stale `{"params": {}}`** stored on existing presets no longer short-circuits
+> — empty params now RE-COMPUTE from the RS knobs at playback, so updaters self-
+> heal without a re-batch (new installs were already correct once the table was
+> fixed). To re-key in future, regenerate aliases by deriving the stem from each
+> gear's `rs_gear_to_vst.json` `bundled` path.
+>
+> **Second table — `_VST_PARAM_RANGES` (same root cause, 2026-06-09).** Symptom:
+> Studio EQ (file `LNG.vst3`) had ALL freqs/Q pinned at max. `apply_vst_state.py`
+> has a SECOND stem-keyed table, `_VST_PARAM_RANGES`, that normalizes display-
+> domain params (Hz/Q/dB) → [0,1]. It's keyed by the design stem (`studioeq`,
+> `studiocomp`, `studiographiceq`), so the renamed file stems (`lng`, `hzx`,
+> `g-550`) missed it → a Hz value (1600) skipped normalization and clamped to
+> 1.0. Fix = `_STEM_RANGE_ALIASES` ({lng→studioeq, hzx→studiocomp,
+> g-550→studiographiceq}) resolved via `_range_stem()` at both lookup sites
+> (`_translate_one_knob` + the `_graphic_eq` fold). Only bundled stems with a
+> range entry need listing. NOTE the bundled Studio EQ Bass band is only 30–300
+> Hz (`seqFBass` in `StudioEqParams.h`); RS BassFreq up to ~455 legitimately
+> clamps — that's a VST-range fidelity gap, not a mapping bug (widen both the DSP
+> helper and the range to fix).
+
 > **In-chain VST editing (2026-06-02, `feat/pedals-vst`).** Pressing **Edit** on
 > a pedal in a song tone's chain now edits it **inside the live full-chain
 > preview** instead of loading an isolated single copy. `rbToneEditVst`
