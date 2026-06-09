@@ -2512,6 +2512,56 @@ def _resolve_song_file(filename: str) -> Path | None:
     return None
 
 
+def _dlc_relative_song_key(path: Path) -> str | None:
+    dlc = _get_dlc_dir() if _get_dlc_dir else None
+    if not dlc:
+        return None
+    try:
+        return path.resolve().relative_to(dlc.resolve()).as_posix()
+    except (OSError, ValueError):
+        return None
+
+
+def _normalise_song_filename(filename: str) -> str:
+    return str(filename or "").replace("\\", "/").strip("/")
+
+
+def _db_song_key(filename: str, path: Path | None = None) -> str:
+    if path is not None:
+        rel = _dlc_relative_song_key(path)
+        if rel:
+            return rel
+    resolved = _resolve_song_file(filename)
+    if resolved is not None:
+        rel = _dlc_relative_song_key(resolved)
+        if rel:
+            return rel
+    return _normalise_song_filename(filename)
+
+
+def _song_key_candidates(filename: str, path: Path | None = None) -> list[str]:
+    """Database filename keys to try, newest first plus legacy basenames."""
+    vals: list[str] = []
+
+    def add(v: str | None) -> None:
+        v = _normalise_song_filename(v or "")
+        if v and v not in vals:
+            vals.append(v)
+
+    key = _db_song_key(filename, path)
+    add(key)
+    add(filename)
+    add(key.rsplit("/", 1)[-1])
+    add(_normalise_song_filename(filename).rsplit("/", 1)[-1])
+    return vals
+
+
+def _tone_mapping_filename_filter(filename: str, path: Path | None = None) -> tuple[str, tuple[str, ...]]:
+    candidates = _song_key_candidates(filename, path)
+    placeholders = ", ".join("?" for _ in candidates)
+    return f"filename IN ({placeholders})", tuple(candidates)
+
+
 # ── v3 auto-download: tone3000 model → nam_models/ or nam_irs/ ───────
 
 
@@ -2803,6 +2853,7 @@ def _persist_preset_chain(
     what the existing nam_tone runtime reads. Everything else goes
     into preset_pieces for the UI and future multi-stage support.
     """
+    filename = _db_song_key(filename)
     conn = _get_conn()
     # The nam_tone runtime only consumes one model + one IR per preset
     # (see nam_tone/routes.py:get_native_preset — single NAM + single IR;
@@ -4324,11 +4375,11 @@ def _batch_worker(mode: str = "all"):
         for idx, song_path in enumerate(songs):
             with _batch_lock:
                 _batch_state["progress"] = idx + 1
-            filename = song_path.name
+            filename = _db_song_key(song_path.name, song_path)
 
             try:
                 if song_path.suffix.lower() == ".sloppak":
-                    tones = _read_tones_from_sloppak(filename, song_path.parent)
+                    tones = _read_tones_from_sloppak(filename, _get_dlc_dir() or song_path.parent)
                 else:
                     tones = _read_tones_from_psarc(song_path)
             except Exception as e:
@@ -4349,10 +4400,11 @@ def _batch_worker(mode: str = "all"):
                 # than resetting them. (Files are still re-resolved.)
                 existing_by_gear: dict[str, dict] = {}
                 _ekey = tone_key or parsed["name"]
+                _filename_filter, _filename_args = _tone_mapping_filename_filter(filename, song_path)
                 _erow = _get_conn().execute(
-                    "SELECT preset_id FROM tone_mappings WHERE filename = ? AND tone_key = ? "
+                    f"SELECT preset_id FROM tone_mappings WHERE {_filename_filter} AND tone_key = ? "
                     "AND EXISTS (SELECT 1 FROM preset_pieces pp WHERE pp.preset_id = tone_mappings.preset_id)",
-                    (filename, _ekey),
+                    (*_filename_args, _ekey),
                 ).fetchone()
                 if _erow:
                     if mode == "new":
@@ -4711,9 +4763,10 @@ def _auto_download_for_song(filename: str, path: Path) -> dict:
         # materialization path, so cloud-downloaded songs landed on NAMs and
         # needed a manual "remap all".
         known_vst_lookup = _build_known_vst_lookup()
+        song_key = _db_song_key(filename, path)
 
         if path.suffix.lower() == ".sloppak":
-            raw_tones = _read_tones_from_sloppak(filename, _get_dlc_dir())
+            raw_tones = _read_tones_from_sloppak(song_key, _get_dlc_dir())
         else:
             raw_tones = _read_tones_from_psarc(path)
 
@@ -4728,7 +4781,7 @@ def _auto_download_for_song(filename: str, path: Path) -> dict:
         for raw in raw_tones:
             parsed = _parse_tone(raw)
             tone_key = parsed["key"] or parsed["name"]
-            preset_name = f"{filename}::{tone_key}"
+            preset_name = f"{song_key}::{tone_key}"
             pieces: list[dict] = []
             conn = _get_conn()
 
@@ -4749,10 +4802,11 @@ def _auto_download_for_song(filename: str, path: Path) -> dict:
             # the chain got rebuilt + wiped on every re-materialization (e.g.
             # each cloud_loader re-download). Checking both forms keeps those
             # presets protected.
+            _filename_filter, _filename_args = _tone_mapping_filename_filter(song_key, path)
             already_saved = conn.execute(
-                "SELECT 1 FROM tone_mappings WHERE filename = ? AND tone_key IN (?, ?) "
+                f"SELECT 1 FROM tone_mappings WHERE {_filename_filter} AND tone_key IN (?, ?) "
                 "AND EXISTS (SELECT 1 FROM preset_pieces pp WHERE pp.preset_id = tone_mappings.preset_id) LIMIT 1",
-                (filename, tone_key, parsed["key"]),
+                (*_filename_args, tone_key, parsed["key"]),
             ).fetchone()
             if already_saved:
                 _batch_log(f"  skip {preset_name} — user-saved chain (preserved)")
@@ -4955,7 +5009,7 @@ def _auto_download_for_song(filename: str, path: Path) -> dict:
                 counts["processed"] += 1
 
             _persist_preset_chain(
-                filename=filename,
+                filename=song_key,
                 tone_key=tone_key,
                 name=preset_name,
                 pieces=pieces,
@@ -5004,11 +5058,11 @@ def _watch_scan_dlc() -> dict[str, int] | None:
             if p.suffix.lower() not in (".psarc", ".sloppak"):
                 continue
             try:
-                key = p.resolve().relative_to(dlc.resolve()).as_posix()
+                key = _dlc_relative_song_key(p)
+                if not key:
+                    continue
                 current[key] = p.stat().st_size
             except OSError:
-                continue
-            except ValueError:
                 continue
     except OSError:
         return None
@@ -5092,21 +5146,22 @@ def _watch_fire(name: str) -> None:
     path = _resolve_song_file(name)
     if path is None:
         return
+    song_key = _db_song_key(name, path)
     try:
         if path.stat().st_size == 0:
             return
     except OSError:
         return
     try:
-        result = _auto_download_for_song(name, path)
+        result = _auto_download_for_song(song_key, path)
         _watcher_state["fired_count"] += 1
         _watcher_state["last_fired"] = {
-            "filename": name,
+            "filename": song_key,
             "ts": time.time(),
             "processed": result.get("processed"),
             "downloaded": result.get("downloaded"),
         }
-        log.info("rig_builder watcher auto-downloaded %s: %s", name, result)
+        log.info("rig_builder watcher auto-downloaded %s: %s", song_key, result)
         # Also fix cab assignments right after the download. Materialised
         # songs whose DLC PSARC ships `Cabinet.Type='Cabinets'` get the
         # real cab + correct mic IR baked into preset_pieces here — the
@@ -5114,16 +5169,16 @@ def _watch_fire(name: str) -> None:
         # to land. Idempotent: already-correct rows are no-ops.
         try:
             if path.suffix.lower() == ".sloppak":
-                raw_tones = _read_tones_from_sloppak(name, _get_dlc_dir())
+                raw_tones = _read_tones_from_sloppak(song_key, _get_dlc_dir())
             else:
                 raw_tones = _read_tones_from_psarc(path)
-            _auto_fix_cab_mics_for_song_module(name, raw_tones)
-            _promote_generic_gear_for_song_module(name, raw_tones)
+            _auto_fix_cab_mics_for_song_module(song_key, raw_tones)
+            _promote_generic_gear_for_song_module(song_key, raw_tones)
         except Exception:
-            log.exception("rig_builder watcher cab-mic fix failed for %s", name)
+            log.exception("rig_builder watcher cab-mic fix failed for %s", song_key)
     except Exception as e:
-        log.exception("rig_builder watcher auto-download failed for %s", name)
-        _watcher_state["last_error"] = f"{name}: {type(e).__name__}: {e}"
+        log.exception("rig_builder watcher auto-download failed for %s", song_key)
+        _watcher_state["last_error"] = f"{song_key}: {type(e).__name__}: {e}"
 
 
 def _auto_fix_cab_mics_for_song_module(filename: str, raw_tones: list) -> int:
@@ -5143,12 +5198,12 @@ def _auto_fix_cab_mics_for_song_module(filename: str, raw_tones: list) -> int:
         return 0
     irs_root = _config_dir / "nam_irs"
     conn = _get_conn()
-    base_name = filename.rsplit("/", 1)[-1]
+    _filename_filter, _filename_args = _tone_mapping_filename_filter(filename)
     tm_rows = conn.execute(
         "SELECT tone_key, preset_id FROM tone_mappings "
-        "WHERE (filename = ? OR filename = ?) "
+        f"WHERE {_filename_filter} "
         "AND EXISTS (SELECT 1 FROM preset_pieces pp WHERE pp.preset_id = tone_mappings.preset_id)",
-        (filename, base_name),
+        _filename_args,
     ).fetchall()
     if not tm_rows:
         return 0
@@ -5244,12 +5299,12 @@ def _promote_generic_gear_for_song_module(filename: str, raw_tones: list) -> int
     if not raw_tones:
         return 0
     conn = _get_conn()
-    base_name = filename.rsplit("/", 1)[-1]
+    _filename_filter, _filename_args = _tone_mapping_filename_filter(filename)
     tm_rows = conn.execute(
         "SELECT tone_key, preset_id FROM tone_mappings "
-        "WHERE (filename = ? OR filename = ?) "
+        f"WHERE {_filename_filter} "
         "AND EXISTS (SELECT 1 FROM preset_pieces pp WHERE pp.preset_id = tone_mappings.preset_id)",
-        (filename, base_name),
+        _filename_args,
     ).fetchall()
     if not tm_rows:
         return 0
@@ -5927,14 +5982,12 @@ def setup(app, context):
         if _config_dir is None or not raw_tones:
             return 0
         irs_root = _config_dir / "nam_irs"
-        # tone_mappings.filename → preset_id (case-insensitive on the
-        # basename to handle subdir prefixes).
-        base = filename.rsplit("/", 1)[-1]
+        _filename_filter, _filename_args = _tone_mapping_filename_filter(filename)
         tm_rows = conn.execute(
             "SELECT tone_key, preset_id FROM tone_mappings "
-            "WHERE (filename = ? OR filename = ?) "
+            f"WHERE {_filename_filter} "
             "AND EXISTS (SELECT 1 FROM preset_pieces pp WHERE pp.preset_id = tone_mappings.preset_id)",
-            (filename, base),
+            _filename_args,
         ).fetchall()
         if not tm_rows:
             return 0
@@ -6006,6 +6059,7 @@ def setup(app, context):
         path = _resolve_song_file(filename)
         if path is None:
             return JSONResponse({"error": "file not found inside DLC dir"}, 404)
+        song_key = _db_song_key(filename, path)
 
         # 0-byte placeholder = cloud_loader stub. Return a structured
         # signal so the UI can call cloud_loader/materialize before
@@ -6023,7 +6077,7 @@ def setup(app, context):
 
         try:
             if path.suffix.lower() == ".sloppak":
-                raw_tones = _read_tones_from_sloppak(filename, _get_dlc_dir())
+                raw_tones = _read_tones_from_sloppak(song_key, _get_dlc_dir())
             elif path.suffix.lower() == ".psarc":
                 raw_tones = _read_tones_from_psarc(path)
             else:
@@ -6048,30 +6102,21 @@ def setup(app, context):
         # rs_gear) stay protected. Idempotent — already-correct rows
         # are no-ops, so re-opening a fixed song doesn't churn.
         try:
-            _auto_fix_cab_mics_for_song(filename, raw_tones, conn)
+            _auto_fix_cab_mics_for_song(song_key, raw_tones, conn)
         except Exception:
-            log.exception("auto cab mic fix failed for %s", filename)
+            log.exception("auto cab mic fix failed for %s", song_key)
         # Same self-heal for non-cab generics: promote any 'Amps'/'Pedals'/
         # 'Racks' parser-miss rows to the real rs_gear from the GearList.
         try:
-            _promote_generic_gear_for_song_module(filename, raw_tones)
+            _promote_generic_gear_for_song_module(song_key, raw_tones)
         except Exception:
-            log.exception("auto generic-gear promote failed for %s", filename)
+            log.exception("auto generic-gear promote failed for %s", song_key)
+        _filename_filter, _filename_args = _tone_mapping_filename_filter(song_key, path)
         existing_rows = conn.execute(
-            "SELECT tone_key, preset_id FROM tone_mappings WHERE filename = ? "
+            f"SELECT tone_key, preset_id FROM tone_mappings WHERE {_filename_filter} "
             "AND EXISTS (SELECT 1 FROM preset_pieces pp WHERE pp.preset_id = tone_mappings.preset_id)",
-            (filename,),
+            _filename_args,
         ).fetchall()
-        # tone_mappings are keyed by basename; if the song was opened with a
-        # subdir prefix (e.g. "sloppak/<name>") the exact match misses and the
-        # editor would wrongly show every tone as unmapped. Retry on basename.
-        _base = filename.rsplit("/", 1)[-1]
-        if not existing_rows and _base != filename:
-            existing_rows = conn.execute(
-                "SELECT tone_key, preset_id FROM tone_mappings WHERE filename = ? "
-                "AND EXISTS (SELECT 1 FROM preset_pieces pp WHERE pp.preset_id = tone_mappings.preset_id)",
-                (_base,),
-            ).fetchall()
         existing_by_key = {r[0]: r[1] for r in existing_rows}
 
         _img_idx = _tone_image_index()
@@ -6339,7 +6384,7 @@ def setup(app, context):
             return JSONResponse({"error": "no tone3000 API key configured"}, 400)
 
         try:
-            return _auto_download_for_song(filename, path)
+            return _auto_download_for_song(_db_song_key(filename, path), path)
         except ValueError as e:
             return JSONResponse({"error": f"unreadable file: {e}"}, 400)
         except Exception as e:
@@ -6352,10 +6397,11 @@ def setup(app, context):
     def save_preset(data: dict = Body(...)):
         filename = data.get("filename")
         tone_key = data.get("tone_key", "")
-        name = data.get("name") or f"{filename}::{tone_key or 'tone'}"
         pieces = data.get("pieces") or []
         if not filename or not isinstance(pieces, list):
             return JSONResponse({"error": "filename and pieces required"}, 400)
+        filename = _db_song_key(filename)
+        name = data.get("name") or f"{filename}::{tone_key or 'tone'}"
         in_gain = float(data.get("input_gain", 1.0))
         # 1.0 unity — see `_persist_preset_chain` docstring for the
         # double-attenuation fix that motivated dropping the 0.5 default.
@@ -6379,8 +6425,10 @@ def setup(app, context):
         mirrored_presets = []
         try:
             ckey = _canonical_song_key(filename)
+            _filename_filter, _filename_args = _tone_mapping_filename_filter(filename)
             sibs = [r[0] for r in _get_conn().execute(
-                "SELECT DISTINCT filename FROM tone_mappings WHERE filename != ?", (filename,)
+                f"SELECT DISTINCT filename FROM tone_mappings WHERE NOT ({_filename_filter})",
+                _filename_args,
             ).fetchall() if _canonical_song_key(r[0]) == ckey]
             for sib in sibs:
                 mirror_preset_id = _persist_preset_chain(
@@ -6582,24 +6630,18 @@ def setup(app, context):
         conn = _get_conn()
 
         def _lookup(name: str):
+            _filename_filter, _filename_args = _tone_mapping_filename_filter(name)
             return conn.execute(
                 "SELECT tm.tone_key, tm.preset_id, p.name, p.input_gain, p.output_gain, "
                 "       p.gate_threshold "
                 "FROM tone_mappings tm JOIN presets p ON tm.preset_id = p.id "
-                "WHERE tm.filename = ? "
+                f"WHERE tm.{_filename_filter} "
                 "AND EXISTS (SELECT 1 FROM preset_pieces pp WHERE pp.preset_id = tm.preset_id) "
                 "ORDER BY tm.id ASC",
-                (name,),
+                _filename_args,
             ).fetchall()
 
         mappings = _lookup(decoded)
-        # The host plays songs with a subdir prefix (e.g. "sloppak/<name>")
-        # while tone_mappings are keyed by basename — the exact match then
-        # misses and the song plays the raw DI (no chain). Retry on the
-        # basename so a prefixed path still resolves its tones.
-        base = decoded.rsplit("/", 1)[-1]
-        if not mappings and base != decoded:
-            mappings = _lookup(base)
         if not mappings:
             return JSONResponse(
                 {"error": f"no tone mappings for {decoded}",
