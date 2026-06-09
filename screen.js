@@ -1118,6 +1118,9 @@ const _RB_GEAR_PHOTO_CB = `?cb=${Date.now()}`;
 const RbMegaChain = (function () {
     let _active = false;       // are we currently driving the engine for a song
     let _mega = null;          // last fetched /mega_chain response
+    let _buildGen = 0;         // bumped each buildForSong() — lets the 404 retry
+                               // loop bail if a newer song load superseded it
+    let _seedTried = null;     // filename we already kicked an on-demand seed for
     let _activeToneKey = null; // tone_key currently un-bypassed
     let _pollHandle = null;    // setInterval handle watching highway tone changes
     let _duckedStems = null;   // saved gain nodes to restore on teardown
@@ -1311,20 +1314,65 @@ const RbMegaChain = (function () {
         // Tear down any previous session before starting a fresh one.
         await teardown(true);   // silent — no stem restore on chained calls
 
-        let resp;
-        try {
-            resp = await fetch(`${window.RB_API}/mega_chain/${encodeURIComponent(filename)}`);
-        } catch (e) {
-            console.warn('[rig_builder mega-chain] fetch failed:', e);
+        // Generation guard: if another song loads while we're waiting on the
+        // 404-retry loop below, this build is stale — bail instead of loading
+        // the wrong chain on top of the new song.
+        const myGen = ++_buildGen;
+
+        // Fetch the mega-chain, tolerating the seeding RACE: a freshly
+        // materialized/opened song's tone_mappings are written ASYNCHRONOUSLY
+        // (background watcher / cloud_loader), so the first build at +600 ms
+        // can beat the seed and 404 — which is exactly the "no sound until I
+        // exit and reload the song" report. On a 404 we (a) kick a one-shot
+        // on-demand seed (idempotent, lock-guarded server-side; needs a
+        // tone3000 key) and (b) retry with backoff until it lands, so the user
+        // no longer has to reload by hand. A non-404 error is a real failure —
+        // don't retry, fall straight back to the cooperative path.
+        const _RETRY_DELAYS = [0, 1200, 2500, 4000, 6000];   // ~13.7 s total
+        let mega = null;
+        for (let attempt = 0; attempt < _RETRY_DELAYS.length; attempt++) {
+            if (_RETRY_DELAYS[attempt]) {
+                await new Promise(r => setTimeout(r, _RETRY_DELAYS[attempt]));
+            }
+            if (myGen !== _buildGen) {
+                console.log('[rig_builder mega-chain] build superseded by a newer song load — abandoning retry');
+                return false;
+            }
+            let resp;
+            try {
+                resp = await fetch(`${window.RB_API}/mega_chain/${encodeURIComponent(filename)}`);
+            } catch (e) {
+                console.warn('[rig_builder mega-chain] fetch failed:', e);
+                return false;
+            }
+            if (resp.ok) {
+                mega = await resp.json();
+                break;
+            }
+            if (resp.status !== 404) {
+                console.warn(`[rig_builder mega-chain] /mega_chain/${filename} → HTTP ${resp.status} — giving up (real backend error)`);
+                return false;
+            }
+            // 404 → not seeded yet. Kick the on-demand seed ONCE for this song,
+            // then keep retrying so the watcher/seed result is picked up.
+            if (_seedTried !== filename) {
+                _seedTried = filename;
+                fetch(`${window.RB_API}/auto_download_song`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filename }),
+                }).then(r => console.log(`[rig_builder mega-chain] on-demand seed for "${filename}" → HTTP ${r.status}`))
+                  .catch(e => console.warn('[rig_builder mega-chain] on-demand seed failed:', e));
+            }
+            console.warn(`[rig_builder mega-chain] /mega_chain/${filename} → 404 (mappings not seeded yet — seeding + retry ${attempt + 1}/${_RETRY_DELAYS.length - 1})`);
+        }
+        if (!mega) {
+            // Still no mappings after the retry window → fall back to the
+            // cooperative path (the bundle still plays). Run Batch all or open
+            // the song in the per-song tab to seed it (needs a tone3000 key).
+            console.warn(`[rig_builder mega-chain] /mega_chain/${filename} → still no mappings after retries (no tone3000 key, or song not mappable? Run Batch all or open it in the per-song tab)`);
             return false;
         }
-        if (!resp.ok) {
-            // No mappings for this song, or backend error → silently fall
-            // back to the cooperative path. The bundle will still work.
-            console.warn(`[rig_builder mega-chain] /mega_chain/${filename} → HTTP ${resp.status} (no tone mappings for this song? Run Batch all or open it in per-song tab first to seed mappings)`);
-            return false;
-        }
-        const mega = await resp.json();
         if (!mega || !mega.native_preset
             || !Array.isArray(mega.native_preset.chain)
             || mega.native_preset.chain.length === 0) {
