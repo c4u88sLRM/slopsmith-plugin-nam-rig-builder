@@ -18,20 +18,6 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
-		<key>x86_64-linux/StudioGraphicEQ.so</key>
-		<dict>
-			<key>hash2</key>
-			<data>
-			sBh1MqVOsTSCYMAdDbmo0At+HUyCrUg3SFYfn0TrSXE=
-			</data>
-		</dict>
-		<key>x86_64-win/StudioGraphicEQ.vst3</key>
-		<dict>
-			<key>hash2</key>
-			<data>
-			Cyo5EBUj0lhv+3svx9Z0iyKeZ6cJoHrgVLSSUeeyqho=
-			</data>
-		</dict>
 	</dict>
 	<key>rules</key>
 	<dict>

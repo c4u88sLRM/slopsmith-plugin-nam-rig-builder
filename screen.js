@@ -231,7 +231,7 @@ function rbSmoothstep01(value) {
 }
 
 function rbConfiguredChainInputDrive() {
-    return (typeof window.__rbChainInputDrive === 'number' && window.__rbChainInputDrive > 0)
+    return (typeof window.__rbChainInputDrive === 'number' && window.__rbChainInputDrive >= 0)
         ? window.__rbChainInputDrive : 8.0;
 }
 
@@ -365,6 +365,23 @@ function rbApplyChainInputDrive(opts) {
 //   no active amp / fallback      → ×1.0 (don't change anything)
 // Extra lift for VST-amp chains (they output below the NAM loudness reference).
 const RB_VST_AMP_BOOST = 10.0;   // ~+10 dB
+// Acoustic / DI "bare" cabs (e.g. PA600C) play with NO amp, so they never get
+// the amp-path +6 dB RS-cab boost and come out too quiet. Lift an active
+// Rocksmith cab IR that has no amp in front of it. Tunable: window.__rbBareCabBoost.
+const RB_BARE_CAB_BOOST = 2.5;   // ~+8 dB
+function rbBareCabBoostFor(chainSpec) {
+    if (!Array.isArray(chainSpec)) return 1.0;
+    let hasRsCab = false, hasAmp = false;
+    for (const s of chainSpec) {
+        if (!s || s.bypassed) continue;
+        if (s.slot === 'amp' && (s.type === 1 || s.type === 0)) hasAmp = true;
+        if (s.type === 2 && String(s.path || '').toLowerCase().includes('rocksmith')) hasRsCab = true;
+    }
+    if (hasRsCab && !hasAmp) {
+        return (typeof window.__rbBareCabBoost === 'number') ? window.__rbBareCabBoost : RB_BARE_CAB_BOOST;
+    }
+    return 1.0;
+}
 function rbChainGainTargetFor(chainSpec) {
     // User "Chain volume" trim (chain_makeup, default 1.0) — the ONLY level
     // the engine respects (per-stage IR gain is ignored). Multiplies the
@@ -372,7 +389,7 @@ function rbChainGainTargetFor(chainSpec) {
     const makeup = (typeof window.__rbChainMakeup === 'number') ? window.__rbChainMakeup : 1.0;
     if (rbChainHasFinalLeveler(chainSpec)) {
     window.__rbChainBaseTarget = 1.0;
-    return makeup;
+    return makeup * rbBareCabBoostFor(chainSpec);
     }
 
     let base = 1.0;
@@ -429,7 +446,7 @@ function rbChainGainTargetFor(chainSpec) {
         }
     }
     window.__rbChainBaseTarget = base;   // remember (pre-trim) for live makeup changes
-    return base * makeup;
+    return base * makeup * rbBareCabBoostFor(chainSpec);
 }
 
 function rbClampChainGainTarget(targetGain) {
@@ -618,10 +635,13 @@ async function rbStartFinalChainNormalizer(chainSpec, opts) {
         const userTrim = (typeof window.__rbChainMakeup === 'number')
             ? window.__rbChainMakeup
             : 1.0;
+        // Lift bare/acoustic RS cabs (no amp) that the leveler can't bring up
+        // from under its gate — same boost the song-playback path applies.
+        const target = userTrim * rbBareCabBoostFor(chain);
         window.__rbChainBaseTarget = 1.0;
-        window.__rbPendingChainGainTarget = userTrim;
+        window.__rbPendingChainGainTarget = target;
         try {
-            await audio.setGain('chain', rbClampChainGainTarget(userTrim));
+            await audio.setGain('chain', rbClampChainGainTarget(target));
         } catch (e) {
             console.warn('[rig_builder final-leveler] setGain(chain) failed:', e);
         }
@@ -8555,21 +8575,31 @@ async function rbMakeStandaloneVstAudible(api, opts) {
 
     const noUnmute = !!(opts && opts.noUnmute);
 
+    // Feed input but keep the wet path (chain) MUTED while we start audio, so
+    // the freshly-loaded plugin settles its startup state (tube DC blocker,
+    // filter ringing) on real input WITHOUT us hearing the transient ("pop").
+    try { if (api.setGain) await api.setGain('input', 1.0); } catch (_) {}
+    try { if (api.startAudio) await api.startAudio(); } catch (_) {}
+
+    if (noUnmute) return;
+
+    // Settle window: the tube DC blocker has a ~26 ms time-constant; give a
+    // generous margin so even the heavier amps stabilise before we open up.
+    // Override with window.__rbVstSettleMs.
+    const settleMs = (typeof window.__rbVstSettleMs === 'number')
+        ? Math.max(0, window.__rbVstSettleMs | 0) : 80;
+    await new Promise(r => setTimeout(r, settleMs));
+
+    try { if (api.setMonitorMute) await api.setMonitorMute(false); } catch (_) {}
+
+    // Fade the wet path 0 → 1.0 in a few steps so opening it doesn't click.
     try {
         if (api.setGain) {
-            await api.setGain('input', 1.0);
-            if (!noUnmute) await api.setGain('chain', 1.0);
+            for (const v of [0.25, 0.5, 0.8, 1.0]) {
+                await api.setGain('chain', v);
+                await new Promise(r => setTimeout(r, 6));
+            }
         }
-    } catch (_) {}
-
-    try {
-        if (!noUnmute && api.setMonitorMute) {
-            await api.setMonitorMute(false);
-        }
-    } catch (_) {}
-
-    try {
-        if (api.startAudio) await api.startAudio();
     } catch (_) {}
 }
 

@@ -112,7 +112,7 @@ struct Mna {
 struct Triode {
     double vG=0, vP=300, vK=1.5, dcAvg=300.0, T=1.0/48000.0;
     void setT(float fs) { T = 1.0 / ((fs>0.f)?fs:48000.0); }
-    void reset() { vG=0; vP=300; vK=1.5; dcAvg=300.0; }
+    void reset() { vG=0; vP=300; vK=1.5; dcAvg=300.0;  for (int i=0;i<2000;++i) process(0.0); }
     static inline double Ip(double vgk, double vpk) {
         const double MU=100, EX=1.4, KG1=1060, KP=600, KVB=300;
         if (vpk < 0) vpk = 0;

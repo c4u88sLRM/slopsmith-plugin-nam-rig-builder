@@ -18,20 +18,6 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
-		<key>x86_64-linux/StudioComp.so</key>
-		<dict>
-			<key>hash2</key>
-			<data>
-			SL/cXOgdNSvHsYnBhOmlP4x0jLStFJEnsWBRJSWe5bI=
-			</data>
-		</dict>
-		<key>x86_64-win/StudioComp.vst3</key>
-		<dict>
-			<key>hash2</key>
-			<data>
-			dh9PAqiKbam18CJI/pmAAlIUWqiB4HqDhBsJcYnCQL0=
-			</data>
-		</dict>
 	</dict>
 	<key>rules</key>
 	<dict>
