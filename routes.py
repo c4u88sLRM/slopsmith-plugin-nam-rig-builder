@@ -20,6 +20,7 @@ only consumes the primary amp/cab pair encoded in `presets`.
 import base64
 import json
 import logging
+import math
 import re
 import secrets
 import shutil
@@ -350,7 +351,12 @@ def _final_leveler_params_state() -> str:
     attack = min(float(s.get("final_chain_attack_ms", 12)), 80.0)
     release = min(float(s.get("final_chain_release_ms", 120)), 250.0)
     ceiling = float(s.get("final_leveler_ceiling_db", -1.0))
-    trim = float(s.get("final_leveler_trim_db", 0.0))
+    # The user "Chain volume" knob (chain_makeup, a 0-5x multiplier) is applied
+    # POST-leveler via this Output Trim so the AGC can't cancel it. Bake it in
+    # as dB here (live changes also poke this param via RbMegaChain in the UI).
+    makeup = max(0.0, float(s.get("chain_makeup", 1.0)))
+    chain_vol_db = 20.0 * math.log10(makeup) if makeup > 1.0e-4 else -24.0
+    trim = chain_vol_db + float(s.get("final_leveler_trim_db", 0.0))
 
     params = {
         "0": norm(target_rms, -30.0, -6.0),
@@ -360,7 +366,7 @@ def _final_leveler_params_state() -> str:
         "4": norm(attack, 1.0, 250.0),
         "5": norm(release, 20.0, 1000.0),
         "6": norm(ceiling, -12.0, -0.1),
-        "7": norm(trim, -12.0, 12.0),
+        "7": norm(trim, -24.0, 18.0),
     }
 
     return json.dumps({"params": params})

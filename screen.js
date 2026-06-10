@@ -389,7 +389,11 @@ function rbChainGainTargetFor(chainSpec) {
     const makeup = (typeof window.__rbChainMakeup === 'number') ? window.__rbChainMakeup : 1.0;
     if (rbChainHasFinalLeveler(chainSpec)) {
     window.__rbChainBaseTarget = 1.0;
-    return makeup * rbBareCabBoostFor(chainSpec);
+    // Chain Volume is applied POST-leveler (baked into the leveler's Output
+    // Trim at build time + live via RbMegaChain.setOutputTrimDb), so the
+    // pre-leveler chain bus must NOT also apply `makeup` — the AGC would just
+    // cancel it (that was the "x5 does nothing / everything quiet" bug).
+    return rbBareCabBoostFor(chainSpec);
     }
 
     let base = 1.0;
@@ -786,8 +790,17 @@ async function rbSetChainMakeup(v) {
     window.__rbChainMakeup = val;
     const cmVal = document.getElementById('rb-chain-makeup-val');
     if (cmVal) cmVal.textContent = val.toFixed(1) + '×';
+    // When a final leveler is in the chain, Chain Volume must be applied
+    // AFTER it (the AGC cancels any pre-leveler gain). Drive the leveler's
+    // Output Trim live; only fall back to the chain bus when no leveler owns
+    // the output (e.g. mega-chain off / leveler disabled).
+    const db = val > 1.0e-4 ? 20 * Math.log10(val) : -24;
+    let appliedPostLeveler = false;
+    if (typeof RbMegaChain !== 'undefined' && RbMegaChain.isActive && RbMegaChain.isActive()) {
+        try { appliedPostLeveler = await RbMegaChain.setOutputTrimDb(db); } catch (_) {}
+    }
     const audio = window.slopsmithDesktop && window.slopsmithDesktop.audio;
-    if (audio && typeof audio.setGain === 'function') {
+    if (!appliedPostLeveler && audio && typeof audio.setGain === 'function') {
         const base = (typeof window.__rbChainBaseTarget === 'number') ? window.__rbChainBaseTarget : 1.0;
         audio.setGain('chain', base * val).catch(() => {});
     }
@@ -1753,7 +1766,41 @@ const RbMegaChain = (function () {
     function isActive() { return _active; }
     function settingOn() { return _settingOn(); }
 
-    return { buildForSong, teardown, isActive, settingOn };
+    // Live "Chain volume": set the final leveler's Output Trim (which is
+    // applied AFTER the leveler's AGC, so it actually changes loudness instead
+    // of being normalized away). Resolves the param by NAME to dodge the
+    // engine's Buffer-Size/Sample-Rate prefix. Returns true if applied.
+    async function setOutputTrimDb(db) {
+        const api = _api();
+        if (!api || !_active || !_mega) return false;
+        if (typeof api.getParameters !== 'function' || typeof api.setParameter !== 'function') return false;
+        const chain = (_mega.native_preset && _mega.native_preset.chain) || [];
+        let idx = -1;
+        for (let i = 0; i < chain.length; i++) {
+            const g = chain[i] && chain[i].rs_gear;
+            if (g && String(g).includes('__rb_final_leveler__')) { idx = i; break; }
+        }
+        if (idx < 0 || idx >= _indexToSlotId.length) return false;
+        const slotId = _indexToSlotId[idx];
+        if (slotId == null) return false;
+        let trimId = null;
+        try {
+            const plist = await api.getParameters(slotId);
+            if (Array.isArray(plist)) {
+                plist.forEach((p, i2) => {
+                    const nm = (p.name ?? p.label ?? '').toLowerCase();
+                    if (nm.includes('output trim') || nm.includes('trim')) trimId = p.id ?? p.paramId ?? p.index ?? i2;
+                });
+            }
+        } catch (_) { return false; }
+        if (trimId == null) return false;
+        // leveler trim range is -24..+18 dB (see PluginProcessor.cpp).
+        const norm = Math.max(0, Math.min(1, (db - (-24)) / (18 - (-24))));
+        try { await api.setParameter(slotId, trimId, norm); return true; }
+        catch (_) { return false; }
+    }
+
+    return { buildForSong, teardown, isActive, settingOn, setOutputTrimDb };
 })();
 
 // Hook into the slopsmith song lifecycle. `song:loaded` fires from

@@ -251,7 +251,7 @@ private:
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
             "trim_db",
             "Output Trim dB",
-            juce::NormalisableRange<float>(-12.0f, 12.0f, 0.1f),
+            juce::NormalisableRange<float>(-24.0f, 18.0f, 0.1f),
             0.0f
         ));
 
