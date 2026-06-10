@@ -2603,5 +2603,38 @@
    "bundled": "vst/amps/CitrusJimmyBean.vst3",
    "notes": "Bundled Orange Jimmy Bean (JB150, 1975) style ~150W SOLID-STATE twin-channel combo (parody brand 'Citrus'), Rocksmith 'OrangeJimmyBean'. No schematic exists; reconstructed from web research (denim/leather op-amp era twin-channel with built-in tremolo + sustain). Op-amp clean stage, Baxandall Bass/Treble, Bright shelf, Channel voicing, Sustain (compressor/soft-clip), tremolo (Speed 2-8Hz / Depth, 0=off). RS Gain->Sustain; Bass/Treble->EQ (Volume + Speed/Depth/Channel/Bright via _static)."
   }
+ ],
+ "DI_Amp_TubePre": [
+  {
+   "name": "Multiversal 610",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "url": "",
+   "free": true,
+   "bundled": "vst/amps/Multiversal610.vst3",
+   "notes": "Bundled Universal Audio 610-A console tube DI/preamp (parody brand 'Multiversal'), Rocksmith 'DI_Amp_TubePre'/'Amp Tube Pre'. Component-level model from the local 610-A schematic (John Hinson redraw): UTC O-1 input transformer -> 12AX7 cascade -> Lo/Hi gain -> passive stepped LF/HF shelf EQ -> 12AY7 -> UTC PA-5946 output transformer. A DI (no cab). RS Gain->Gain; Bass->Low EQ; Treble->High EQ (the real 610 has no mid, so RS Mid/MidFreq are dropped). Level/Hi Gain/Mic pinned via _static."
+  }
+ ],
+ "DI_Amp_BassDriver": [
+  {
+   "name": "SinAmp Bass Driver",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "url": "",
+   "free": true,
+   "bundled": "vst/amps/SinAmpBassDriver.vst3",
+   "notes": "Bundled Tech 21 SansAmp Bass Driver DI (V2) style analog bass preamp (parody brand 'SinAmp'), Rocksmith 'DI_Amp_BassDriver'/'Amp Bass Driver'. Component-level model from the local V2 schematic: TLC2272 op-amp chain, PRESENCE pre-clip HF boost, DRIVE into 3.3V zener clippers, fixed post-clip speaker-emulation filters, BLEND (dry vs amp), BASS/MID/TREBLE active tone (+ shifts), LEVEL. The speaker voicing is part of the box. RS Gain->Drive; Bass->Bass; Treble->Treble; Blend->Blend; Pres->Presence (Mid/Level/shifts via _static)."
+  }
+ ],
+ "DI_Amp_MixerPre": [
+  {
+   "name": "Meve 1073",
+   "manufacturer": "RigBuilder",
+   "format": "VST3",
+   "url": "",
+   "free": true,
+   "bundled": "vst/amps/Meve1073.vst3",
+   "notes": "Bundled Neve 1073 channel amplifier (class-A console preamp/EQ used as a DI; parody brand 'Meve'), Rocksmith 'DI_Amp_MixerPre'/'Amp Mixer Pre'. Component-level model from the local 1073 schematics (EH10023 + BA283/BA284 class-A cards + B182/C HPF + B205 hi/lo EQ + B211 presence + LO1166 output trafo): Marinair-ish input iron, progressive class-A 'Neve push', LOW shelf, PRESENCE mid peak, HIGH shelf, 3rd-order HPF. A DI (no cab). RS Gain->Gain; Bass->Low; Mid->Mid; Treble->High (Low/Mid freq + HPF + Output via _static)."
+  }
  ]
 }

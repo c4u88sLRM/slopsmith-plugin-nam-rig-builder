@@ -7168,5 +7168,100 @@
     "_note": "Volume at noon, tremolo OFF (Depth 0), CH1, Bright off. Dial Speed/Depth/Channel/Bright on the face by hand."
    }
   }
+ },
+ "DI_Amp_TubePre": {
+  "multiversal610": {
+   "_hint": "Multiversal 610 = the UA 610-A tube DI/preamp. RS Gain -> Gain (V1 drive); Bass -> Low EQ; Treble -> High EQ. The real 610 has NO mid control, so RS Mid/MidFreq are dropped. _static pins Level, Lo gain, Line input.",
+   "Gain": {
+    "param": "Gain",
+    "scale": 0.01,
+    "_hint": "RS Gain 0-100 -> V1 12AX7 drive 0..1."
+   },
+   "Bass": {
+    "param": "Low EQ",
+    "scale": 0.01,
+    "_hint": "RS Bass 0-100 (50=flat) -> LF stepped shelf -6..+6 dB."
+   },
+   "Treble": {
+    "param": "High EQ",
+    "scale": 0.01,
+    "_hint": "RS Treble 0-100 (50=flat) -> HF stepped shelf -6..+6 dB."
+   },
+   "_static": {
+    "Level": 0.6,
+    "Hi Gain": 0.0,
+    "Mic": 0.0,
+    "_note": "Output at the loudness reference, Lo gain, Line (instrument DI). Tweak on the face by hand."
+   }
+  }
+ },
+ "DI_Amp_BassDriver": {
+  "sinampbassdriver": {
+   "_hint": "SinAmp Bass Driver = the Tech 21 SansAmp BDDI. RS Gain -> Drive; Bass/Treble -> active tone; Blend -> Blend; Pres -> Presence. _static pins Mid flat, Level, shifts off.",
+   "Gain": {
+    "param": "Drive",
+    "scale": 0.01,
+    "_hint": "RS Gain 0-100 -> DRIVE into the zener clippers 0..1."
+   },
+   "Bass": {
+    "param": "Bass",
+    "scale": 0.01,
+    "_hint": "RS Bass 0-100 (50=flat) -> BASS +/-12 dB."
+   },
+   "Treble": {
+    "param": "Treble",
+    "scale": 0.01,
+    "_hint": "RS Treble 0-100 (50=flat) -> TREBLE +/-12 dB."
+   },
+   "Blend": {
+    "param": "Blend",
+    "scale": 0.01,
+    "_hint": "RS Blend 0-100 -> dry-buffer vs amp-emulation mix."
+   },
+   "Pres": {
+    "param": "Presence",
+    "scale": 0.01,
+    "_hint": "RS Pres 0-100 -> PRESENCE pre-clip HF boost."
+   },
+   "_static": {
+    "Mid": 0.5,
+    "Level": 0.6,
+    "Bass Shift": 0.0,
+    "Mid Shift": 0.0,
+    "_note": "Mid flat, Level at reference, shifts off. Tweak on the face."
+   }
+  }
+ },
+ "DI_Amp_MixerPre": {
+  "meve1073": {
+   "_hint": "Meve 1073 = the Neve 1073 console pre/EQ as a DI. RS Gain -> Gain; Bass -> Low; Mid -> Mid (PRESENCE); Treble -> High. _static pins the freq selectors, HPF off and Output.",
+   "Gain": {
+    "param": "Gain",
+    "scale": 0.01,
+    "_hint": "RS Gain 0-100 -> EK20033 sensitivity / class-A drive 0..1."
+   },
+   "Bass": {
+    "param": "Low",
+    "scale": 0.01,
+    "_hint": "RS Bass 0-100 (50=flat) -> LOW shelf +/-16 dB."
+   },
+   "Mid": {
+    "param": "Mid",
+    "scale": 0.01,
+    "_hint": "RS Mid 0-100 (50=flat) -> PRESENCE peak +/-18 dB."
+   },
+   "Treble": {
+    "param": "High",
+    "scale": 0.01,
+    "_hint": "RS Treble 0-100 (50=flat) -> HIGH shelf +/-16 dB @ 12 kHz."
+   },
+   "_static": {
+    "Low Freq": 0.67,
+    "Mid Freq": 0.4,
+    "HPF": 0.0,
+    "Output": 0.6,
+    "_note": "LOW @ 110 Hz, PRESENCE @ 1.6 kHz, HPF off, Output at reference. Pick freqs/HPF on the face."
+   }
+  }
  }
 }

@@ -8268,39 +8268,42 @@
  },
  "DI_Amp_BassDriver": {
   "art_asset": "placeholder",
-  "category": "other",
-  "make": "",
+  "category": "amp",
+  "make": "Tech 21",
   "manifest": "gear_di_amp_bassdriver",
-  "model": "Amp_Bass Driver",
-  "name": "Amp_Bass Driver",
+  "model": "SansAmp Bass Driver",
+  "name": "Tech 21 SansAmp Bass Driver",
   "query_source": "fallback",
   "sound_bank": "di_amp_bassdriver",
   "tone3000_gears": "",
-  "tone3000_query": "Amp_Bass Driver"
+  "tone3000_query": "Amp_Bass Driver",
+  "name_correction_note": "DI preamp; modelled as bundled VST (parody face)"
  },
  "DI_Amp_MixerPre": {
   "art_asset": "placeholder",
-  "category": "other",
-  "make": "",
+  "category": "amp",
+  "make": "Neve",
   "manifest": "gear_di_amp_mixerpre",
-  "model": "Amp_Mixer Pre",
-  "name": "Amp_Mixer Pre",
+  "model": "1073",
+  "name": "Neve 1073",
   "query_source": "fallback",
   "sound_bank": "di_amp_mixerpre",
   "tone3000_gears": "",
-  "tone3000_query": "Amp_Mixer Pre"
+  "tone3000_query": "Amp_Mixer Pre",
+  "name_correction_note": "DI preamp; modelled as bundled VST (parody face)"
  },
  "DI_Amp_TubePre": {
   "art_asset": "placeholder",
-  "category": "other",
-  "make": "",
+  "category": "amp",
+  "make": "Universal Audio",
   "manifest": "gear_di_amp_tubepre",
-  "model": "Amp_Tube Pre",
-  "name": "Amp_Tube Pre",
+  "model": "610-A",
+  "name": "Universal Audio 610",
   "query_source": "fallback",
   "sound_bank": "di_amp_tubepre",
   "tone3000_gears": "",
-  "tone3000_query": "Amp_Tube Pre"
+  "tone3000_query": "Amp_Tube Pre",
+  "name_correction_note": "DI preamp; modelled as bundled VST (parody face)"
  },
  "Pedal_80sFlanger": {
   "art_asset": "80's-flanger",

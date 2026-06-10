@@ -6834,6 +6834,142 @@
       const pj=.875*W, pjy=.460*H; const jg2=c.createRadialGradient(pj-2*s,pjy-2*s,1*s,pj,pjy,7*s); jg2.addColorStop(0,rgb(255,160,90)); jg2.addColorStop(1,rgb(190,60,20));
       c.beginPath(); c.arc(pj,pjy,6*s,0,7); c.fillStyle=jg2; c.fill(); textC(d,.875*W,.560*H,F.barlow,6.5,cream,'POWER'); } };
 
+  // ── MULTIVERSAL 610 (UA 610-A console module) — mint-green module strip on
+  //    wood rails, black inner panel. 0 Gain (big LEVEL) 1 Low EQ 2 High EQ
+  //    3 Level (OUTPUT) + Hi Gain(4) + Mic(5). DI: tube console preamp.
+  P.multiversal610 = { w:1500, h:560, ptr:rgb(235,232,225), tick:rgb(150,146,138),
+    knobs:[
+      {id:1,cx:.385,cy:.42,r:.0175,style:'davies',cap:[24,24,26]},  // L.F.
+      {id:2,cx:.475,cy:.42,r:.0175,style:'davies',cap:[24,24,26]},  // H.F.
+      {id:0,cx:.625,cy:.50,r:.032,style:'davies',cap:[18,18,20]},   // LEVEL (big = Gain)
+      {id:3,cx:.775,cy:.50,r:.019,style:'davies',cap:[24,24,26]} ], // OUTPUT
+    sw3:[
+      {id:4,cx:.245,cy:.42,hw:10,hh:16,two:true},   // LO / HI gain
+      {id:5,cx:.245,cy:.70,hw:10,hh:16,two:true} ], // LINE / MIC
+    draw(d,vals){ const {ctx:c,W,H,s}=d;
+      const mint=rgb(150,184,164), mintD=rgb(122,158,138), ink=rgb(22,22,22), cream=rgb(235,232,225);
+      // wood rails
+      const wg=c.createLinearGradient(0,0,0,H); wg.addColorStop(0,rgb(168,118,72)); wg.addColorStop(1,rgb(128,84,48));
+      c.fillStyle=wg; c.fillRect(0,0,W,H);
+      c.save(); c.beginPath(); c.rect(0,0,W,H); c.clip(); c.strokeStyle='rgba(70,40,18,0.25)'; c.lineWidth=2*s;
+      for(let yy=8*s; yy<H; yy+=14*s){ c.beginPath(); c.moveTo(0,yy); c.bezierCurveTo(W*.3,yy+5*s,W*.7,yy-5*s,W,yy); c.stroke(); } c.restore();
+      // mint module strip
+      const mx=.16*W, mw=.74*W;
+      const mg=c.createLinearGradient(0,0,0,H); mg.addColorStop(0,mint); mg.addColorStop(1,mintD);
+      c.fillStyle=mg; c.fillRect(mx,0,mw,H);
+      c.strokeStyle=rgb(70,96,82); c.lineWidth=2.4*s; c.strokeRect(mx,0,mw,H);
+      const bolt=(x,y)=>{ const g=c.createRadialGradient(x-1*s,y-1*s,0.5*s,x,y,3*s); g.addColorStop(0,rgb(240,242,244)); g.addColorStop(1,rgb(130,134,138));
+        c.beginPath(); c.arc(x,y,2.8*s,0,7); c.fillStyle=g; c.fill(); };
+      bolt(mx+12*s,12*s); bolt(mx+mw-12*s,12*s); bolt(mx+12*s,H-12*s); bolt(mx+mw-12*s,H-12*s);
+      // black inner panel
+      const px=mx+.025*W, pw=mw-.05*W, py=.10*H, ph=.80*H;
+      rr(c,px,py,pw,ph,6*s); c.fillStyle=rgb(24,24,26); c.fill();
+      rr(c,px,py,pw,ph,6*s); c.strokeStyle=rgb(96,120,106); c.lineWidth=1.6*s; c.stroke();
+      textSpaced(d,.305*W,.21*H,F.barlow,9,cream,'MODULAR AMPLIFIER 610',0.25);
+      // diamond logo + brand
+      const dx=.875*W*0+px+pw-.06*W, dy=.22*H;
+      c.save(); c.translate(dx,dy); c.rotate(Math.PI/4); c.strokeStyle=cream; c.lineWidth=2*s; c.strokeRect(-9*s,-9*s,18*s,18*s); c.restore();
+      textC(d,dx,dy,F.crete,12,cream,'M');
+      textC(d,.625*W,.20*H,F.crete,22,cream,'Multiversal','center');
+      // switch legends
+      textC(d,.245*W,.27*H,F.barlow,8,cream,'GAIN'); textC(d,.215*W,.42*H,F.barlow,7,cream,'LO','right'); textC(d,.275*W,.42*H,F.barlow,7,cream,'HI','left');
+      textC(d,.215*W,.70*H,F.barlow,7,cream,'LINE','right'); textC(d,.275*W,.70*H,F.barlow,7,cream,'MIC','left');
+      // EQ legends
+      textC(d,.385*W,.62*H,F.barlow,8,cream,'L.F.'); textC(d,.475*W,.62*H,F.barlow,8,cream,'H.F.');
+      textC(d,.385*W,.27*H,F.barlow,7,cream,'-6  0  +6'); textC(d,.475*W,.27*H,F.barlow,7,cream,'-6  0  +6');
+      // LEVEL arc ticks + legends
+      textC(d,.625*W,.30*H,F.barlow,8.5,cream,'LEVEL');
+      textC(d,.775*W,.30*H,F.barlow,8,cream,'OUTPUT');
+      textC(d,.745*W,.66*H,F.barlow,6.5,cream,'OFF','right'); textC(d,.808*W,.66*H,F.barlow,6.5,cream,'+12','left'); } };
+
+  // ── SINAMP BASS DRIVER (Tech21 SansAmp BDDI v2) — black speckled DI pedal,
+  //    yellow legends. 0 Drive 1 Presence 2 Blend 3 Bass 4 Mid 5 Treble
+  //    6 Level + Bass Shift(7) + Mid Shift(8).
+  P.sinampbassdriver = { w:1100, h:980, ptr:rgb(244,222,38), tick:rgb(120,112,60),
+    knobs:[
+      {id:6,cx:.155,cy:.255,r:.044,style:'davies',cap:[20,20,20]},  // LEVEL
+      {id:2,cx:.330,cy:.255,r:.044,style:'davies',cap:[20,20,20]},  // BLEND
+      {id:5,cx:.505,cy:.255,r:.044,style:'davies',cap:[20,20,20]},  // TREBLE
+      {id:1,cx:.680,cy:.255,r:.044,style:'davies',cap:[20,20,20]},  // PRESENCE
+      {id:0,cx:.860,cy:.255,r:.044,style:'davies',cap:[20,20,20]},  // DRIVE
+      {id:4,cx:.420,cy:.450,r:.044,style:'davies',cap:[20,20,20]},  // MID
+      {id:3,cx:.595,cy:.450,r:.044,style:'davies',cap:[20,20,20]} ],// BASS
+    sw3:[
+      {id:8,cx:.330,cy:.620,hw:9,hh:14,two:true},   // MID SHIFT 1000/500
+      {id:7,cx:.480,cy:.620,hw:9,hh:14,two:true} ], // BASS SHIFT 80/40
+    draw(d,vals){ const {ctx:c,W,H,s}=d;
+      const yel=rgb(244,222,38), blk=rgb(26,25,24);
+      c.fillStyle=blk; c.fillRect(0,0,W,H);
+      // speckle texture (deterministic)
+      c.save(); for(let i=0;i<560;i++){ const xx=((i*73)%97)/97*W, yy=((i*131)%89)/89*H;
+        c.fillStyle = (i%3===0)?'rgba(200,200,200,0.10)':'rgba(0,0,0,0.35)';
+        c.fillRect(xx,yy,1.6*s,1.6*s); } c.restore();
+      rr(c,.02*W,.015*H,.96*W,.97*H,10*s); c.strokeStyle='rgba(255,255,255,0.10)'; c.lineWidth=2*s; c.stroke();
+      const lbl=(x,y,t,sz)=>textSpaced(d,x*W,y*H,F.barlow,sz||10,yel,t,0.4);
+      lbl(.155,.135,'LEVEL'); lbl(.330,.135,'BLEND'); lbl(.505,.135,'TREBLE'); lbl(.680,.135,'PRESENCE',9); lbl(.860,.135,'DRIVE');
+      lbl(.255,.450,'MID'); lbl(.745,.450,'BASS');
+      // shift switches + legends
+      lbl(.330,.555,'SHIFT',8); textC(d,.330*W,.690*H,F.barlow,7,yel,'500/1000 Hz');
+      lbl(.480,.555,'SHIFT',8); textC(d,.480*W,.690*H,F.barlow,7,yel,'40/80 Hz');
+      // LED
+      const lg=c.createRadialGradient(.640*W-1*s,.620*H-1*s,1*s,.640*W,.620*H,6*s); lg.addColorStop(0,rgb(255,120,110)); lg.addColorStop(1,rgb(170,30,24));
+      c.beginPath(); c.arc(.640*W,.620*H,5.5*s,0,7); c.fillStyle=lg; c.fill();
+      // IN/OUT legends
+      textC(d,.060*W,.450*H,F.barlow,8,yel,'OUT'); textC(d,.930*W,.450*H,F.barlow,8,yel,'INPUT');
+      // brand block
+      textC(d,.42*W,.800*H,F.anton,40,yel,'SinAmp','center');
+      textSpaced(d,.42*W,.880*H,F.barlow,15,yel,'BASS DRIVER DI',0.5);
+      // footswitch
+      const fx=.82*W, fy=.840*H;
+      const fg=c.createRadialGradient(fx-4*s,fy-4*s,3*s,fx,fy,26*s); fg.addColorStop(0,rgb(235,238,242)); fg.addColorStop(1,rgb(120,124,130));
+      c.beginPath(); c.arc(fx,fy,24*s,0,7); c.fillStyle=fg; c.fill(); c.strokeStyle=rgb(60,62,66); c.lineWidth=2*s; c.stroke();
+      c.beginPath(); c.arc(fx,fy,16*s,0,7); c.strokeStyle='rgba(0,0,0,0.30)'; c.lineWidth=1.6*s; c.stroke(); } };
+
+  // ── MEVE 1073 (Neve 1073 channel amp) — marengo-grey rack strip: red GAIN,
+  //    silver EQ knobs w/ freq selectors, blue HPF. 0 Gain 1 Low 2 LowFreq(4)
+  //    3 Mid 4 MidFreq(6) 5 High 6 HPF(5) 7 Output. DI: class-A console pre.
+  P.meve1073 = { w:1560, h:430, ptr:rgb(238,238,240), tick:rgb(170,172,176),
+    knobs:[
+      {id:0,cx:.105,cy:.46,r:.026,style:'moog',cap:[152,32,42]},    // GAIN (red)
+      {id:5,cx:.255,cy:.46,r:.024,style:'moog',cap:[148,150,152]},  // HIGH +/- (12k)
+      {id:3,cx:.405,cy:.46,r:.024,style:'moog',cap:[148,150,152]},  // MID +/-
+      {id:4,cx:.495,cy:.62,r:.015,style:'moog',cap:[110,112,116],select:6},  // MID FREQ
+      {id:1,cx:.605,cy:.46,r:.024,style:'moog',cap:[148,150,152]},  // LOW +/-
+      {id:2,cx:.695,cy:.62,r:.015,style:'moog',cap:[110,112,116],select:4},  // LOW FREQ
+      {id:6,cx:.805,cy:.46,r:.022,style:'moog',cap:[44,74,116],select:5},    // HPF (blue)
+      {id:7,cx:.930,cy:.46,r:.018,style:'moog',cap:[148,150,152]} ],// OUTPUT
+    draw(d,vals){ const {ctx:c,W,H,s}=d;
+      const pan=rgb(54,62,66), panD=rgb(42,50,54), wht=rgb(236,238,240);
+      const pg=c.createLinearGradient(0,0,0,H); pg.addColorStop(0,pan); pg.addColorStop(1,panD);
+      c.fillStyle=pg; c.fillRect(0,0,W,H);
+      c.strokeStyle='rgba(0,0,0,0.5)'; c.lineWidth=3*s; c.strokeRect(1.5*s,1.5*s,W-3*s,H-3*s);
+      const bolt=(x,y)=>{ const g=c.createRadialGradient(x-1*s,y-1*s,0.5*s,x,y,4*s); g.addColorStop(0,rgb(220,224,228)); g.addColorStop(1,rgb(100,104,110));
+        c.beginPath(); c.arc(x,y,3.4*s,0,7); c.fillStyle=g; c.fill(); };
+      bolt(.022*W,.14*H); bolt(.022*W,.86*H); bolt(.978*W,.14*H); bolt(.978*W,.86*H);
+      // brand squiggle + name
+      c.save(); c.strokeStyle=wht; c.lineWidth=2.2*s; c.beginPath();
+      const sx=.045*W, sy=.16*H; c.arc(sx-5*s,sy,5*s,Math.PI,0,false); c.arc(sx+5*s,sy,5*s,0,Math.PI,true); c.stroke(); c.restore();
+      textC(d,.105*W,.13*H,F.barlow,9,wht,'MEVE');
+      // GAIN ring legends (mic/line dB)
+      textC(d,.105*W,.85*H,F.barlow,8.5,wht,'GAIN  dB');
+      textC(d,.063*W,.30*H,F.barlow,6.5,wht,'-80','right'); textC(d,.147*W,.30*H,F.barlow,6.5,wht,'LINE','left');
+      textC(d,.063*W,.62*H,F.barlow,6.5,wht,'MIC.','right'); textC(d,.147*W,.62*H,F.barlow,6.5,wht,'-20','left');
+      // EQ section legends (the 1073 glyphs as text)
+      textC(d,.255*W,.16*H,F.barlow,8,wht,'HIGH  12K');
+      textC(d,.255*W,.85*H,F.barlow,7,wht,'+        -');
+      textC(d,.405*W,.16*H,F.barlow,8,wht,'PRESENCE');
+      textC(d,.405*W,.85*H,F.barlow,7,wht,'+        -');
+      textC(d,.495*W,.85*H,F.barlow,6.5,wht,'KHz  .36-7.2');
+      textC(d,.605*W,.16*H,F.barlow,8,wht,'LOW');
+      textC(d,.605*W,.85*H,F.barlow,7,wht,'+        -');
+      textC(d,.695*W,.85*H,F.barlow,6.5,wht,'Hz  35-220');
+      textC(d,.805*W,.16*H,F.barlow,8,wht,'HPF');
+      textC(d,.805*W,.85*H,F.barlow,6.5,wht,'OFF 50 80 160 300');
+      textC(d,.930*W,.16*H,F.barlow,8,wht,'OUTPUT');
+      // EQL plate
+      rr(c,.862*W,.30*H,.034*W,.40*H,3*s); c.fillStyle=rgb(232,234,236); c.fill();
+      textC(d,.879*W,.42*H,F.barlow,8,rgb(40,46,50),'EQL'); textC(d,.879*W,.58*H,F.barlow,8,rgb(40,46,50),'1073'); } };
+
 
   // ── render / attach ────────────────────────────────────────────────────
   function makeCtx(canvas, spec) {
