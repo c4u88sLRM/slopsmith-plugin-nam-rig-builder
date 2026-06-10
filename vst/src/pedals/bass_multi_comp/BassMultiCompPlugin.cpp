@@ -76,6 +76,16 @@ class BassMultiCompCore
     float outDc = 0.0f;
     float hpA = 0.0f;
 
+    // Auto-makeup state: slow-smoothed mean-square of the clean vs the
+    // compressed (pre-makeup) signal. makeup = sqrt(msClean/msComp) drives
+    // the compressed path back to the input's level, so raising Compress
+    // keeps the OUTPUT loudness constant regardless of how much reduction
+    // the bands apply (replaces the old open-loop curve that ballooned to
+    // +16 dB at Compress=1).
+    float msClean = 0.0f;
+    float msWet = 0.0f;
+    float msCoeff = 0.0f;
+
     EnvelopeFollower lowEnv;
     EnvelopeFollower highEnv;
 
@@ -95,6 +105,10 @@ class BassMultiCompCore
         const float highRelease = 320.0f - 270.0f * rate;
         lowEnv.setTimes(sampleRate, 13.0f - 7.0f * rate, lowRelease);
         highEnv.setTimes(sampleRate, 5.0f - 2.5f * rate, highRelease);
+
+        // ~250 ms loudness window for the auto-makeup tracker — slow enough
+        // not to pump on note onsets, fast enough to settle within a phrase.
+        msCoeff = 1.0f - std::exp(-1.0f / std::fmax(1.0f, 0.250f * sampleRate));
     }
 
     float highPass(float x)
@@ -133,6 +147,7 @@ public:
     {
         lowState = 0.0f;
         lowDc = outDc = 0.0f;
+        msClean = msWet = 0.0f;
         lowEnv.reset();
         highEnv.reset();
         updateFilters();
@@ -177,12 +192,20 @@ public:
         // Parallel component keeps attack and makes low Compress settings feel
         // like the original pedal rather than a studio limiter.
         const float dry = 0.20f * (1.0f - compress) + 0.05f;
-        // Auto-makeup: tracks the band gain-reduction so raising Compress keeps
-        // the OUTPUT level ~constant (loudness-transparent ±1 dB) instead of
-        // ducking the signal. Tuned offline against a multitone sweep so the
-        // pedal sits at ~unity across Compress 0→1. See AMP_LOUDNESS.md.
-        const float makeup = dbToGain(3.5f + 12.5f * compress * compress);
-        float y = clean * dry + compressed * (1.0f - dry) * makeup;
+        const float wet = clean * dry + compressed * (1.0f - dry);
+        // Auto-makeup (closed loop): drive the FULL wet mix to the clean
+        // signal's smoothed RMS so the OUTPUT loudness stays constant as
+        // Compress rises instead of ballooning. Matches the whole mix (not
+        // just the compressed band) so it can CUT as well as boost; range-
+        // limited (-12..+18 dB) so silence/noise can't blow up. See
+        // AMP_LOUDNESS.md.
+        msClean += msCoeff * (clean * clean - msClean);
+        msWet += msCoeff * (wet * wet - msWet);
+        float makeup = 1.0f;
+        if (msWet > 1.0e-9f && msClean > 1.0e-9f)
+            makeup = std::sqrt(msClean / msWet);
+        makeup = std::fmin(dbToGain(18.0f), std::fmax(dbToGain(-12.0f), makeup));
+        float y = wet * makeup;
 
         // Very light output safety, not an audible drive stage.
         y = std::tanh(y * 0.98f) * 0.99f;
