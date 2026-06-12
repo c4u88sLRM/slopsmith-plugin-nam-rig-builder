@@ -137,7 +137,9 @@ def measure(preset_id, g2v, gd, conn, cab_lufs_bin):
             print(f"  [no src] {gear} {stem}", file=sys.stderr); return None
         comp = _compile(srcdir)
         if not comp:
-            return None
+            print(f"  [skip piece] {gear} {stem} (unparseable — treated as passthrough)", file=sys.stderr)
+            chain_names.append(f"{gear}(SKIP)")
+            continue
         binp, info = comp
         names = info["names"]
         idx_of = {n: i for i, n in enumerate(names)}
