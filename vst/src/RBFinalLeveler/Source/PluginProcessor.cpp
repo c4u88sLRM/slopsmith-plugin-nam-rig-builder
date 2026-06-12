@@ -37,6 +37,8 @@ public:
         currentGain = 1.0f;
         limGain = 1.0f;
         levelInitialized = false;
+        detectorSeeded = false;
+        warmupSamples = 0;
         msEnv = 0.0;
         designKWeighting(sr);
         for (int ch = 0; ch < 2; ++ch) { kPre[ch].reset(); kRlb[ch].reset(); }
@@ -91,6 +93,7 @@ public:
         for (int ch = 0; ch < chN; ++ch)
             chData[ch] = buffer.getReadPointer(ch);
 
+        double sumSq = 0.0;
         for (int i = 0; i < numSamples; ++i)
         {
             double sq = 0.0;
@@ -100,7 +103,22 @@ public:
                 sq += w * w;                                   // K-weighted power
             }
             sq /= double(std::max(1, chN));
+            sumSq += sq;
             msEnv += double(rmsCoef) * (sq - msEnv);
+        }
+
+        // SEED the detector on the FIRST block that actually carries signal: jump
+        // msEnv straight to this block's mean square instead of letting the 30 ms
+        // IIR ramp up from 0. Without this the first ~90 ms read artificially
+        // quiet, so the AGC snapped to a big boost and the tone BLASTED then
+        // dropped ("suena fuerte el bajo y luego se baja") on every song/tone
+        // start. Seeding makes the very first gain decision use the real level.
+        const double blockMs = sumSq / double(std::max(1, numSamples));
+        if (! detectorSeeded && blockMs > 1.0e-9
+            && (-0.691 + 10.0 * std::log10(blockMs)) >= gateDb)
+        {
+            msEnv = blockMs;
+            detectorSeeded = true;
         }
 
         // BS.1770 loudness of the smoothed K-weighted power (mono-equivalent).
@@ -111,10 +129,24 @@ public:
         float wantedGainDb = currentGainDb;
         const bool hasSignal = loudnessLufs >= gateDb;
 
-        if (!hasSignal)
+        // Warm-up: for the first ~45 ms of signal the 30 ms detector hasn't fully
+        // settled, so its loudness reads low and the AGC would snap to a big boost
+        // → the tone BLASTS then drops on song/tone start ("suena fuerte el bajo y
+        // luego se baja"). So HOLD the gain and MUTE the output (`confidence`
+        // below) until the detector is trustworthy, then fade in over ~20 ms at
+        // the already-correct level. Net: a brief soft attack on the very first
+        // note instead of a blast. (Per fresh plugin instance = per song load.)
+        const int kWarmupHold  = int(0.045 * sr);
+        const int kWarmupFade  = std::max(1, int(0.020 * sr));
+        const int kWarmupTotal = kWarmupHold + kWarmupFade;
+        if (hasSignal && warmupSamples < kWarmupTotal)
+            warmupSamples += numSamples;
+        const bool warm = warmupSamples >= kWarmupHold;
+
+        if (!hasSignal || !warm)
         {
-            // Do not chase silence/noise. Holding the learned correction avoids
-            // the audible fade-in that happens when gain resets between notes.
+            // Silence, OR still warming the detector — don't chase a level we
+            // can't trust yet. Hold the current correction.
             wantedGainDb = currentGainDb;
         }
         else
@@ -130,12 +162,17 @@ public:
             wantedGainDb = juce::jlimit(-maxCutDb, maxBoostDb, wantedGainDb);
         }
 
-        if (hasSignal && !levelInitialized)
+        if (hasSignal && warm && !levelInitialized)
         {
             currentGainDb = juce::jlimit(-maxCutDb, maxBoostDb, wantedGainDb);
             currentGain = juce::Decibels::decibelsToGain(currentGainDb);   // AGC gain only (makeup applied later)
             levelInitialized = true;
         }
+
+        // Output confidence: 0 while the detector warms up (output muted), then
+        // ramps to 1 over kWarmupFade once the gain is trustworthy.
+        const float confidence = juce::jlimit(0.0f, 1.0f,
+            float(warmupSamples - kWarmupHold) / float(kWarmupFade));
 
         // Cutting reacts fast, boosting is slower (avoids audible fade-in).
         const bool cutting = wantedGainDb < currentGainDb;
@@ -181,7 +218,7 @@ public:
             const float need = (pk > ceilLin && pk > 0.0f) ? (ceilLin / pk) : 1.0f;
             if (need < limGain) limGain = need;                       // instant attack: no overshoot
             else                limGain += relCoef * (need - limGain); // slow release
-            const float tot = gAgc * limGain * makeupGain;            // ...makeup applied last, clean
+            const float tot = gAgc * limGain * makeupGain * confidence;  // ...makeup + warm-up fade, last
             for (int ch = 0; ch < numChannels; ++ch)
                 buffer.getWritePointer(ch)[i] *= tot;
         }
@@ -223,6 +260,8 @@ private:
     float currentGain = 1.0f;
     float limGain = 1.0f;   // brickwall peak-limiter gain (post-AGC)
     bool levelInitialized = false;
+    bool detectorSeeded = false;   // jump msEnv to the real level on first signal
+    int warmupSamples = 0;         // signal samples seen — gates the first gain decision
     double msEnv = 0.0;   // running mean-square of the K-weighted signal (~30 ms)
 
     // ── ITU-R BS.1770 K-weighting (perceptual loudness) ───────────────────

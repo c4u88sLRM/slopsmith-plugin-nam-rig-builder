@@ -1,5 +1,22 @@
 # Rig Builder — handoff doc
 
+> **Leveler start-up blast fix — detector warm-up (2026-06-12, branch
+> `feat/amp-loudness-normalize`).** After the load-mute fixes the user STILL heard
+> "fuerte el bajo y luego se baja" on song start (confirmed with a full
+> Cmd+Q + `pkill` restart). Root cause was the LEVELER, not the mute: its 30 ms
+> mean-square detector (`msEnv`) starts at 0, so the first ~90 ms read
+> artificially quiet → the AGC snapped to a big BOOST → the tone blasted, then
+> dropped as the detector caught up. Fix in `PluginProcessor.cpp`: (1) **seed** —
+> on the first signal block, jump `msEnv` straight to that block's mean square
+> instead of ramping from 0; (2) **warm-up** — for the first ~45 ms of signal HOLD
+> the gain and MUTE the output (`confidence` ramp), so the detector fully settles
+> before the AGC's first decision, then fade in over ~20 ms at the
+> already-correct level. Sim (real DSP): start-up overshoot 10.6 dB (none) → 6.2
+> (seed) → **0.4 dB (warm-up)**. Net: a brief soft attack on the very first note
+> per song load instead of a blast. State reset in prepareToPlay
+> (`warmupSamples`/`detectorSeeded`). Rebuild+install+sign the racks bundle as
+> usual; restart Slopsmith.
+
 > **Load-mute: full silence + un-mute on the FIRST REAL TONE (2026-06-12, branch
 > `feat/amp-loudness-normalize`).** User still heard "el instrumento fuerte y
 > después baja" on song load. Two causes, both in `screen.js`:
