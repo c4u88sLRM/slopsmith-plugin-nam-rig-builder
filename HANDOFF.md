@@ -1,5 +1,34 @@
 # Rig Builder — handoff doc
 
+> **RB Final Leveler → un-starve the boost + brickwall limiter (2026-06-12,
+> branch `feat/amp-loudness-normalize`).** Even with the LUFS detector a song's
+> tones still sounded uneven ("muy distintos"), specifically: loud tones clean
+> but loud, quiet tones never brought up. ROOT CAUSE: the AGC clamped its boost
+> by the instantaneous peak (`maxAllowedByPeak = ceiling − peakDb`) — so a tone
+> couldn't be boosted toward the loudness target without its peaks crossing the
+> ceiling. That **starved the boost on quieter tones** (they stayed quiet) while
+> compressed loud tones got cut fine. The user's global "Chain volume" makeup
+> (×5 = +14 dB, baked into the leveler Output Trim) then amplified the gap. FIX
+> in `PluginProcessor.cpp`: (1) drive the AGC PURELY by loudness (LUFS) to the
+> target — no peak clamp on the boost; (2) catch transients with a **brickwall
+> peak limiter** on the output (instant attack so it never overshoots the
+> ceiling, ~80 ms release). Net: quiet tones get boosted to the target loudness
+> (the comp finally "raises the low volumes") and peaks stay safe. Verified
+> offline (sim of the real DSP): two distorted tones 17 dB apart in input level
+> both land within ~1 dB at the output with peaks ≤ ceiling — the OLD path only
+> matched them by CLIPPING (peaks at 1.00). CAVEAT (real DSP limit, not a bug):
+> a VERY high-crest CLEAN/dynamic tone still can't be made as LOUD as a
+> compressed one without compressing it (peak ≈ loudness + crest must fit under
+> the ceiling); the user's tones are all distorted (low, similar crest) so they
+> level evenly. With the leveler now working, the +14 dB makeup pushes ~6 dB of
+> limiting — the user may want to lower "Chain volume" for a cleaner, less
+> squashed result. Build/install/sign + restart steps same as the LUFS note
+> below. Diagnostic tools added: `tools/measure_tone_loudness.py` +
+> `tools/dpf_pipe_harness.cpp.in` + `tools/cab_lufs.cpp` measure a tone's actual
+> full-chain (pedal→amp→rack→cab) LUFS offline (each VST piece is a separate
+> stdin→stdout process; skips reverb/chorus tones that allocate in activate()).
+> This is how the bass tones were found at +3..+7 LUFS pre-leveler (clipping-hot).
+
 > **RB Final Leveler → perceptual LUFS detector (2026-06-12, branch
 > `feat/amp-loudness-normalize`).** Symptom: a song's tones still sounded at
 > different volumes even with per-amp leveling — because tone loudness is

@@ -35,6 +35,7 @@ public:
         sr = sampleRate > 0.0 ? sampleRate : 48000.0;
         currentGainDb = 0.0f;
         currentGain = 1.0f;
+        limGain = 1.0f;
         levelInitialized = false;
         msEnv = 0.0;
         designKWeighting(sr);
@@ -85,7 +86,6 @@ public:
         const float rmsTauMs = 30.0f;
         const float rmsCoef = 1.0f - std::exp(-1.0f / std::max(1.0f, (rmsTauMs / 1000.0f) * float(sr)));
 
-        float peak = 0.0f;
         const float* chData[2] = { nullptr, nullptr };
         const int chN = std::min(numChannels, 2);
         for (int ch = 0; ch < chN; ++ch)
@@ -96,9 +96,7 @@ public:
             double sq = 0.0;
             for (int ch = 0; ch < chN; ++ch)
             {
-                const float x = chData[ch][i];
-                peak = std::max(peak, std::abs(x));            // raw peak for anti-clip
-                const double w = kRlb[ch].process(kPre[ch].process(double(x)));
+                const double w = kRlb[ch].process(kPre[ch].process(double(chData[ch][i])));
                 sq += w * w;                                   // K-weighted power
             }
             sq /= double(std::max(1, chN));
@@ -109,8 +107,6 @@ public:
         const float loudnessLufs = (msEnv > 1.0e-12)
             ? float(-0.691 + 10.0 * std::log10(msEnv))
             : -120.0f;
-
-        const float peakDb = juce::Decibels::gainToDecibels(peak, -120.0f);
 
         float wantedGainDb = currentGainDb;
         const bool hasSignal = loudnessLufs >= gateDb;
@@ -123,14 +119,15 @@ public:
         }
         else
         {
-            // targetRmsDb is now a target LUFS (param name kept for state compat).
+            // Drive purely by LOUDNESS to the target (param name kept for state
+            // compat). Crucially we do NOT clamp the boost by the instantaneous
+            // peak here — that starved the boost on quiet/dynamic high-crest
+            // tones, so they stayed quiet ("the comp must raise the low
+            // volumes") while compressed loud tones got cut. Transients are
+            // caught by the brickwall limiter on the output instead, so loudness
+            // is leveled and peaks are still safe.
             wantedGainDb = targetRmsDb - loudnessLufs;
             wantedGainDb = juce::jlimit(-maxCutDb, maxBoostDb, wantedGainDb);
-
-            // Anti-clip: si el peak ya está cerca de 0 dBFS, limita el boost.
-            const float maxAllowedByPeak = ceilingDb - peakDb;
-            if (wantedGainDb > maxAllowedByPeak)
-                wantedGainDb = maxAllowedByPeak;
         }
 
         if (hasSignal && !levelInitialized)
@@ -163,8 +160,31 @@ public:
         const float finalGainDb = currentGainDb + trimDb;
         const float nextGain = juce::Decibels::decibelsToGain(finalGainDb);
 
-        for (int ch = 0; ch < numChannels; ++ch)
-            buffer.applyGainRamp(ch, 0, numSamples, currentGain, nextGain);
+        // Apply the AGC gain ramp, then a brickwall peak limiter at the ceiling.
+        // Boosting quiet/dynamic tones to the loudness target makes their peaks
+        // hot; the limiter (instant attack so it never overshoots, ~80 ms
+        // release for transparency) keeps the output under the ceiling without
+        // starving the loudness normalization. The makeup (Output Trim) is part
+        // of `nextGain`, so the limiter sees the real output level.
+        const float ceilLin = juce::Decibels::decibelsToGain(ceilingDb);
+        const float relCoef = 1.0f - std::exp(-1.0f / std::max(1.0f, 0.080f * float(sr)));
+        const float invN = numSamples > 1 ? 1.0f / float(numSamples - 1) : 0.0f;
+        float* wch[2] = { nullptr, nullptr };
+        for (int ch = 0; ch < chN; ++ch) wch[ch] = buffer.getWritePointer(ch);
+
+        for (int i = 0; i < numSamples; ++i)
+        {
+            const float g = currentGain + (nextGain - currentGain) * (float(i) * invN);
+            float pk = 0.0f;
+            for (int ch = 0; ch < chN; ++ch)
+                pk = std::max(pk, std::abs(wch[ch][i]) * g);
+            const float need = (pk > ceilLin && pk > 0.0f) ? (ceilLin / pk) : 1.0f;
+            if (need < limGain) limGain = need;                       // instant attack: no overshoot
+            else                limGain += relCoef * (need - limGain); // slow release
+            const float tot = g * limGain;
+            for (int ch = 0; ch < numChannels; ++ch)
+                buffer.getWritePointer(ch)[i] *= tot;
+        }
 
         currentGain = nextGain;
     }
@@ -201,6 +221,7 @@ private:
     double sr = 48000.0;
     float currentGainDb = 0.0f;
     float currentGain = 1.0f;
+    float limGain = 1.0f;   // brickwall peak-limiter gain (post-AGC)
     bool levelInitialized = false;
     double msEnv = 0.0;   // running mean-square of the K-weighted signal (~30 ms)
 
