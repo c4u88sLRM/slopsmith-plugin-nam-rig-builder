@@ -1,5 +1,23 @@
 # Rig Builder — handoff doc
 
+> **Edit: non-recreated VSTs open their NATIVE window (2026-06-12, branch
+> `feat/amp-loudness-normalize`).** User: VSTs without an in-app recreation should
+> open the plugin's own window on Edit instead of generic synthesized sliders —
+> "solo si no se puede integrar el ui del vst al juego". New editor priority in
+> `screen.js`: (1) **faithful in-app canvas** (`rbHasCanvasUI(piece)` = there's an
+> `RBPedalCanvas` spec for the stem) → in-app face; (2) **native window** for any
+> VST we HAVEN'T recreated → `await rbTryOpenNativeEditor(api, slotId)` (opens
+> `openPluginEditor`, returns false if the plugin is UI-less / rejects) + a slim
+> `rbNativeEditorPanelHtml` info row with 📸 Capture + ✕; (3) **generic sliders**
+> only as the UI-less fallback (native window failed). Two new helpers
+> (`rbTryOpenNativeEditor`, `rbNativeEditorPanelHtml`) wired into `rbToneEditVst`
+> (~3643), `rbMasterEditVst` (~4491), and the gear catalog `rbCatalogEditInline`
+> (~8835, now routes ANY non-faithful VST to `rbCatalogEditVst`'s native window,
+> not just param-less ones). The native window is tracked via `_vstEditorSlot` so
+> `rbCloseActiveVstEditor` closes it on navigation. Edit params in the native
+> window → 📸 Capture snapshots them into the tone/master saved state. Pure JS —
+> restart Slopsmith to load.
+
 > **Leveler start-up blast fix — detector warm-up (2026-06-12, branch
 > `feat/amp-loudness-normalize`).** After the load-mute fixes the user STILL heard
 > "fuerte el bajo y luego se baja" on song start (confirmed with a full

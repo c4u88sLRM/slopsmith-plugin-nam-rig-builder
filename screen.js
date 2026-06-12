@@ -3637,18 +3637,18 @@ async function rbToneEditVst(toneIdx, pIdx) {
                 }
             } catch (_) { /* mapping is best-effort; defaults remain on failure */ }
         }
-        // Render the inline slider panel / canvas FIRST so a headless plugin (no
-        // GUI — e.g. the bundled QTron envelope filter) still gets an editable
-        // panel even if openPluginEditor misbehaves for a UI-less plugin.
-        const usedCanvas = rbToneRenderInlineVstParams(toneIdx, pIdx);
-        // Only fall back to the native plugin window when we DON'T have an in-app
-        // canvas recreation — the canvas is the inline editor now. (Tracked via
-        // _vstEditorSlot so it's closed on navigation, even for an in-chain slot.)
-        if (!usedCanvas && api.openPluginEditor) {
-            try {
-                const _ed = api.openPluginEditor(slotId);
-                if (_ed && typeof _ed.catch === 'function') _ed.catch(() => {});
-            } catch (_) { /* UI-less plugin: no native editor view to open */ }
+        // Editor priority: (1) faithful in-app canvas recreation; (2) for VSTs we
+        // HAVEN'T recreated, the plugin's OWN native window on top (the real UI,
+        // not generic sliders); (3) generic in-app sliders only when the plugin
+        // has no native window (UI-less, e.g. a headless filter).
+        if (rbHasCanvasUI(piece)) {
+            rbToneRenderInlineVstParams(toneIdx, pIdx);
+        } else if (await rbTryOpenNativeEditor(api, slotId)) {
+            const _nm = vstPath.split('/').pop().replace(/\.(vst3|component)$/i, '');
+            editor.innerHTML = rbNativeEditorPanelHtml(
+                _nm, `rbToneCaptureVstState(${toneIdx}, ${pIdx})`, `rbToneEditVst(${toneIdx}, ${pIdx})`);
+        } else {
+            rbToneRenderInlineVstParams(toneIdx, pIdx);   // UI-less fallback: generic sliders
         }
     } catch (e) {
         editor.innerHTML = `<div class="text-xs text-red-400">load failed: ${rbEsc(rbFriendlyVstLoadError(e))}</div>`;
@@ -3686,6 +3686,36 @@ function rbCanvasStem(piece) {
 // True if we have an in-app canvas recreation of this piece's plugin UI.
 function rbHasCanvasUI(piece) {
     return !!(window.RBPedalCanvas && window.RBPedalCanvas.has(rbCanvasStem(piece)));
+}
+
+// Try to open the plugin's OWN native window. Returns true if it opened, false
+// if the plugin is UI-less (openPluginEditor rejects) or the API is missing.
+// Used for VSTs we haven't recreated in-app: show the real plugin UI on top
+// instead of generic synthesized sliders. Awaits so we can fall back cleanly.
+async function rbTryOpenNativeEditor(api, slotId) {
+    if (!api || typeof api.openPluginEditor !== 'function' || slotId == null) return false;
+    try { await api.openPluginEditor(slotId); return true; }
+    catch (e) { console.warn('[rig_builder] this plugin has no native editor window:', e); return false; }
+}
+
+// Inline panel shown when a non-recreated VST is being edited in its own native
+// window: just a header + Capture (snapshot the params tweaked in that window
+// into the tone/master saved state) + close. `captureCall`/`closeCall` are the
+// onclick expressions for the relevant scope (tone vs master).
+function rbNativeEditorPanelHtml(vstName, captureCall, closeCall) {
+    return `
+        <div class="flex items-center justify-between mb-1">
+            <div class="text-[11px] text-purple-300 font-semibold">Editing in the plugin's own window · ${rbEsc(vstName)}</div>
+            <div class="flex items-center gap-1">
+                <button onclick="${captureCall}"
+                        title="Snapshot the current parameter values into the saved state"
+                        class="bg-amber-700/60 hover:bg-amber-600/60 text-amber-100 text-[10px] px-2 py-0.5 rounded">📸 Capture state</button>
+                <button onclick="${closeCall}"
+                        title="Close editor"
+                        class="text-[10px] text-gray-400 hover:text-gray-200 px-1">✕</button>
+            </div>
+        </div>
+        <div class="text-[10px] text-gray-500">This plugin's UI opened in a separate window — tweak it there, then 📸 Capture to save into this tone.</div>`;
 }
 
 // Display width for the inline canvas. Keep each VST at a readable default
@@ -4455,15 +4485,17 @@ async function rbMasterEditVst(role, idx) {
             const v  = param.value ?? param.current;
             if (id != null && typeof v === 'number') piece._vst_params[id] = v;
         }
-        // Render inline sliders FIRST (headless plugins like the bundled QTron
-        // have no native window); then open the plugin's own editor window as
-        // an optional visual. The inline sliders drive everything regardless.
-        const usedCanvas = rbMasterRenderInlineVstParams(role, idx);
-        if (!usedCanvas && api.openPluginEditor) {
-            try {
-                const _ed = api.openPluginEditor(slotId);
-                if (_ed && typeof _ed.catch === 'function') _ed.catch(() => {});
-            } catch (_) { /* UI-less plugin: no native editor view to open */ }
+        // Editor priority: (1) faithful in-app canvas recreation; (2) the
+        // plugin's OWN native window for VSTs we haven't recreated; (3) generic
+        // in-app sliders only when the plugin is UI-less (no native window).
+        if (rbHasCanvasUI(piece)) {
+            rbMasterRenderInlineVstParams(role, idx);
+        } else if (await rbTryOpenNativeEditor(api, slotId)) {
+            const _nm = vstPath.split('/').pop().replace(/\.(vst3|component)$/i, '');
+            editor.innerHTML = rbNativeEditorPanelHtml(
+                _nm, `rbMasterCaptureVstState('${role}', ${idx})`, `rbMasterEditVst('${role}', ${idx})`);
+        } else {
+            rbMasterRenderInlineVstParams(role, idx);   // UI-less fallback: generic sliders
         }
     } catch (e) {
         editor.innerHTML = `<div class="text-xs text-red-400">load failed: ${rbEsc(rbFriendlyVstLoadError(e))}</div>`;
@@ -8799,8 +8831,10 @@ async function rbCatalogEditInline(safeId, vstPath, vstFormat, rsGear, stem) {
             const raw = (typeof api.getParameters === 'function' ? await api.getParameters(slotId) : []) || [];
             model = rbBuildCanvasModel(raw, null);
         } catch (_) {}
-        // No canvas spec AND no params to synthesize one → use the native window.
-        if (!window.RBPedalCanvas.has(stem) && model.logicalParams.length === 0) {
+        // No faithful in-app canvas recreation → open the plugin's OWN native
+        // window (the real UI) instead of generic synthesized sliders. rbCatalog
+        // EditVst falls back to a message only if the plugin is also UI-less.
+        if (!window.RBPedalCanvas.has(stem)) {
             el.classList.add('hidden'); el.innerHTML = '';
             return rbCatalogEditVst(vstPath, vstFormat, rsGear);
         }
