@@ -129,11 +129,14 @@ class MiniBruteCore
         // so single-notes stay round (the classic Polytone "thump").
         warmth.setPeaking(sampleRate, 240.0f, 0.80f, 1.6f);
 
-        // Small solid-state 1x12 combo cab.
+        // Small solid-state 1x12 combo cab. Open the cab lowpass for a miked-cab
+        // brightness, with a gain-dependent retreat (VOLUME is the only drive) so
+        // a cranked tone doesn't get fizzy.
+        const float spkPush = smoothstep(volume);
         speakerHp.setHighPass(sampleRate, 75.0f, 0.72f);
         speakerThump.setPeaking(sampleRate, 110.0f, 0.85f, 1.8f + 1.4f * bass);
         speakerBody.setPeaking(sampleRate, 720.0f, 0.80f, -1.4f);   // scoop the boxy mid
-        speakerLp.setLowPass(sampleRate, 5400.0f + 1600.0f * treble + (brite >= 0.5f ? 1400.0f : 0.0f), 0.66f);
+        speakerLp.setLowPass(sampleRate, 14000.0f + 1600.0f * treble + (brite >= 0.5f ? 1400.0f : 0.0f) - 3500.0f * spkPush, 0.66f);
     }
 
 public:

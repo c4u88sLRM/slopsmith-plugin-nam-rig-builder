@@ -18,6 +18,20 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
+		<key>x86_64-linux/EpicallRuby.so</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			oT/wxpWK1mre+M/LjFae4jNCMFLAUpc+9D2wUKTN4yU=
+			</data>
+		</dict>
+		<key>x86_64-win/EpicallRuby.vst3</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			T0Jhyksmtk88UBBm3NUXFbvdQuyfm8DfM3Z9ZCuImj4=
+			</data>
+		</dict>
 	</dict>
 	<key>rules</key>
 	<dict>

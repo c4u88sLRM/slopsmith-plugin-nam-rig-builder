@@ -18,6 +18,20 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
+		<key>x86_64-linux/CitrusRumbleverb50.so</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			e1HHAltFzwnv2EnjLemhQ3+rbl6C7e6OFA4P73aRbHA=
+			</data>
+		</dict>
+		<key>x86_64-win/CitrusRumbleverb50.vst3</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			jYmEaC2EWmL6eq7lSZgwwQwN2eJgfOAwRorEtxrDobQ=
+			</data>
+		</dict>
 	</dict>
 	<key>rules</key>
 	<dict>

@@ -18,6 +18,20 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
+		<key>x86_64-linux/TW40.so</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			87G7HxKrNKBkAz27YBHRWOXagssi8ip0a6Nw6J6m+18=
+			</data>
+		</dict>
+		<key>x86_64-win/TW40.vst3</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			zoOIq5/vcZhLbnvJAQmjcyKlrdq2STeEt9xe68K9hAk=
+			</data>
+		</dict>
 	</dict>
 	<key>rules</key>
 	<dict>

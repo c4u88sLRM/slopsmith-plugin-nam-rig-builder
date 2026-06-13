@@ -130,7 +130,7 @@ class Ad50Core
         }
         // the thick Orange midrange honk baked into the voice (fixed center)
         midThick.setPeaking(sampleRate, 520.0f, 0.60f, 2.0f + 1.2f * pushed);
-        phaseLp.setLowPass(sampleRate, 7000.0f + 1300.0f * treble - 800.0f * pushed, 0.64f);
+        phaseLp.setLowPass(sampleRate, 10500.0f + 1300.0f * treble - 2000.0f * pushed, 0.64f);
         // PRESENCE = power-amp NFB high-shelf (controllable, unlike the OR50's fixed)
         presenceShelf.setHighShelf(sampleRate, 2700.0f, 0.78f, eqDb(presence, 6.0f) + 1.8f);
 
@@ -138,9 +138,9 @@ class Ad50Core
         speakerHp.setHighPass(sampleRate, 86.0f, 0.72f);
         speakerThump.setPeaking(sampleRate, 124.0f, 0.84f, 1.4f + 2.1f * bass);
         speakerLowMid.setPeaking(sampleRate, 460.0f, 0.72f, 1.8f);
-        speakerBite.setPeaking(sampleRate, 2400.0f + 480.0f * treble, 0.78f, 1.0f + 1.8f * treble);
-        speakerFizz.setPeaking(sampleRate, 5000.0f, 0.96f, -3.0f - 2.0f * pushed);
-        speakerLp.setLowPass(sampleRate, 5600.0f + 1700.0f * treble - 700.0f * pushed, 0.66f);
+        speakerBite.setPeaking(sampleRate, 2400.0f + 480.0f * treble, 0.78f, 2.0f + 1.8f * treble - 0.5f * pushed);
+        speakerFizz.setHighShelf(sampleRate, 4700.0f, 0.70f, 9.5f + 2.0f * treble + 2.0f * presence - 4.5f * pushed);
+        speakerLp.setLowPass(sampleRate, 15000.0f + 1700.0f * treble - 3500.0f * pushed, 0.66f);
     }
 
 public:

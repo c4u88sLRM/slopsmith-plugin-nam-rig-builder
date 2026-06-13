@@ -152,7 +152,7 @@ public:
         drive    = 0.5f + volume * volume * 4.0f;
         level    = 0.5f + volume * 0.8f;
         pwrDrive = 0.4f + volume * 0.7f;
-        pwrLP.setLowpassQ(9000.f, 0.7f, fs);
+        pwrLP.setLowpassQ(12500.f, 0.7f, fs);   // miked-cab roll-off, vintage-bright
     }
 
     inline float process(float x) {

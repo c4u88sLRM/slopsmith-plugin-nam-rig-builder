@@ -174,15 +174,15 @@ class Dc30Core
 
         // Shared CUT (250kA, post/PI treble cut -> higher = darker)
         cutShelf.setHighShelf(sampleRate, 2400.0f, 0.74f, -1.0f - 9.0f * cut);
-        phaseLp.setLowPass(sampleRate, 8000.0f + 1500.0f * treble - 900.0f * pushed, 0.62f);
+        phaseLp.setLowPass(sampleRate, 10500.0f + 1500.0f * treble - 2000.0f * pushed, 0.62f);
 
         // AC30-class 2x12 "blue" voicing — chimey, jangly, scooped-bright.
         speakerHp.setHighPass(sampleRate, 85.0f, 0.72f);
         speakerThump.setPeaking(sampleRate, 120.0f, 0.84f, 0.5f + 1.8f * bass);
         speakerLowMid.setPeaking(sampleRate, 430.0f, 0.78f, -0.6f + 1.0f * chan);  // EF86 a touch fatter
-        speakerChime.setPeaking(sampleRate, 3200.0f + 500.0f * treble, 0.80f, 2.2f + 2.2f * treble);
-        speakerFizz.setPeaking(sampleRate, 5800.0f, 0.98f, -2.6f - 2.2f * pushed);
-        speakerLp.setLowPass(sampleRate, 6200.0f + 1800.0f * treble - 800.0f * pushed, 0.66f);
+        speakerChime.setPeaking(sampleRate, 3200.0f + 500.0f * treble, 0.80f, 3.2f + 2.2f * treble - 0.5f * pushed);
+        speakerFizz.setHighShelf(sampleRate, 4700.0f, 0.70f, 9.5f + 2.0f * treble - 4.5f * pushed);
+        speakerLp.setLowPass(sampleRate, 16000.0f + 1800.0f * treble - 3500.0f * pushed, 0.66f);
     }
 
 public:

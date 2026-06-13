@@ -162,7 +162,7 @@ public:
         toneLo.setLowShelf (190.f,  -t * 4.0f, fs);
         level    = 0.5f + volume * 0.8f;
         pwrDrive = 0.5f + volume * 0.9f;
-        pwrLP.setLowpassQ(8000.f, 0.7f, fs);                       // 6V6 + OT band-limit
+        pwrLP.setLowpassQ(12500.f, 0.7f, fs);                      // 6V6 + OT, miked-cab vintage-bright
     }
 
     inline float process(float x) {

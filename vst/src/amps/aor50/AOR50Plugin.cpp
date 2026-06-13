@@ -261,7 +261,7 @@ class AOR50Core
                                 eqDb(treble, 7.0f) + 1.0f * leadA);
 
         phaseHp.setHighPass(sampleRate, 74.0f + 30.0f * leadA, 0.72f);
-        phaseLp.setLowPass(sampleRate, 7700.0f + 1400.0f * treble + 700.0f * presence - 1400.0f * leadA, 0.65f);
+        phaseLp.setLowPass(sampleRate, 10500.0f + 1400.0f * treble + 700.0f * presence - 2000.0f * leadA, 0.65f);
         presenceShelf.setHighShelf(sampleRate, 2650.0f + 850.0f * presence, 0.78f,
                                    -4.0f + 8.4f * presence + 1.2f * treble);
 
@@ -269,9 +269,9 @@ class AOR50Core
         speakerThump.setPeaking(sampleRate, 124.0f, 0.86f, 0.8f + 2.2f * bass + 1.8f * deepA);
         speakerLowMid.setPeaking(sampleRate, 420.0f + 150.0f * mid, 0.76f, 0.6f + 2.4f * mid);
         speakerBite.setPeaking(sampleRate, 2750.0f + 600.0f * treble, 0.78f,
-                               1.2f + 2.3f * treble + 1.8f * presence + 0.8f * leadA);
-        speakerFizzNotch.setPeaking(sampleRate, 5000.0f + 440.0f * presence, 1.10f, -3.3f - 3.4f * leadA);
-        speakerLp.setLowPass(sampleRate, 6300.0f + 2000.0f * treble + 850.0f * presence - 1150.0f * leadA, 0.66f);
+                               2.2f + 2.3f * treble + 1.8f * presence + 0.8f * leadA - 0.5f * leadA);
+        speakerFizzNotch.setHighShelf(sampleRate, 4700.0f, 0.70f, 9.5f + 2.0f * treble + 2.0f * presence - 4.5f * leadA);
+        speakerLp.setLowPass(sampleRate, 16000.0f + 2000.0f * treble + 850.0f * presence - 3500.0f * leadA, 0.66f);
     }
 
 public:

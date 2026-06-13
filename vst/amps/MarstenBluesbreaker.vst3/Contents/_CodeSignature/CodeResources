@@ -18,6 +18,20 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
+		<key>x86_64-linux/MarstenBluesbreaker.so</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			TprrGLtpNYNZc+mj7fIzo24SmvkuVg7F5FWJwaryH+g=
+			</data>
+		</dict>
+		<key>x86_64-win/MarstenBluesbreaker.vst3</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			IXhxh+A/NJeJZLN6i8laBQ62hen47q7Itop6l1FOw6o=
+			</data>
+		</dict>
 	</dict>
 	<key>rules</key>
 	<dict>

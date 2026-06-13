@@ -196,10 +196,10 @@ class JC120Core
         toneMid.setPeaking(sampleRate, 380.0f, 0.72f, eqDb(mid, 11.0f));
         toneTreble.setHighShelf(sampleRate, 2600.0f, 0.74f, eqDb(treble, 12.0f));
         // BRIGHT switch on the JC-120 is a fixed +5dB@10kHz lift — baked in.
-        brightShelf.setHighShelf(sampleRate, 5500.0f, 0.80f, 4.0f);
-        // solid-state combo speaker (2x12): gentle thump + top roll-off
+        brightShelf.setHighShelf(sampleRate, 5500.0f, 0.80f, 5.5f);
+        // solid-state combo speaker (2x12): gentle thump + top roll-off (opened, miked-cab top)
         speakerThump.setPeaking(sampleRate, 105.0f, 0.85f, 1.6f);
-        speakerLp.setLowPass(sampleRate, 7200.0f + 1500.0f * treble, 0.66f);
+        speakerLp.setLowPass(sampleRate, 13500.0f + 1500.0f * treble - 2500.0f * distortion, 0.66f);
     }
 
 public:

@@ -18,6 +18,20 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
+		<key>x86_64-linux/EpicallCentura.so</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			fQZJnwA23YQ5eOL2hTcIFEIdwN0/Ql9QEk0tEKTBl6M=
+			</data>
+		</dict>
+		<key>x86_64-win/EpicallCentura.vst3</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			p0cP+7ASw9NE85wuHiPimTqJOU0y8erRz1481UXhJHY=
+			</data>
+		</dict>
 	</dict>
 	<key>rules</key>
 	<dict>

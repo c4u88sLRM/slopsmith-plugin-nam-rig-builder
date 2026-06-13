@@ -18,6 +18,20 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
+		<key>x86_64-linux/DualRect.so</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			rsjPhvlSoEIkue5FKosrcIg0f11eY4Y+vnyxWS7hCoU=
+			</data>
+		</dict>
+		<key>x86_64-win/DualRect.vst3</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			+NANLcbEeNULNUTKVEm5C74GvhKxVXxF1DGXvARnvJ0=
+			</data>
+		</dict>
 	</dict>
 	<key>rules</key>
 	<dict>

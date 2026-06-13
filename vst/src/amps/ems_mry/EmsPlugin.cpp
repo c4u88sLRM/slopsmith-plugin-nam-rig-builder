@@ -145,7 +145,7 @@ class EmsCore
 
         toneStack.update(treble, mid, bass);
         stackMakeupLow.setLowShelf(sampleRate, 120.0f, 0.72f, 1.0f - 1.0f * pushed - 1.2f * lo);
-        phaseLp.setLowPass(sampleRate, 7200.0f + 1400.0f * treble - 800.0f * pushed, 0.64f);
+        phaseLp.setLowPass(sampleRate, 10500.0f + 1400.0f * treble - 2000.0f * pushed, 0.64f);
         // PRESENCE = power-amp NFB high-shelf
         presenceShelf.setHighShelf(sampleRate, 2600.0f, 0.78f, -1.0f + 7.0f * presence);
 
@@ -153,9 +153,12 @@ class EmsCore
         speakerHp.setHighPass(sampleRate, 84.0f, 0.72f);
         speakerThump.setPeaking(sampleRate, 120.0f, 0.84f, 0.8f + 2.0f * bass);
         speakerLowMid.setPeaking(sampleRate, 420.0f + 90.0f * mid, 0.74f, -1.2f + 1.4f * mid);   // the Marshall mid dip
-        speakerBite.setPeaking(sampleRate, 2600.0f + 480.0f * treble, 0.78f, 1.4f + 2.0f * treble);
-        speakerFizz.setPeaking(sampleRate, 5200.0f, 0.96f, -3.2f - 2.2f * pushed);
-        speakerLp.setLowPass(sampleRate, 6200.0f + 1700.0f * treble - 800.0f * pushed, 0.66f);
+        speakerBite.setPeaking(sampleRate, 2600.0f + 480.0f * treble, 0.78f, 2.4f + 2.0f * treble - 0.5f * pushed);
+        // Was a fizz NOTCH (top cut, made it dark). Now an AIR high-shelf: lifts the
+        // top, retreats with gain (de-fizz on crank). Member name kept.
+        speakerFizz.setHighShelf(sampleRate, 4700.0f, 0.70f, 9.5f + 2.0f * treble - 4.5f * pushed);
+        // Speaker LP opened from ~6.2k (too dark) to ~16k (miked cab), eases on crank.
+        speakerLp.setLowPass(sampleRate, 16000.0f + 1700.0f * treble - 3500.0f * pushed, 0.66f);
     }
 
 public:

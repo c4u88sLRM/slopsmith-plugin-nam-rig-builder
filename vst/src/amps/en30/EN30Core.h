@@ -672,6 +672,7 @@ class EN30Core
     //   [FX loop, unmodelled] -> V3 12AX7 driver -> Tone Cut -> PI -> EL84s.
     RcLowPass inputGridStopper;
     RcHighPass v1Bright120p;      // C15 120pF treble-bypass on the TB Volume
+    RcHighPass v1OutC9;           // C9 470pF coupling V1a plate -> TB Volume (bright)
     TriodeStage v1aFirstTriode;   // V1a 12AX7 first gain stage
     CathodeFollower v1bFollower;  // V1b 12AX7 cathode follower driving the stack
     TopBoostToneStack topBoost;
@@ -696,6 +697,8 @@ class EN30Core
     Biquad speakerBody;
     Biquad speakerChime;
     Biquad speakerFizzNotch;
+    Biquad speakerPresence;   // 3k presence shelf toward a bright mic'd 2x12
+    Biquad speakerAir;        // 6.5k air shelf (stacks with presence for the steep top)
     Biquad speakerLp;
     DcBlock dcBlock;
 
@@ -720,13 +723,23 @@ class EN30Core
         // Brilliant volume treble bypass cap C15 120pF (always present, no switch).
         v1Bright120p.setRC(sampleRate, 470000.0f, 120.0e-12f);
 
-        // V1a 12AX7: 100k plate (R12), 1k5 cathode (R16) with 22u bypass (C11).
+        // V1a 12AX7 Top Boost triode: 220k plate (R14 — the Top Boost channel's
+        // plate load; R12 100k is the *Normal* channel's), 1k5 cathode (R16) with
+        // 22u bypass (C11). The 220k load gives ~1.27x more stage gain than 100k.
         v1aFirstTriode.set(sampleRate,
                            1.0e-6f, 1000000.0f,
                            56000.0f, 55.0e-12f,
                            1500.0f, 22.0e-6f,
-                           100000.0f, 1.15f, -0.075f,
+                           220000.0f, 1.15f, -0.075f,
                            1.18f, 0.58f, 0.54f);
+
+        // C9 470pF couples the V1a plate to the TB Volume pot (VR2 A500K): a small
+        // coupling that rolls the lows off going INTO the Top Boost channel (it is
+        // the bright/jangle channel). The Normal channel instead uses a big 47nF
+        // (C7), so it keeps its body. The cap sees the pot (500k) in series with
+        // V2's grid leak/load, so the real corner sits near ~330 Hz (≈1M effective),
+        // gentler than the bare-pot 677 Hz.
+        v1OutC9.setRC(sampleRate, 1000000.0f, 470.0e-12f);
 
         v1bFollower.set(sampleRate);
         topBoost.update(treble, bass);
@@ -750,24 +763,41 @@ class EN30Core
         piRolloff.setLowPass(sampleRate, 11000.0f, 0.70f);
         powerAmp.setSampleRate(sampleRate);
 
-        transformerLow.setPeaking(sampleRate, 95.0f, 0.72f, -1.5f + 1.8f * bass);
+        // Speaker/output filters are FIXED — Treble/Bass belong ONLY to the Top Boost
+        // tone stack (the Normal channel has no tone controls on a real AC30), so they
+        // must NOT leak into these shared post-mix filters. (Values pinned at the old
+        // bass=0.5 midpoint so the default Top Boost voicing is unchanged.)
+        transformerLow.setPeaking(sampleRate, 95.0f, 0.72f, 1.5f);
         speakerHp.setHighPass(sampleRate, 72.0f, 0.72f);
-        speakerBody.setPeaking(sampleRate, 335.0f, 0.80f, 1.2f + 1.5f * bass - 0.5f * hot);
-        // 2x12 chime band — a fixed speaker voicing. It no longer tracks the Tone
-        // Cut (Cut now lives solely in CutNetwork); only the brilliance cap nudges
-        // it, consistent with the real bright cap reaching the output.
-        speakerChime.setPeaking(sampleRate, 2400.0f, 0.74f, 2.6f + 1.6f * b);
-        speakerFizzNotch.setPeaking(sampleRate, 4700.0f, 0.9f, -2.3f - 0.7f * g);
-        // Fixed 2x12 top-end rolloff (the Greenback/Blue character); the AC30
-        // chime sits just under it. Bright cap lifts the corner a touch.
-        speakerLp.setLowPass(sampleRate, 7000.0f + 1100.0f * b, 0.62f);
+        // Less low-mid "box": the old +1.2 dB hump at 335 made it boxier/darker than a
+        // mic'd 2x12 (measured +4.8 dB vs a bright AC30 reference). Trimmed to open it.
+        speakerBody.setPeaking(sampleRate, 335.0f, 0.80f, -2.5f - 0.5f * hot);
+        // 2x12 chime band — a fixed speaker voicing. Bright cap nudges it.
+        speakerChime.setPeaking(sampleRate, 2400.0f, 0.74f, 3.4f + 1.6f * b);
+        // 4.7k used to be NOTCHED, killing exactly the presence a bright mic'd cab has;
+        // now a slight boost so the bite/edge survives.
+        speakerFizzNotch.setPeaking(sampleRate, 4700.0f, 0.9f, 0.5f);
+        // Presence + AIR: two stacked high-shelves voiced against the bright mic'd-AC30
+        // reference (the old single 7 kHz LP was the "apagado" culprit). 3 k presence +
+        // 6.5 k air, and the LP opened to ~15 kHz so the sparkle/air actually survives.
+        // The presence/air shelves are voiced for clean/low gain (to match a bright
+        // mic'd AC30). At HIGH gain the preamp/power distortion throws off a lot of
+        // high harmonics; a real speaker rolls those off, so we pull the top back as
+        // `hot` rises — otherwise the bright shelves amplify the fizz into harshness.
+        speakerPresence.setHighShelf(sampleRate, 2800.0f, 0.7f, 8.5f + 2.0f * b - 2.5f * hot);
+        speakerAir.setHighShelf(sampleRate, 5000.0f, 0.7f, 12.5f + 2.0f * b - 6.5f * hot);
+        speakerLp.setLowPass(sampleRate, 18000.0f + 1000.0f * b - 8000.0f * hot, 0.62f);
 
         // Normal channel: darker than Top Boost (no treble network) and
         // mid-forward — jumpering it in (Input=Both, Normal Vol up = RS Mid)
         // fills the Top Boost mid-scoop. Band-limit + a broad ~640 Hz mid hump.
         normalHp.setHz(sampleRate, 70.0f);
-        normalLp.setHz(sampleRate, 5200.0f);
-        normalMid.setPeaking(sampleRate, 640.0f, 0.80f, 4.5f);
+        // The AC30 Normal channel is DARK/warm — NO Top Boost, no treble control. It
+        // must roll the highs off hard BEFORE the shared bright speaker, otherwise the
+        // presence/air shelves brighten it (measured: ours 1089 Hz vs the reference's
+        // ~440 Hz centroid). Low LP + a gentle warmth hump, no honk.
+        normalLp.setHz(sampleRate, 450.0f);
+        normalMid.setPeaking(sampleRate, 440.0f, 0.80f, 1.5f);
 
         // Reverb Tone (VR5 A500K, C47 47pF bright tap + C49 10nF dark tap): a
         // crossfade between a fixed dark low-pass (~1.2 kHz) and the full-band
@@ -788,6 +818,7 @@ public:
         revToneDark.reset();
         trem.reset();
         v1Bright120p.reset();
+        v1OutC9.reset();
         v1aFirstTriode.reset();
         v1bFollower.reset();
         topBoost.reset();
@@ -801,6 +832,8 @@ public:
         speakerBody.reset();
         speakerChime.reset();
         speakerFizzNotch.reset();
+        speakerPresence.reset();
+        speakerAir.reset();
         speakerLp.reset();
         dcBlock.reset();
         updateComponentValues();
@@ -849,9 +882,13 @@ public:
         // cathode follower -> passive Top Boost stack -> op-amp recovery (clean) ->
         // V3 driver tube.
         float v1 = v1aFirstTriode.process(x, 0.55f + 0.45f * hotTb, 1.0f);
-        const float volume = 0.16f + 1.62f * gTb + 0.88f * hotTb;   // TB Volume
+        // RS Gain = DISTORTION amount, NOT volume. Rocksmith holds the output volume
+        // FIXED and only varies distortion, so TB Volume keeps a BASE level even at low
+        // gain — a real AC30 Volume would go near-silent, but that kills Rocksmith's
+        // "gain 3" tones (RS gain ~0.03 of the knob -> dead quiet without this base).
+        const float volume = 0.16f + 1.62f * gTb + 0.88f * hotTb;   // TB Volume (+ base)
         const float brightBleed = (1.0f - 0.42f * gTb) * (0.05f + 0.20f * b) * v1Bright120p.process(v1);
-        float tbOut = v1 * volume + brightBleed;
+        float tbOut = v1OutC9.process(v1) * volume + brightBleed;
         tbOut = v1bFollower.process(tbOut);
         tbOut = topBoost.process(tbOut);
         // Op-amp recovery: CLEAN makeup gain (NJM2147), not a saturating tube.
@@ -866,9 +903,13 @@ public:
 
         // --- Normal channel — darker, mid-forward. Jumpered in by Input=Both and
         //     its own Normal Vol (RS Mid rides this to fill the Top Boost scoop). ---
-        float nrm = normalMid.process(normalLp.process(normalHp.process(x)));
+        // HP + mid INTO the clip; the dark LP comes AFTER the clip so the Normal
+        // channel's distortion harmonics get rolled off too (keeps high-gain Normal
+        // warm/dark instead of fizzy — it clipped post-LP before, regenerating highs).
+        float nrm = normalMid.process(normalHp.process(x));
         nrm = softClip(nrm * (1.4f + 3.0f * normalVol));
-        nrm *= (0.62f + 1.25f * normalVol);
+        nrm = normalLp.process(nrm);
+        nrm *= (0.62f + 1.25f * normalVol);   // base level even at min (RS Gain = distortion, vol fixed)
 
         float y = tbOut * tbG + nrm * nGate;
 
@@ -915,15 +956,19 @@ public:
         y = speakerBody.process(y);
         y = speakerChime.process(y);
         y = speakerFizzNotch.process(y);
+        y = speakerPresence.process(y);
+        y = speakerAir.process(y);
         y = speakerLp.process(y);
 
         // --- output makeup: holds Rocksmith loudness ~constant vs TB Vol and vs
         //     the jumpered Normal channel (RS Mid), so the level stays at the
         //     reference while the tone/mids shift. ---
         const float normalBlend = nGate * normalVol;   // how much Normal is summed in
+        // Treble/Bass loudness comp applies ONLY when Top Boost is active (gated by
+        // tbG), so the tone knobs don't shift the Normal channel's level either.
         const float toneEnergy = 1.0f
-            + 0.013f * std::fabs((bass - 0.5f) * 20.0f)
-            + 0.013f * std::fabs((treble - 0.5f) * 22.0f)
+            + tbG * 0.013f * std::fabs((bass - 0.5f) * 20.0f)
+            + tbG * 0.013f * std::fabs((treble - 0.5f) * 22.0f)
             + 0.12f * normalBlend;
         // Loudness compensation: the TB Volume (= RS Gain) drives the preamp over
         // a ~22 dB range, so WITHOUT compensation cranking the gain blasts the
@@ -937,8 +982,11 @@ public:
         // So the makeup only lifts the clean->breakup region (g up to ~0.5) and
         // then stays FLAT; it must not rise into the saturated zone or max gain
         // blasts. (The previous makeup rose all the way to the top.)
-        const float liftG = (g < 0.5f) ? g : 0.5f;
-        const float makeup = 1.0f + 0.70f * liftG;
+        // RS Gain = distortion ONLY; Rocksmith holds the output VOLUME fixed. So
+        // normalize to a constant level across the whole gain sweep: a strong makeup at
+        // low gain (clean/quiet) that decays toward unity as the preamp gets driven and
+        // self-compresses. Without this, low RS Gain (~0.03) plays ~14 dB too quiet.
+        const float makeup = 1.25f + 4.0f / (1.0f + g * 18.0f);
         const float level = (0.66f * makeup * (0.55f + 0.62f * master)) / toneEnergy;
         return softClip(y * level) * 0.98f;
     }

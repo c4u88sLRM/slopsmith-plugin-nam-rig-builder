@@ -173,16 +173,16 @@ class MarkIIICore
         for (int i = 0; i < 5; ++i)
             geq[i].setPeaking(sampleRate, freqs[i], qs[i], (eqIn >= 0.5f) ? eqDb(eq[i], 12.0f) : 0.0f);
 
-        phaseLp.setLowPass(sampleRate, 7000.0f + 1500.0f * treble - 900.0f * pushed, 0.64f);
+        phaseLp.setLowPass(sampleRate, 10500.0f + 1500.0f * treble - 2000.0f * pushed, 0.64f);
         presenceShelf.setHighShelf(sampleRate, 2700.0f, 0.78f, 2.4f + 1.0f * treble);
 
         // Mesa 1x12/4x12 voicing
         speakerHp.setHighPass(sampleRate, 80.0f, 0.72f);
         speakerThump.setPeaking(sampleRate, 116.0f, 0.84f, 0.7f + 2.2f * bass);
         speakerLowMid.setPeaking(sampleRate, 360.0f + 90.0f * mid, 0.78f, 0.5f + 1.6f * mid - 0.6f * pushed);
-        speakerBite.setPeaking(sampleRate, 2600.0f + 480.0f * treble, 0.76f, 1.3f + 2.0f * treble);
-        speakerFizz.setPeaking(sampleRate, 5400.0f, 0.96f, -3.0f - 2.4f * pushed);
-        speakerLp.setLowPass(sampleRate, 6000.0f + 1900.0f * treble - 900.0f * pushed, 0.66f);
+        speakerBite.setPeaking(sampleRate, 2600.0f + 480.0f * treble, 0.76f, 2.3f + 2.0f * treble - 0.5f * pushed);
+        speakerFizz.setHighShelf(sampleRate, 4700.0f, 0.70f, 9.5f + 2.0f * treble - 4.5f * pushed);
+        speakerLp.setLowPass(sampleRate, 14500.0f + 1900.0f * treble - 3500.0f * pushed, 0.66f);
     }
 
 public:

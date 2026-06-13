@@ -18,6 +18,20 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
+		<key>x86_64-linux/HipzonGA79RVT.so</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			INRNeTJwA/Cgd6qRBIbKRRuc7Zy1SfdRlvLz+LiORy4=
+			</data>
+		</dict>
+		<key>x86_64-win/HipzonGA79RVT.vst3</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			a2mL+qrJ7GwC394+5T9Eb8yyAFzPc/q71bKLNWDSzVk=
+			</data>
+		</dict>
 	</dict>
 	<key>rules</key>
 	<dict>

@@ -176,7 +176,7 @@ class SuperdriveCore
         stackMakeupLow.setLowShelf(sampleRate, 120.0f + 30.0f * bass, 0.72f,
                                    eqDb(bass, 4.4f) + ((modern >= 0.5f) ? 2.4f : 0.0f) - 1.2f * pushed);
         stackMakeupBody.setPeaking(sampleRate, 560.0f + 180.0f * mid, 0.66f, -0.8f + 4.4f * mid + 1.2f * pushed);
-        phaseLp.setLowPass(sampleRate, 7200.0f + 1500.0f * treble - 900.0f * pushed, 0.64f);
+        phaseLp.setLowPass(sampleRate, 10500.0f + 1500.0f * treble - 2000.0f * pushed, 0.64f);
         // fixed NFB presence voicing (no presence knob on this amp)
         presenceShelf.setHighShelf(sampleRate, 2700.0f, 0.78f, 2.6f + 1.0f * treble);
 
@@ -184,9 +184,12 @@ class SuperdriveCore
         speakerHp.setHighPass(sampleRate, 80.0f, 0.72f);
         speakerThump.setPeaking(sampleRate, 118.0f, 0.84f, 0.8f + 2.2f * bass);
         speakerLowMid.setPeaking(sampleRate, 360.0f + 90.0f * mid, 0.78f, 0.7f + 1.8f * mid - 0.6f * pushed);
-        speakerBite.setPeaking(sampleRate, 2600.0f + 480.0f * treble, 0.76f, 1.4f + 2.0f * treble);
-        speakerFizz.setPeaking(sampleRate, 5200.0f, 0.96f, -3.0f - 2.4f * pushed);
-        speakerLp.setLowPass(sampleRate, 6000.0f + 1900.0f * treble - 900.0f * pushed, 0.66f);
+        speakerBite.setPeaking(sampleRate, 2600.0f + 480.0f * treble, 0.76f, 2.4f + 2.0f * treble - 0.5f * pushed);
+        // Was a fizz NOTCH (top cut, made it dark). Now an AIR high-shelf: lifts the
+        // top, retreats with gain (de-fizz on crank). Member name kept.
+        speakerFizz.setHighShelf(sampleRate, 4700.0f, 0.70f, 9.5f + 2.0f * treble - 4.5f * pushed);
+        // Speaker LP opened from ~6.0k (too dark) to ~16k (miked cab), eases on crank.
+        speakerLp.setLowPass(sampleRate, 16000.0f + 1900.0f * treble - 3500.0f * pushed, 0.66f);
     }
 
 public:

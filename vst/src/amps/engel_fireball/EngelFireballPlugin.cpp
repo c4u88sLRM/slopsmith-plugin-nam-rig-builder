@@ -290,7 +290,7 @@ class EngelFireballCore
 
         // Power-amp NFB: Presence (high) + speaker voicing.
         phaseHp.setHighPass(sampleRate, 72.0f + 30.0f * leadA - 20.0f * botOn, 0.72f);
-        phaseLp.setLowPass(sampleRate, 7800.0f + 1400.0f * treble + 700.0f * presence - 1400.0f * leadA, 0.65f);
+        phaseLp.setLowPass(sampleRate, 10500.0f + 1400.0f * treble + 700.0f * presence - 2000.0f * leadA, 0.65f);
         presenceShelf.setHighShelf(sampleRate, 2700.0f + 850.0f * presence, 0.78f,
                                    -4.0f + 8.4f * presence + 1.2f * treble + 2.0f * brOn);
 
@@ -301,10 +301,13 @@ class EngelFireballCore
         speakerLowMid.setPeaking(sampleRate, 430.0f + 150.0f * mid, 0.76f,
                                  0.4f + 2.4f * mid + 2.0f * mbOn);
         speakerBite.setPeaking(sampleRate, 2900.0f + 620.0f * treble, 0.78f,
-                               1.2f + 2.4f * treble + 1.9f * presence + 0.8f * leadA + 1.2f * brOn);
-        speakerFizzNotch.setPeaking(sampleRate, 5100.0f + 460.0f * presence, 1.10f,
-                                    -3.6f - 3.8f * leadA);
-        speakerLp.setLowPass(sampleRate, 6400.0f + 2000.0f * treble + 850.0f * presence - 1150.0f * leadA, 0.66f);
+                               2.2f + 2.4f * treble + 1.9f * presence + 0.8f * leadA + 1.2f * brOn);
+        // Was a fizz NOTCH (top cut, made it dark). Now an AIR high-shelf: lifts the
+        // 4x12 top, retreats hard with gain (de-fizz on high-gain crank). Name kept.
+        speakerFizzNotch.setHighShelf(sampleRate, 4700.0f, 0.70f,
+                                      9.5f + 2.0f * treble + 2.0f * presence - 4.5f * leadA);
+        // Speaker LP opened from ~6.4k (too dark) to ~16k (miked 4x12), eases hard on crank.
+        speakerLp.setLowPass(sampleRate, 16000.0f + 2000.0f * treble + 850.0f * presence - 3500.0f * leadA, 0.66f);
     }
 
 public:

@@ -168,16 +168,16 @@ class Dr504Core
         stackMakeupLow.setLowShelf(sampleRate, 120.0f + 30.0f * bass, 0.72f, eqDb(bass, 4.4f));
         // the famous Hiwatt strong mids (100K mid pot) — a gentle upper-mid push
         stackMakeupBody.setPeaking(sampleRate, 620.0f + 180.0f * mid, 0.62f, -0.6f + 4.6f * mid);
-        phaseLp.setLowPass(sampleRate, 7600.0f + 1500.0f * treble + 900.0f * pres, 0.64f);
+        phaseLp.setLowPass(sampleRate, 10500.0f + 1500.0f * treble + 900.0f * pres - 2000.0f * pushed, 0.64f);
         presenceShelf.setHighShelf(sampleRate, 2600.0f + 900.0f * pres, 0.78f, -3.6f + 8.4f * pres + 0.9f * treble);
 
         // Hiwatt 4x12 (Fane) voicing: full lows, strong mids, smooth top.
         speakerHp.setHighPass(sampleRate, 78.0f, 0.72f);
         speakerThump.setPeaking(sampleRate, 120.0f, 0.84f, 1.0f + 2.4f * bass);
         speakerLowMid.setPeaking(sampleRate, 420.0f + 90.0f * mid, 0.74f, 1.0f + 2.2f * mid);
-        speakerBite.setPeaking(sampleRate, 2400.0f + 500.0f * treble, 0.78f, 1.0f + 1.8f * treble + 1.0f * pres);
-        speakerFizz.setPeaking(sampleRate, 5200.0f, 0.96f, -2.6f - 1.8f * pushed);
-        speakerLp.setLowPass(sampleRate, 6400.0f + 1900.0f * treble + 800.0f * pres, 0.66f);
+        speakerBite.setPeaking(sampleRate, 2400.0f + 500.0f * treble, 0.78f, 2.0f + 1.8f * treble + 1.0f * pres - 0.5f * pushed);
+        speakerFizz.setHighShelf(sampleRate, 4700.0f, 0.70f, 9.5f + 2.0f * treble + 2.0f * pres - 4.5f * pushed);
+        speakerLp.setLowPass(sampleRate, 16000.0f + 1900.0f * treble + 800.0f * pres - 3500.0f * pushed, 0.66f);
     }
 
 public:

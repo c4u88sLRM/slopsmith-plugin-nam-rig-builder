@@ -18,6 +18,20 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
+		<key>x86_64-linux/HipzonGA8.so</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			X6o4ZwQSGUMwLV5f45hrAlckVGS/nDk+VR+OdcaCMA0=
+			</data>
+		</dict>
+		<key>x86_64-win/HipzonGA8.vst3</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			zshXF7W/v7v/yhBUuobua8XY4u/UWoCu5gsVoy8hlAg=
+			</data>
+		</dict>
 	</dict>
 	<key>rules</key>
 	<dict>

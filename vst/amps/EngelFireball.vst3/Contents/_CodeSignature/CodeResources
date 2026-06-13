@@ -18,6 +18,20 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
+		<key>x86_64-linux/EngelFireball.so</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			Wr7v5s3HtX7My95jnaV07JWZEFL/o7k6ZCrDcP0CQfU=
+			</data>
+		</dict>
+		<key>x86_64-win/EngelFireball.vst3</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			UadyM+vGH5fTlxMEpL4chDhELowBe/2eOvknXksFYec=
+			</data>
+		</dict>
 	</dict>
 	<key>rules</key>
 	<dict>

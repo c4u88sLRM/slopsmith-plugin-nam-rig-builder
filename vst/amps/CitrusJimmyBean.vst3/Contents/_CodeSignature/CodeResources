@@ -18,6 +18,20 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
+		<key>x86_64-linux/CitrusJimmyBean.so</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			agTzUgfkKltk3vzumbXuyMKZH255+Y1//LK0esVoFY0=
+			</data>
+		</dict>
+		<key>x86_64-win/CitrusJimmyBean.vst3</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			QMCANlEqCxFv55DppPrix+NQ/8fmABdDQzlrwV9VySo=
+			</data>
+		</dict>
 	</dict>
 	<key>rules</key>
 	<dict>

@@ -194,9 +194,15 @@ class TW22Core {
         // --- Celestion V30 12" (bright / tight, modest body) ---
         speakerHp.setHighPass(sampleRate, 84.0f, 0.72f);
         speakerBody.setPeaking(sampleRate, 205.0f, 0.80f, 2.4f + 1.6f * (wBurn * burnBass + (1.0f - wBurn) * vintBass) - 0.4f * hot);
-        speakerBite.setPeaking(sampleRate, 2600.0f + 500.0f * burnTre, 0.72f, 2.2f + 2.4f * burnTre + 0.8f * wBurn);
-        speakerFizz.setPeaking(sampleRate, 4500.0f, 0.95f, -3.0f - 2.0f * hot);
-        speakerLp.setLowPass(sampleRate, 4700.0f + 3000.0f * burnTre - 600.0f * wBurn, 0.64f);
+        // Bite tracks gain too (more presence on crank, less at low gain).
+        speakerBite.setPeaking(sampleRate, 2600.0f + 500.0f * burnTre, 0.72f, 2.5f + 2.4f * burnTre + 0.8f * wBurn + 1.3f * hot);
+        // AIR high-shelf: lifts the V30 top. The AmpliTube SuperSonic gets
+        // BRIGHTER with gain (the high-gain ref is the brightest of the set), so
+        // the air now RISES strongly with `hot` and CUTS the top at low gain.
+        speakerFizz.setHighShelf(sampleRate, 4700.0f, 0.70f, -6.7f + 2.0f * burnTre + 10.0f * hot);
+        // Speaker LP: opens with gain to track the reference's brightness trend
+        // (dark ~6.5k at low gain -> ~14k miked V30 on crank).
+        speakerLp.setLowPass(sampleRate, 1000.0f + 3000.0f * burnTre + 11500.0f * hot, 0.64f);
     }
 
 public:

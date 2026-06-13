@@ -143,7 +143,7 @@ class Jcm800Core
 
         toneStack.update(treble, mid, bass);
         stackMakeupLow.setLowShelf(sampleRate, 120.0f, 0.72f, 1.0f - 1.0f * pushed);
-        phaseLp.setLowPass(sampleRate, 7200.0f + 1400.0f * treble - 800.0f * pushed, 0.64f);
+        phaseLp.setLowPass(sampleRate, 14000.0f + 1400.0f * treble - 1000.0f * pushed, 0.64f);
         // PRESENCE = power-amp NFB high-shelf
         presenceShelf.setHighShelf(sampleRate, 2600.0f, 0.78f, -1.0f + 7.0f * presence);
 
@@ -151,9 +151,9 @@ class Jcm800Core
         speakerHp.setHighPass(sampleRate, 84.0f, 0.72f);
         speakerThump.setPeaking(sampleRate, 120.0f, 0.84f, 0.8f + 2.0f * bass);
         speakerLowMid.setPeaking(sampleRate, 420.0f + 90.0f * mid, 0.74f, -1.2f + 1.4f * mid);   // the Marshall mid dip
-        speakerBite.setPeaking(sampleRate, 2600.0f + 480.0f * treble, 0.78f, 1.4f + 2.0f * treble);
-        speakerFizz.setPeaking(sampleRate, 5200.0f, 0.96f, -3.2f - 2.2f * pushed);
-        speakerLp.setLowPass(sampleRate, 6200.0f + 1700.0f * treble - 800.0f * pushed, 0.66f);
+        speakerBite.setPeaking(sampleRate, 2900.0f + 480.0f * treble, 0.62f, 7.6f + 2.0f * treble - 0.3f * pushed);
+        speakerFizz.setHighShelf(sampleRate, 4700.0f, 0.70f, 16.5f + 2.0f * treble + 2.0f * presence - 2.0f * pushed);
+        speakerLp.setLowPass(sampleRate, 18500.0f + 1700.0f * treble - 1500.0f * pushed, 0.66f);
     }
 
 public:

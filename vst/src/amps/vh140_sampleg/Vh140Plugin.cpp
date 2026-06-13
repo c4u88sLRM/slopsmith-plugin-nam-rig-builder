@@ -155,9 +155,11 @@ class Vh140Core
         bLowSh.setLowShelf(sampleRate, 110.0f, 0.72f, eqDb(bLow, 10.0f));
         bMidPk.setPeaking(sampleRate, 650.0f, 0.80f, eqDb(bMid, 10.0f));
         bHighSh.setHighShelf(sampleRate, 3200.0f, 0.72f, eqDb(bHigh, 11.0f));
-        // solid-state cab voicing
+        // solid-state cab voicing. Open the cab lowpass for a miked-cab brightness,
+        // with a gain-dependent retreat (drv = active-channel drive) so cranked
+        // high-gain tones don't fizz.
         speakerHp.setHighPass(sampleRate, 80.0f, 0.72f);
-        speakerLp.setLowPass(sampleRate, 6200.0f + 1500.0f * (chan ? bHigh : aHigh), 0.66f);
+        speakerLp.setLowPass(sampleRate, 14000.0f + 1500.0f * (chan ? bHigh : aHigh) - 3500.0f * drv, 0.66f);
     }
 
 public:

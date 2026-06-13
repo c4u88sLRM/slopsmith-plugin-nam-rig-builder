@@ -172,7 +172,7 @@ public:
         volume   = volumeP / 0.6f;                        // master (def 0.6 -> unity)
         pwrDrive = 0.5f + volume * 0.9f;
         pwrKnee  = half ? 1.6f : 1.1f;                    // 7 W = earlier breakup
-        pwrLP.setLowpassQ(8500.f, 0.7f, fs);              // EL84 + OT band-limit
+        pwrLP.setLowpassQ(14000.f - 3000.f * volume, 0.7f, fs);  // EL84 + OT band-limit (opened, miked-cab top)
     }
 
     inline float process(float x) {

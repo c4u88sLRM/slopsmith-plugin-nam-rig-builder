@@ -270,6 +270,7 @@ class TW26Core
     Biquad speakerHp;
     Biquad speakerBody;         // 1x12 tweed cone low-mid bump
     Biquad speakerPresence;     // gentle upper-mid (tweed alnico, softer than V30)
+    Biquad speakerAir;          // 4.5k air shelf toward the UAD Woodrow reference top
     Biquad speakerLp;           // tweed top rolloff (darker than a modern cab)
     DcBlock dcBlock;
 
@@ -306,11 +307,17 @@ class TW26Core
         supply.setSampleRate(sampleRate);
 
         // --- output transformer + 1x12 tweed speaker (Jensen-style, warm) ---
-        transformerLow.setPeaking(sampleRate, 95.0f, 0.72f, 0.6f + 1.8f * bass);
+        transformerLow.setPeaking(sampleRate, 95.0f, 0.72f, 2.0f + 1.8f * bass);
         speakerHp.setHighPass(sampleRate, 70.0f, 0.72f);
         speakerBody.setPeaking(sampleRate, 175.0f, 0.80f, 2.6f + 1.8f * bass - 0.5f * hot);
-        speakerPresence.setPeaking(sampleRate, 2150.0f + 350.0f * tone, 0.72f, 2.4f + 2.4f * tone + 2.4f * presK);
-        speakerLp.setLowPass(sampleRate, 5500.0f + 2000.0f * presK + 900.0f * tone, 0.66f);
+        // Less upper-mid honk: the old +2.4 dB bump at 2.1k sat ~3 dB above the UAD
+        // Woodrow reference. Trimmed so the presence sits where the reference does.
+        // Cut the 2 k honk: the reference is SCOOPED there (we sat ~3 dB over). Slight dip.
+        speakerPresence.setPeaking(sampleRate, 2300.0f + 350.0f * tone, 0.85f, -3.2f + 1.0f * tone + 1.0f * presK);
+        // AIR shelf placed HIGH (5.5 k) so it lifts 6-14 k (where the Woodrow has air) WITHOUT
+        // re-boosting the 2-4 k presence. The reference top rises toward 14 k; LP opened to 16 k.
+        speakerAir.setHighShelf(sampleRate, 4000.0f, 0.7f, 16.5f + 2.0f * tone + 3.0f * presK);
+        speakerLp.setLowPass(sampleRate, 16000.0f + 2000.0f * presK + 1500.0f * tone, 0.66f);
     }
 
 public:
@@ -321,7 +328,7 @@ public:
         toneTrebleBleed.reset(); toneShelf.reset(); v2Coupling.reset();
         bassShelf.reset(); tweedBody.reset(); presenceShelf.reset();
         piCoupling.reset(); supply.reset();
-        transformerLow.reset(); speakerHp.reset(); speakerBody.reset(); speakerPresence.reset(); speakerLp.reset();
+        transformerLow.reset(); speakerHp.reset(); speakerBody.reset(); speakerPresence.reset(); speakerAir.reset(); speakerLp.reset();
         dcBlock.reset();
         updateComponentValues();
     }
@@ -348,7 +355,7 @@ public:
         // V1 12AY7 first stage — warm, low-mu, soft early compression.
         float inst = v1Coupling.process(xi);
         const float v1Drive = 0.80f + 1.55f * instVol + 0.55f * g;
-        inst = triode12AY7(inst * v1Drive, -0.020f - 0.020f * instVol);
+        inst = triode12AY7(inst * (v1Drive * 0.72f), -0.020f - 0.020f * instVol);
         inst = v1Miller.process(inst);
 
         // Mic channel jumpered in (RS Mid): a darker, low-mid-forward parallel
@@ -374,7 +381,7 @@ public:
         // V2-A 12AX7 recovery/gain stage
         y = v2Coupling.process(y);
         const float v2Drive = 0.85f + 1.65f * instVol + 1.55f * hot;
-        y = triode12AX7(y * v2Drive, -0.012f - 0.018f * instVol);
+        y = triode12AX7(y * (v2Drive * 0.78f), -0.012f - 0.018f * instVol);
 
         // --- V2-B cathodyne PI + 6V6 push-pull, cathode-biased, no NFB,
         //     5Y3 blooming sag ---
@@ -393,6 +400,7 @@ public:
         y = speakerBody.process(y);
         y = speakerPresence.process(y);
         y = presenceShelf.process(y);
+        y = speakerAir.process(y);
         y = speakerLp.process(y);
 
         // output makeup: hold perceived level ~constant across the Volume(=gain)
@@ -405,7 +413,10 @@ public:
         // The heavy 5Y3/cathode-bias sag pulls the steady level DOWN as the volume
         // rises, so the makeup RISES with it to hold loudness ~constant while
         // keeping the sag bloom/compression dynamics intact.
-        const float makeup = 1.50f + 0.40f * g + 0.70f * hot;
+        // RS Gain = distortion ONLY; Rocksmith holds the output VOLUME fixed. The base
+        // makeup (rising with g) offsets the 5Y3 sag; the extra low-gain term normalizes
+        // the clean/quiet end so LOW RS Gain plays at full volume too (was ~10 dB down).
+        const float makeup = (1.50f + 0.40f * g + 0.70f * hot) * (1.0f + 2.0f / (1.0f + g * 36.0f));
         const float level = makeup / toneEnergy;
         return softClip(y * level) * 0.98f;
     }

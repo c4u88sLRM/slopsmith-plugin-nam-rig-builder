@@ -18,6 +18,20 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
+		<key>x86_64-linux/CitrusBigTremor.so</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			zAHETYeJVmYvzKTZHlsszQgJV9sJmhpT9fqRsxCIL1c=
+			</data>
+		</dict>
+		<key>x86_64-win/CitrusBigTremor.vst3</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			5S5f7DKSA19alCPHuq75Eyu/5QXVKrsAVe3Bdh7ChJM=
+			</data>
+		</dict>
 	</dict>
 	<key>rules</key>
 	<dict>

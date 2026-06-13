@@ -362,8 +362,8 @@ class PlexiCore
                                    eqDb(bass, 4.6f) - 1.3f * pushed);
         stackMakeupBody.setPeaking(sampleRate, 520.0f + 180.0f * mid, 0.66f,
                                    -1.0f + 5.0f * mid + 1.5f * pushed);  // Marshall mid grind
-        phaseLowPass.setLowPass(sampleRate, 7200.0f + 1400.0f * treble + 1100.0f * pres
-                                            - 900.0f * pushed, 0.64f);
+        phaseLowPass.setLowPass(sampleRate, 15500.0f + 1700.0f * treble + 1200.0f * pres
+                                            - 500.0f * pushed, 0.64f);
         presenceShelf.setHighShelf(sampleRate, 2600.0f + 900.0f * pres, 0.78f,
                                    -4.0f + 9.2f * pres + 1.0f * treble);
 
@@ -374,11 +374,14 @@ class PlexiCore
         speakerLowMid.setPeaking(sampleRate, 380.0f + 90.0f * mid, 0.78f,
                                  0.7f + 1.9f * mid - 0.7f * pushed);
         speakerBite.setPeaking(sampleRate, 2750.0f + 520.0f * treble, 0.74f,
-                               1.8f + 2.2f * treble + 1.2f * pres);   // the Marshall crunch bite
-        speakerFizzNotch.setPeaking(sampleRate, 5000.0f + 360.0f * pres, 0.96f,
-                                    -3.2f - 2.6f * pushed);
-        speakerLp.setLowPass(sampleRate, 5800.0f + 2000.0f * treble + 900.0f * pres
-                                         - 900.0f * pushed, 0.66f);
+                               2.4f + 2.4f * treble + 1.4f * pres - 0.6f * pushed);   // the Marshall crunch bite
+        // Was a fizz NOTCH (top cut, made it dark). Now an AIR high-shelf: lifts the
+        // 4x12 top, retreats with gain (de-fizz on crank). Member name kept.
+        speakerFizzNotch.setHighShelf(sampleRate, 5400.0f, 0.70f,
+                                      8.8f + 2.0f * treble + 2.0f * pres - 2.6f * pushed);
+        // Speaker LP opened from ~5.8k (too dark) to ~14.5k (miked 4x12), eases on crank.
+        speakerLp.setLowPass(sampleRate, 19500.0f + 2000.0f * treble + 1200.0f * pres
+                                         - 800.0f * pushed, 0.66f);
     }
 
 public:

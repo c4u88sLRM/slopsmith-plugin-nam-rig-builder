@@ -194,10 +194,10 @@ class JC90Core
         toneBass.setLowShelf(sampleRate, 110.0f, 0.72f, eqDb(bass, 11.0f));
         toneMid.setPeaking(sampleRate, 560.0f, 0.70f, eqDb(mid, 9.0f));
         toneTreble.setHighShelf(sampleRate, 2200.0f, 0.74f, eqDb(treble, 11.0f));
-        hiTrebleShelf.setHighShelf(sampleRate, 5200.0f, 0.80f, -2.0f + 12.0f * hiTreble);
-        // solid-state combo speaker (2x10-ish): gentle thump + top roll-off
+        hiTrebleShelf.setHighShelf(sampleRate, 5200.0f, 0.80f, -0.5f + 12.0f * hiTreble);
+        // solid-state combo speaker (2x10-ish): gentle thump + top roll-off (opened, miked-cab top)
         speakerThump.setPeaking(sampleRate, 110.0f, 0.85f, 1.6f);
-        speakerLp.setLowPass(sampleRate, 7200.0f + 1500.0f * treble + 1200.0f * hiTreble, 0.66f);
+        speakerLp.setLowPass(sampleRate, 13500.0f + 1500.0f * treble + 1200.0f * hiTreble - 2500.0f * distortion, 0.66f);
     }
 
 public:

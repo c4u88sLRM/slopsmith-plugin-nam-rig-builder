@@ -1,15 +1,21 @@
 /*
- * Octavius - Boss OC-2 style monophonic octave-down pedal for Rocksmith's
- * Pedal_Octavius.
+ * Octavius - Boss OC-2 style octave-down pedal for Rocksmith's Pedal_Octavius.
  *
- * Local reference: pedals/octavius.pdf. The OC-2 uses detection and flip-flop
- * dividers for one and two octaves below the input. Rocksmith exposes Tone and
- * Mix, so Direct/OCT1/OCT2 levels are voiced internally.
+ * Local reference: pedals/octavius.pdf. The real OC-2 uses flip-flop frequency
+ * dividers, but a literal divider model sounds buzzy/synthetic and its
+ * threshold pitch-detection glitches on real guitar (octave jumps, warble) —
+ * "distorted and terrible". So this reuses the BassEmulator's smooth
+ * time-domain pitch shifter (a delay read head running at half / quarter speed
+ * with a windowed crossfade splice = exactly -12 / -24 semitones, no square
+ * waves, no detector glitches). Rocksmith exposes Tone and Mix:
+ *   - Tone : octave brightness + the OCT1(-1)/OCT2(-2) balance (low = darker,
+ *            more sub; high = clearer single octave).
+ *   - Mix  : dry / octave blend.
  */
 #include "DistrhoPlugin.hpp"
 #include "OctaviusParams.h"
-#include "../_shared/automakeup.hpp"
 #include <cmath>
+#include <cstring>
 
 START_NAMESPACE_DISTRHO
 
@@ -28,16 +34,75 @@ static inline float smoothstep(float v)
     return v * v * (3.0f - 2.0f * v);
 }
 
-static inline float softClip(float x)
-{
-    return std::tanh(x);
-}
-
 static inline float onePoleCoeffHz(float hz, float sr)
 {
     hz = std::fmax(10.0f, std::fmin(hz, sr * 0.45f));
     return 1.0f - std::exp(-2.0f * kPi * hz / sr);
 }
+
+// Smooth time-domain octave-down shifter (same method as BassEmulator). `adv`
+// is the per-sample delay growth = (1 - ratio): 0.5 -> -12 st, 0.75 -> -24 st.
+struct OctShifter
+{
+    static constexpr int kN = 32768;
+    float buf[kN] {};
+    int   writeIndex = 0;
+    float phase = 0.0f;
+    float window = 2400.0f;
+    float splice = 256.0f;
+    float splicePos = 256.0f;
+
+    void reset()
+    {
+        std::memset(buf, 0, sizeof(buf));
+        writeIndex = 0;
+        phase = 0.0f;
+        splicePos = splice;
+    }
+
+    void setWindow(float sr, float ms)
+    {
+        window = sr * ms * 0.001f;
+        window = std::fmax(512.0f, std::fmin(window, (float)kN * 0.45f));
+        splice = std::fmax(96.0f, std::fmin(sr * 0.0045f, window * 0.22f));
+        while (phase >= window) phase -= window;
+        if (splicePos > splice) splicePos = splice;
+    }
+
+    float readDelay(float delay) const
+    {
+        float rp = (float)writeIndex - delay;
+        while (rp < 0.0f) rp += (float)kN;
+        while (rp >= (float)kN) rp -= (float)kN;
+        const int i0 = (int)rp;
+        const int i1 = (i0 + 1) % kN;
+        const float frac = rp - (float)i0;
+        return buf[i0] + frac * (buf[i1] - buf[i0]);
+    }
+
+    float process(float in, float adv)
+    {
+        buf[writeIndex] = in;
+        phase += adv;
+        while (phase >= window)
+        {
+            phase -= window;
+            splicePos = 0.0f;
+        }
+        const float newVoice = readDelay(phase + 2.0f);
+        float shifted = newVoice;
+        if (splicePos < splice)
+        {
+            const float oldVoice = readDelay(phase + window + 2.0f);
+            const float t = splicePos / splice;
+            const float xfade = 0.5f - 0.5f * std::cos(kPi * t);
+            shifted = oldVoice * (1.0f - xfade) + newVoice * xfade;
+            splicePos += 1.0f;
+        }
+        if (++writeIndex >= kN) writeIndex = 0;
+        return shifted;
+    }
+};
 
 } // namespace
 
@@ -47,70 +112,46 @@ class OctaviusCore
     float tone = kOctaviusDef[kTone];
     float mix = kOctaviusDef[kMix];
 
-    float hpX1 = 0.0f;
-    float hpY1 = 0.0f;
-    float detectY = 0.0f;
-    float env = 0.0f;
-    float gate = 0.0f;
-    float sub1Y = 0.0f;
-    float sub2Y = 0.0f;
-    float toneY = 0.0f;
-    float dryY = 0.0f;
+    OctShifter oct1;   // -12 st
+    OctShifter oct2;   // -24 st
 
-    float hpA = 0.0f;
-    float detectA = 0.0f;
-    float envA = 0.0f;
-    float sub1A = 0.0f;
-    float sub2A = 0.0f;
-    float toneA = 0.0f;
-    float dryA = 0.0f;
-
-    bool armed = true;
-    bool div1 = false;
-    bool div2 = false;
-    int halfCycleCount = 0;
-    int samplesSinceEdge = 0;
-    int lastPeriod = 240;
+    // octave brightness (2-pole low-pass for a smooth, fizz-free voice)
+    float oTone1 = 0.0f, oTone2 = 0.0f, toneA = 0.0f;
+    // sub-octave shaping
+    float subY = 0.0f, subA = 0.0f;
+    // dry path softening + output high-pass
+    float dryY = 0.0f, dryA = 0.0f;
+    float hpX1 = 0.0f, hpY1 = 0.0f, hpA = 0.0f;
 
     void updateFilters()
     {
-        const float dt = 1.0f / sampleRate;
-        const float hpHz = 42.0f;
-        const float hpRc = 1.0f / (2.0f * kPi * hpHz);
-        hpA = hpRc / (hpRc + dt);
+        oct1.setWindow(sampleRate, 36.0f);
+        oct2.setWindow(sampleRate, 50.0f);
 
         const float t = smoothstep(tone);
-        detectA = onePoleCoeffHz(760.0f, sampleRate);
-        envA = onePoleCoeffHz(34.0f, sampleRate);
-        sub1A = onePoleCoeffHz(145.0f + 780.0f * t, sampleRate);
-        sub2A = onePoleCoeffHz(92.0f + 420.0f * t, sampleRate);
-        toneA = onePoleCoeffHz(720.0f + 4200.0f * t, sampleRate);
-        dryA = onePoleCoeffHz(7800.0f, sampleRate);
+        toneA = onePoleCoeffHz(520.0f + 3400.0f * t, sampleRate);   // octave brightness
+        subA  = onePoleCoeffHz(150.0f + 360.0f * t, sampleRate);    // -2 oct kept dark/round
+        dryA  = onePoleCoeffHz(8200.0f, sampleRate);
+
+        const float dt = 1.0f / sampleRate;
+        const float hpRc = 1.0f / (2.0f * kPi * 38.0f);
+        hpA = hpRc / (hpRc + dt);
     }
+
+    float lowPass(float x, float& z, float a) { z += a * (x - z); return z; }
 
     float highPass(float x)
     {
         const float y = hpA * (hpY1 + x - hpX1);
-        hpX1 = x;
-        hpY1 = y;
+        hpX1 = x; hpY1 = y;
         return y;
-    }
-
-    float lowPass(float x, float& z, float a)
-    {
-        z += a * (x - z);
-        return z;
     }
 
 public:
     void reset()
     {
-        hpX1 = hpY1 = detectY = env = gate = sub1Y = sub2Y = toneY = dryY = 0.0f;
-        armed = true;
-        div1 = div2 = false;
-        halfCycleCount = 0;
-        samplesSinceEdge = 0;
-        lastPeriod = (int)(sampleRate / 200.0f);
+        oct1.reset(); oct2.reset();
+        oTone1 = oTone2 = subY = dryY = hpX1 = hpY1 = 0.0f;
         updateFilters();
     }
 
@@ -120,70 +161,37 @@ public:
         reset();
     }
 
-    void setTone(float v)
-    {
-        tone = clamp01(v);
-        updateFilters();
-    }
-
-    void setMix(float v)
-    {
-        mix = clamp01(v);
-    }
+    void setTone(float v) { tone = clamp01(v); updateFilters(); }
+    void setMix(float v)  { mix = clamp01(v); }
 
     float process(float in)
     {
-        float dry = lowPass(in, dryY, dryA);
-        float x = highPass(in);
-        x = softClip(x * 1.10f) * 0.94f;
+        const float dry = lowPass(in, dryY, dryA);
 
-        const float detector = lowPass(x, detectY, detectA);
-        env += envA * (std::fabs(detector) - env);
-        const float thresholdHigh = 0.010f + 0.018f * env;
-        const float thresholdLow = -thresholdHigh * 0.72f;
+        // Smooth pitch-shifted octaves (no dividers, no detector).
+        const float o1 = oct1.process(in, 0.5f);    // -12 st
+        const float o2raw = oct2.process(in, 0.75f); // -24 st
+        const float o2 = lowPass(o2raw, subY, subA);  // keep the sub dark/round
 
-        ++samplesSinceEdge;
-        const int minPeriod = (int)(sampleRate / 1150.0f);
-        const int maxPeriod = (int)(sampleRate / 42.0f);
-
-        if (armed && detector > thresholdHigh && samplesSinceEdge > minPeriod)
-        {
-            if (samplesSinceEdge < maxPeriod)
-                lastPeriod = samplesSinceEdge;
-            samplesSinceEdge = 0;
-            armed = false;
-            div1 = !div1;
-            ++halfCycleCount;
-            if ((halfCycleCount & 1) == 0)
-                div2 = !div2;
-        }
-        else if (!armed && detector < thresholdLow)
-        {
-            armed = true;
-        }
-
-        const float targetGate = (env > 0.006f && samplesSinceEdge < lastPeriod * 3) ? 1.0f : 0.0f;
-        gate += onePoleCoeffHz(targetGate > gate ? 85.0f : 18.0f, sampleRate) * (targetGate - gate);
-
-        const float square1 = div1 ? 1.0f : -1.0f;
-        const float square2 = div2 ? 1.0f : -1.0f;
-        float sub1 = lowPass(square1, sub1Y, sub1A);
-        float sub2 = lowPass(square2, sub2Y, sub2A);
-
-        // OC-2 style synth voice: darker -2 octave on low Tone, clearer -1
-        // octave on high Tone, with envelope following to avoid idle buzz.
+        // OC-2 voice: clearer single -1 octave on high Tone, more -2 sub on
+        // low Tone (the classic dark synth-bass character) — without the buzz.
         const float t = smoothstep(tone);
-        const float oct1Level = 0.72f + 0.42f * t;
-        const float oct2Level = 0.54f * (1.0f - 0.58f * t);
-        float octave = sub1 * oct1Level + sub2 * oct2Level;
-        octave = lowPass(octave, toneY, toneA);
-        octave *= gate * (0.52f + 2.85f * std::fmin(env * 7.5f, 1.0f));
-        octave = softClip(octave * (1.05f + 0.24f * t));
+        const float oct1Level = 0.80f + 0.34f * t;
+        const float oct2Level = 0.46f * (1.0f - 0.55f * t);
+        float octave = o1 * oct1Level + o2 * oct2Level;
 
-        const float m = mix <= 0.0001f ? 0.0f : clamp01(0.08f + 1.02f * mix);
-        const float dryLevel = 1.0f - 0.72f * m;
-        const float wetLevel = (0.34f + 1.34f * m) * m;
-        return softClip(dry * dryLevel + octave * wetLevel) * 0.98f;
+        // brightness: 2-pole low-pass so the octave is round, never fizzy.
+        oTone1 += toneA * (octave - oTone1);
+        oTone2 += toneA * (oTone1 - oTone2);
+        octave = oTone2;
+
+        // Mix: dry / octave blend (equal-ish power; Mix=0 -> dry only).
+        const float m = mix <= 0.0001f ? 0.0f : clamp01(0.06f + 1.00f * mix);
+        const float dryLevel = std::cos(m * 0.5f * kPi);
+        const float wetLevel = std::sin(m * 0.5f * kPi) * 1.35f;
+
+        float out = dry * dryLevel + octave * wetLevel;
+        return highPass(out);
     }
 };
 
@@ -191,8 +199,6 @@ class OctaviusPlugin : public Plugin
 {
     OctaviusCore left;
     OctaviusCore right;
-    RBAutoMakeup makeupL;
-    RBAutoMakeup makeupR;
     float params[kParamCount];
 
     void applyAll()
@@ -211,8 +217,6 @@ public:
             params[i] = kOctaviusDef[i];
         left.setSampleRate((float)getSampleRate());
         right.setSampleRate((float)getSampleRate());
-        makeupL.setSampleRate((float)getSampleRate());
-        makeupR.setSampleRate((float)getSampleRate());
         applyAll();
     }
 
@@ -221,7 +225,7 @@ protected:
     const char* getDescription() const override { return "OC-2 style octave-down pedal"; }
     const char* getMaker() const override { return "RigBuilder"; }
     const char* getLicense() const override { return "ISC"; }
-    uint32_t getVersion() const override { return d_version(1, 0, 0); }
+    uint32_t getVersion() const override { return d_version(1, 0, 1); }
     int64_t getUniqueId() const override { return d_cconst('O', 'c', 'v', 's'); }
 
     void initParameter(uint32_t index, Parameter& parameter) override
@@ -247,16 +251,12 @@ protected:
             return;
         params[index] = clamp01(value);
         applyAll();
-        makeupL.snap();
-        makeupR.snap();
     }
 
     void sampleRateChanged(double newSampleRate) override
     {
         left.setSampleRate((float)newSampleRate);
         right.setSampleRate((float)newSampleRate);
-        makeupL.setSampleRate((float)newSampleRate);
-        makeupR.setSampleRate((float)newSampleRate);
         applyAll();
     }
 
@@ -268,10 +268,8 @@ protected:
         float* outR = outputs[1];
         for (uint32_t i = 0; i < frames; ++i)
         {
-            // Auto makeup-gain: match output loudness to the dry input so the
-            // drive's controls change only the amount of clip, not the level.
-            outL[i] = makeupL.process(inL[i], left.process(inL[i]));
-            outR[i] = makeupR.process(inR[i], right.process(inR[i]));
+            outL[i] = left.process(inL[i]);
+            outR[i] = right.process(inR[i]);
         }
     }
 

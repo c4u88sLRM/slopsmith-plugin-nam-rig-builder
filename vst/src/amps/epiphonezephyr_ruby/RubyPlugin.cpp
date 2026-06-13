@@ -160,7 +160,7 @@ public:
         drive    = 0.6f + volume * volume * 5.0f;          // Volume drives V2 into the 6L6s
         level    = 0.5f + volume * 0.8f;
         pwrDrive = 0.45f + volume * 0.8f;
-        pwrLP.setLowpassQ(7500.f, 0.7f, fs);               // vintage 6L6 + OT roll-off
+        pwrLP.setLowpassQ(12500.f, 0.7f, fs);              // vintage 6L6 + OT, miked-cab bright
     }
 
     inline float process(float x) {

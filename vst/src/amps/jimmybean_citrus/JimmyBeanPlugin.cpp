@@ -139,11 +139,14 @@ class JimmyBeanCore
         sustainHp.setHighPass(sampleRate, 90.0f + 60.0f * sustain, 0.70f);
         sustainLp.setLowPass(sampleRate, 6800.0f - 1200.0f * sustain, 0.68f);
 
-        // small solid-state cab.
+        // small solid-state cab. Open the cab lowpass for a miked-cab brightness,
+        // with a gain-dependent retreat (VOLUME/SUSTAIN drive proxy) so cranked
+        // tones don't fizz.
+        const float spkPush = smoothstep(0.5f * volume + 0.5f * sustain);
         speakerHp.setHighPass(sampleRate, 72.0f, 0.72f);
         speakerThump.setPeaking(sampleRate, 110.0f, 0.85f, 1.6f + 1.4f * bass);
         speakerBody.setPeaking(sampleRate, 700.0f, 0.80f, -1.2f);   // scoop the boxy mid
-        speakerLp.setLowPass(sampleRate, 5600.0f + 1600.0f * treble + (bright >= 0.5f ? 1200.0f : 0.0f), 0.66f);
+        speakerLp.setLowPass(sampleRate, 15000.0f + 1600.0f * treble + (bright >= 0.5f ? 1200.0f : 0.0f) - 3500.0f * spkPush, 0.66f);
     }
 
 public:

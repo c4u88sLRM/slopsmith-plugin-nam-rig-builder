@@ -372,8 +372,8 @@ class BluesbreakerCore
                                    eqDb(bass, 4.6f) - 1.2f * pushed);
         stackMakeupBody.setPeaking(sampleRate, 520.0f + 180.0f * mid, 0.66f,
                                    -0.8f + 4.6f * mid + 1.4f * pushed);  // JTM45 mid warmth
-        phaseLowPass.setLowPass(sampleRate, 7000.0f + 1300.0f * treble + 1000.0f * pres
-                                            - 850.0f * pushed, 0.64f);
+        phaseLowPass.setLowPass(sampleRate, 10500.0f + 1300.0f * treble + 1000.0f * pres
+                                            - 2000.0f * pushed, 0.64f);
         presenceShelf.setHighShelf(sampleRate, 2600.0f + 850.0f * pres, 0.78f,
                                    -3.6f + 8.4f * pres + 0.9f * treble);
 
@@ -385,11 +385,11 @@ class BluesbreakerCore
         speakerLowMid.setPeaking(sampleRate, 370.0f + 90.0f * mid, 0.78f,
                                  0.8f + 1.9f * mid - 0.7f * pushed);
         speakerBite.setPeaking(sampleRate, 2650.0f + 480.0f * treble, 0.74f,
-                               1.5f + 2.0f * treble + 1.0f * pres);   // the Marshall crunch bite
-        speakerFizzNotch.setPeaking(sampleRate, 4900.0f + 340.0f * pres, 0.96f,
-                                    -3.0f - 2.4f * pushed);
-        speakerLp.setLowPass(sampleRate, 5500.0f + 1900.0f * treble + 850.0f * pres
-                                         - 850.0f * pushed, 0.66f);
+                               2.5f + 2.0f * treble + 1.0f * pres - 0.5f * pushed);   // the Marshall crunch bite
+        speakerFizzNotch.setHighShelf(sampleRate, 4700.0f, 0.70f,
+                                      9.5f + 2.0f * treble + 2.0f * pres - 4.5f * pushed);
+        speakerLp.setLowPass(sampleRate, 14500.0f + 1900.0f * treble + 850.0f * pres
+                                         - 3500.0f * pushed, 0.66f);
     }
 
 public:

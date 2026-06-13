@@ -154,7 +154,7 @@ class Maz38Core
         interHp.setHighPass(sampleRate, 120.0f + 110.0f * pushed, 0.70f);
         cathodeLp.setLowPass(sampleRate, 9500.0f + 1400.0f * treble - 1200.0f * pushed, 0.64f);
 
-        phaseLp.setLowPass(sampleRate, 7400.0f + 1500.0f * treble - 800.0f * pushed, 0.64f);
+        phaseLp.setLowPass(sampleRate, 10500.0f + 1500.0f * treble - 2000.0f * pushed, 0.64f);
         // CUT 250kA: a post-PI treble bleed to ground — HIGHER = DARKER.
         cutShelf.setHighShelf(sampleRate, 3000.0f, 0.70f, -1.0f - 9.0f * smoothstep(cut));
         // EL84 chime / presence: a touch brighter than a 6L6 amp.
@@ -164,9 +164,12 @@ class Maz38Core
         speakerHp.setHighPass(sampleRate, 94.0f, 0.72f);
         speakerThump.setPeaking(sampleRate, 124.0f, 0.86f, 0.3f + 1.8f * bass);
         speakerLowMid.setPeaking(sampleRate, 480.0f + 120.0f * mid, 0.74f, 1.0f + 2.2f * mid - 0.5f * pushed);
-        speakerBite.setPeaking(sampleRate, 2800.0f + 500.0f * treble, 0.74f, 1.6f + 2.0f * treble);
-        speakerFizz.setPeaking(sampleRate, 5600.0f, 0.96f, -2.6f - 2.2f * pushed);
-        speakerLp.setLowPass(sampleRate, 6200.0f + 1900.0f * treble - 800.0f * pushed, 0.66f);
+        speakerBite.setPeaking(sampleRate, 2800.0f + 500.0f * treble, 0.74f, 2.6f + 2.0f * treble - 0.5f * pushed);
+        // Was a fizz NOTCH (top cut, made it dark). Now an AIR high-shelf: lifts the
+        // top, retreats with gain (de-fizz on crank). Member name kept.
+        speakerFizz.setHighShelf(sampleRate, 4700.0f, 0.70f, 9.5f + 2.0f * treble - 4.5f * pushed);
+        // Speaker LP opened from ~6.2k (too dark) to ~16k (miked cab), eases on crank.
+        speakerLp.setLowPass(sampleRate, 16000.0f + 1900.0f * treble - 3500.0f * pushed, 0.66f);
     }
 
 public:

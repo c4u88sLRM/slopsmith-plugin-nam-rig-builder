@@ -373,8 +373,8 @@ class Jtm45Core
                                    eqDb(bass, 4.8f) - 1.2f * pushed);
         stackMakeupBody.setPeaking(sampleRate, 500.0f + 180.0f * mid, 0.66f,
                                    -0.8f + 5.2f * mid + 1.5f * pushed);  // JTM45 warm mid
-        phaseLowPass.setLowPass(sampleRate, 6600.0f + 1300.0f * treble + 1000.0f * pres
-                                            - 900.0f * pushed, 0.64f);
+        phaseLowPass.setLowPass(sampleRate, 10500.0f + 1300.0f * treble + 1000.0f * pres
+                                            - 2000.0f * pushed, 0.64f);
         presenceShelf.setHighShelf(sampleRate, 2500.0f + 850.0f * pres, 0.78f,
                                    -4.0f + 8.4f * pres + 0.9f * treble);
 
@@ -386,11 +386,11 @@ class Jtm45Core
         speakerLowMid.setPeaking(sampleRate, 370.0f + 90.0f * mid, 0.78f,
                                  0.8f + 2.0f * mid - 0.7f * pushed);
         speakerBite.setPeaking(sampleRate, 2550.0f + 480.0f * treble, 0.74f,
-                               1.5f + 2.0f * treble + 1.1f * pres);   // softer than Plexi
-        speakerFizzNotch.setPeaking(sampleRate, 4700.0f + 340.0f * pres, 0.96f,
-                                    -3.4f - 2.6f * pushed);
-        speakerLp.setLowPass(sampleRate, 5200.0f + 1800.0f * treble + 850.0f * pres
-                                         - 900.0f * pushed, 0.66f);   // darker top
+                               2.5f + 2.0f * treble + 1.1f * pres - 0.5f * pushed);   // softer than Plexi
+        speakerFizzNotch.setHighShelf(sampleRate, 4700.0f, 0.70f,
+                                      9.5f + 2.0f * treble + 2.0f * pres - 4.5f * pushed);
+        speakerLp.setLowPass(sampleRate, 14500.0f + 1800.0f * treble + 850.0f * pres
+                                         - 3500.0f * pushed, 0.66f);   // brighter, miked-cab top
     }
 
 public:

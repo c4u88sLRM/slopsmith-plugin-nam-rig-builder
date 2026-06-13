@@ -288,7 +288,7 @@ class Dsl15Core
 
         // Power-amp NFB: Presence (high) + Deep (low resonance) + speaker.
         phaseHp.setHighPass(sampleRate, 78.0f + 32.0f * ultraA, 0.72f);
-        phaseLp.setLowPass(sampleRate, 7700.0f + 1400.0f * treble + 700.0f * presence - 1350.0f * ultraA, 0.65f);
+        phaseLp.setLowPass(sampleRate, 10500.0f + 1400.0f * treble + 700.0f * presence - 2000.0f * ultraA, 0.65f);
         presenceShelf.setHighShelf(sampleRate, 2750.0f + 850.0f * presence, 0.78f,
                                    -4.2f + 8.7f * presence + 1.3f * treble);
         // DEEP switch: a fixed low-end resonance bump when engaged.
@@ -304,10 +304,10 @@ class Dsl15Core
         speakerLowMid.setPeaking(sampleRate, 430.0f + 155.0f * mid, 0.76f,
                                  0.6f + 2.5f * mid - 2.2f * ts);
         speakerBite.setPeaking(sampleRate, 2900.0f + 620.0f * treble, 0.78f,
-                               1.2f + 2.4f * treble + 1.9f * presence + 0.8f * ultraA);
-        speakerFizzNotch.setPeaking(sampleRate, 5100.0f + 460.0f * presence, 1.10f,
-                                    -3.4f - 3.7f * ultraA - 0.8f * ts);
-        speakerLp.setLowPass(sampleRate, 6300.0f + 2050.0f * treble + 850.0f * presence - 1150.0f * ultraA, 0.66f);
+                               2.2f + 2.4f * treble + 1.9f * presence + 0.3f * ultraA);
+        speakerFizzNotch.setHighShelf(sampleRate, 4700.0f, 0.70f,
+                                      9.5f + 2.0f * treble + 2.0f * presence - 4.5f * ultraA);
+        speakerLp.setLowPass(sampleRate, 14500.0f + 2050.0f * treble + 850.0f * presence - 3500.0f * ultraA, 0.66f);
     }
 
 public:

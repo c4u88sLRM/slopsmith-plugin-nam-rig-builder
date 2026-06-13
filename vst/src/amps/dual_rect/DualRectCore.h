@@ -180,14 +180,18 @@ class DualRectCore {
         }
 
         // presence (power-amp feedback high shelf)
-        presence.setHighShelf(sampleRate, 2600.0f, 0.80f, -2.0f + 9.0f * pres + 2.0f * modern);
+        presence.setHighShelf(sampleRate, 2600.0f, 0.80f, -2.0f + 9.0f * pres - 1.5f * modern);
 
         // --- 4x12 (V30-ish): tight modern voicing ---
-        spkHp.setHighPass(sampleRate, 78.0f, 0.74f);
-        spkBody.setPeaking(sampleRate, 180.0f, 0.80f, 1.6f + 1.6f * bass - 0.6f * hot);
-        spkBite.setPeaking(sampleRate, 2500.0f + 500.0f * tre, 0.72f, 2.2f + 2.2f * tre + 1.2f * pres);
-        spkFizz.setPeaking(sampleRate, 4600.0f, 0.90f, -3.0f - 2.5f * chHot);
-        spkLp.setLowPass(sampleRate, 5200.0f + 2600.0f * tre + 1200.0f * pres - 800.0f * modern, 0.62f);
+        spkHp.setHighPass(sampleRate, 150.0f - 40.0f * modern + 70.0f * cleanCh, 0.80f);
+        // body/low-mid: scoop the mud. Clean channel sits muddier (low drive, no
+        // cascade) so it needs a broader, higher cut to lift its centroid.
+        const float bodyHz = 250.0f + 350.0f * cleanCh;
+        const float bodyQ  = 0.70f - 0.24f * cleanCh;
+        spkBody.setPeaking(sampleRate, bodyHz, bodyQ, -4.5f - 8.5f * cleanCh + 3.0f * modern + 1.6f * bass - 0.6f * hot);
+        spkBite.setPeaking(sampleRate, 2800.0f + 500.0f * tre, 0.55f, 9.0f + 4.0f * cleanCh + 2.2f * tre + 1.2f * pres);
+        spkFizz.setHighShelf(sampleRate, 4400.0f, 0.70f, 20.0f + 2.0f * tre + 2.0f * pres - 16.0f * modern);
+        spkLp.setLowPass(sampleRate, 15000.0f + 2000.0f * tre + 1000.0f * pres - 9500.0f * modern, 0.62f);
 
         // --- stage drives ---
         // base gain rises with channel hotness, the Gain knob, and Modern; Raw/

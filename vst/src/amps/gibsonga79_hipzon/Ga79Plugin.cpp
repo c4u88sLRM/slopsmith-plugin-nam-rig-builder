@@ -189,7 +189,7 @@ public:
         reverb   = reverbP;
         tRate    = 2.5f + speed * 7.0f;
         tDepth   = depth * 0.92f;
-        pwrLP.setLowpassQ(8500.f, 0.7f, fs);
+        pwrLP.setLowpassQ(12500.f, 0.7f, fs);   // miked-cab roll-off, vintage-bright
     }
 
     inline float process(float x) {

@@ -134,8 +134,8 @@ class Vs100Core
         od2HighSh.setHighShelf(sampleRate, 3200.0f, 0.72f, eqDb(od2Treble, 10.0f));
         // Marshall-ish cab voicing
         speakerHp.setHighPass(sampleRate, 80.0f, 0.72f);
-        speakerBite.setPeaking(sampleRate, 2600.0f, 0.78f, 1.4f + 1.6f * (o2W ? od2Treble : clTreble));
-        speakerLp.setLowPass(sampleRate, 6000.0f + 1600.0f * (o2W ? od2Treble : clTreble) - 700.0f * pushed, 0.66f);
+        speakerBite.setPeaking(sampleRate, 2600.0f, 0.78f, 2.4f + 1.6f * (o2W ? od2Treble : clTreble) - 0.5f * pushed);
+        speakerLp.setLowPass(sampleRate, 14500.0f + 1600.0f * (o2W ? od2Treble : clTreble) - 3500.0f * pushed, 0.66f);
     }
 
 public:

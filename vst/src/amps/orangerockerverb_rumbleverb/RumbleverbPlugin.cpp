@@ -204,7 +204,7 @@ public:
         reverb   = p[kReverb];
         output   = p[kOutput] / 0.7f;
         pwrDrive = 0.5f + output * 0.85f;
-        pwrLP.setLowpassQ(8500.f, 0.7f, fs);             // EL34 + OT band-limit
+        pwrLP.setLowpassQ(14000.f - 3000.f * output, 0.7f, fs);  // EL34 + OT band-limit (opened, miked-cab top)
     }
 
     inline float process(float x) {

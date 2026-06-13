@@ -237,7 +237,7 @@ class ChieftainCore
         interHp.setHighPass(sampleRate, 120.0f + 90.0f * pushed, 0.70f);
         cathodeLp.setLowPass(sampleRate, 10500.0f + 1400.0f * treble - 1100.0f * pushed, 0.64f);
 
-        phaseLp.setLowPass(sampleRate, 8200.0f + 1500.0f * treble - 700.0f * pushed, 0.64f);
+        phaseLp.setLowPass(sampleRate, 10500.0f + 1500.0f * treble - 2000.0f * pushed, 0.64f);
         // BRILLIANCE 500kA: a presence/high-shelf on the PI via the .0047 cap.
         // Higher Brilliance = more top sparkle.
         brillShelf.setHighShelf(sampleRate, 2600.0f, 0.76f, 6.0f * brilliance);
@@ -247,9 +247,9 @@ class ChieftainCore
         speakerHp.setHighPass(sampleRate, 78.0f, 0.72f);
         speakerThump.setPeaking(sampleRate, 120.0f, 0.84f, 0.6f + 2.0f * bass);
         speakerLowMid.setPeaking(sampleRate, 420.0f + 90.0f * mid, 0.78f, 0.4f + 1.5f * mid - 0.4f * pushed);
-        speakerBite.setPeaking(sampleRate, 2700.0f + 480.0f * treble, 0.76f, 1.1f + 1.8f * treble);
-        speakerFizz.setPeaking(sampleRate, 5600.0f, 0.96f, -2.4f - 2.0f * pushed);
-        speakerLp.setLowPass(sampleRate, 6400.0f + 2000.0f * treble - 700.0f * pushed, 0.66f);
+        speakerBite.setPeaking(sampleRate, 2700.0f + 480.0f * treble, 0.76f, 2.1f + 1.8f * treble - 0.5f * pushed);
+        speakerFizz.setHighShelf(sampleRate, 4700.0f, 0.70f, 9.5f + 2.0f * treble - 4.5f * pushed);
+        speakerLp.setLowPass(sampleRate, 16000.0f + 2000.0f * treble - 3500.0f * pushed, 0.66f);
     }
 
 public:

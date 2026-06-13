@@ -256,7 +256,7 @@ class Jvm410Core
 
         // power-amp NFB: Presence (HF) + Resonance (LF) + phase inverter rolloff
         phaseHp.setHighPass(sampleRate, 70.0f + 28.0f * dirtW, 0.72f);
-        phaseLp.setLowPass(sampleRate, 7400.0f + 1400.0f * treble + 600.0f * presence - 900.0f * pushed, 0.64f);
+        phaseLp.setLowPass(sampleRate, 10500.0f + 1400.0f * treble + 600.0f * presence - 2000.0f * pushed, 0.64f);
         presenceShelf.setHighShelf(sampleRate, 2600.0f + 800.0f * presence, 0.78f, -1.2f + 8.0f * presence + 1.0f * treble);
         resonanceShelf.setLowShelf(sampleRate, 95.0f + 38.0f * resonance, 0.78f, -2.0f + 7.0f * deep + 1.6f * dirtW);
         resonancePeak.setPeaking(sampleRate, 116.0f + 28.0f * resonance, 0.92f, 0.4f + 4.4f * deep + 1.2f * bass);
@@ -265,9 +265,9 @@ class Jvm410Core
         speakerHp.setHighPass(sampleRate, 82.0f, 0.72f);
         speakerThump.setPeaking(sampleRate, 122.0f, 0.84f, 0.8f + 2.0f * bass + 1.6f * deep);
         speakerLowMid.setPeaking(sampleRate, 420.0f + 90.0f * mid, 0.74f, -1.2f + 1.6f * mid);   // the Marshall mid dip
-        speakerBite.setPeaking(sampleRate, 2700.0f + 480.0f * treble, 0.78f, 1.3f + 2.0f * treble + 0.8f * presence);
-        speakerFizz.setPeaking(sampleRate, 5300.0f, 0.96f, -3.2f - 2.4f * pushed);
-        speakerLp.setLowPass(sampleRate, 6300.0f + 1800.0f * treble - 900.0f * pushed, 0.66f);
+        speakerBite.setPeaking(sampleRate, 2700.0f + 480.0f * treble, 0.78f, 2.3f + 2.0f * treble + 0.8f * presence - 0.5f * pushed);
+        speakerFizz.setHighShelf(sampleRate, 4700.0f, 0.70f, 9.5f + 2.0f * treble + 2.0f * presence - 4.5f * pushed);
+        speakerLp.setLowPass(sampleRate, 14500.0f + 1800.0f * treble - 3500.0f * pushed, 0.66f);
     }
 
 public:

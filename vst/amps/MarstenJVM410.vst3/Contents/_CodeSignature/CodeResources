@@ -18,6 +18,20 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
+		<key>x86_64-linux/MarstenJVM410.so</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			llZy9+aQpwa8n+36GUeH3tuQ3u8TYJ4X/yZ3CAj0VfY=
+			</data>
+		</dict>
+		<key>x86_64-win/MarstenJVM410.vst3</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			JuhkwFO+oP3fNVsm8fq9QRdKp0SvtX8UfpBUHddQm7k=
+			</data>
+		</dict>
 	</dict>
 	<key>rules</key>
 	<dict>
