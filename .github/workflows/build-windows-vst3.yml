@@ -54,6 +54,12 @@ jobs:
           # can't find DPF and fail to build.
           ln -sfn "$DPF" "$GITHUB_WORKSPACE/vst/DPF"
           cd "$GITHUB_WORKSPACE/vst/src"
+          # Post-reorg the effects moved to <cat>/<name>/ and 110+ of them include
+          # "../_shared/...". After the split that must resolve to <cat>/_shared,
+          # so symlink _shared into each category dir.
+          for cat in amps pedals racks; do
+            [ -d "$cat" ] && [ -d _shared ] && ln -sfn ../_shared "$cat/_shared"
+          done
           fail=""
           # Set DPF_BUILD_DIR/DPF_TARGET_DIR explicitly: with an absolute
           # DPF_PATH, DPF's BASE_PATH heuristic mis-resolves the default output
@@ -67,12 +73,15 @@ jobs:
           }
           # root Makefile builds AutoSweep (the QTron envelope filter)
           [ -f Makefile ] && build .
-          for mk in */Makefile; do
+          # Effects are now TWO levels deep: <cat>/<name>/Makefile (was */Makefile,
+          # which matched nothing post-reorg -> "FAILED DIRS: *").
+          for mk in */*/Makefile; do
             d=$(dirname "$mk")
-            case "$d" in DPF|_shared) continue;; esac
+            case "$d" in DPF/*|*/DPF|*/_shared|*/mark_shared) continue;; esac
             echo "==== building $d ===="
             build "$d"
           done
+          for cat in amps pedals racks; do rm -f "$cat/_shared"; done
           rm -f "$GITHUB_WORKSPACE/vst/DPF"
           echo "FAILED DIRS:$fail"
 
@@ -176,14 +185,20 @@ jobs:
           find vst/src -type d -path '*/Contents/x86_64-win' | while read -r win; do
             built=$(basename "$(dirname "$(dirname "$win")")")   # <Name>.vst3
             bundle=$(alias_of "$built")
-            if [ -d "vst/$bundle" ]; then
-              dest="vst/$bundle/Contents/x86_64-win"
+            # Committed bundles moved into vst/{amps,pedals,racks}/ (the reorg),
+            # so search those subdirs, not the old flat vst/<bundle>.
+            dst=""
+            for cat in amps pedals racks; do
+              [ -d "vst/$cat/$bundle" ] && dst="vst/$cat/$bundle" && break
+            done
+            if [ -n "$dst" ]; then
+              dest="$dst/Contents/x86_64-win"
               rm -rf "$dest"; mkdir -p "$dest"
               cp -R "$win/." "$dest/"
-              echo "injected: $bundle"
+              echo "injected: $dst"
               count=$((count+1))
             else
-              echo "WARNING: built $bundle but no committed bundle vst/$bundle"
+              echo "WARNING: built $bundle but no committed bundle vst/{amps,pedals,racks}/$bundle"
             fi
           done
           echo "injected $count bundles"
@@ -193,7 +208,7 @@ jobs:
           cd "$GITHUB_WORKSPACE"
           git config user.name  "windows-vst-bot"
           git config user.email "windows-vst-bot@users.noreply.github.com"
-          git add vst/*/Contents/x86_64-win || true
+          git add vst/*/*/Contents/x86_64-win || true
           if git diff --cached --quiet; then
             echo "No Windows binaries to commit (check the build log for failures)."
           else
