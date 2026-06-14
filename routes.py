@@ -21,6 +21,7 @@ import base64
 import json
 import logging
 import math
+import os
 import re
 import secrets
 import shutil
@@ -1003,10 +1004,17 @@ _json_cache: dict[str, object] = {}
 def _data_path(filename: str) -> Path:
     """Resolve a generated data file (rs_to_real.json, rs_cab_to_ir.json, …).
 
-    These live under `data/` for tidiness; the legacy flat location next to
-    routes.py is the fallback so installs that haven't moved still load.
-    For writes, callers should `mkdir` the parent.
+    These are generated/overridable, so they must live somewhere WRITABLE: in
+    a packaged build the plugin dir is read-only (e.g. an AppImage squashfs
+    mount), and writing the bundled `data/` raises OSError(Errno 30). setup()
+    points RIG_BUILDER_DATA_DIR at a writable per-user dir and seeds the bundled
+    defaults into it, so reads find them there and writes don't hit the
+    read-only mount. Falls back to the bundled `data/` (then the legacy flat
+    location) when the override isn't set (e.g. running the tools standalone).
     """
+    override = os.environ.get("RIG_BUILDER_DATA_DIR")
+    if override:
+        return Path(override) / filename
     in_data = _plugin_dir / "data" / filename
     if in_data.exists():
         return in_data
@@ -5110,6 +5118,10 @@ def _batch_worker(mode: str = "all"):
     - "new" — only map tones that have NO preset yet; already-mapped tones
       are left completely untouched. New songs inherit the captures you've
       already assigned to the same gear elsewhere.
+    - "factory" — like "all" but IGNORES assigned_mode: even manual swaps are
+      re-resolved to the default mapping (bundled VST / curated capture / IR).
+      Backs nothing up by itself — it's the "Reset to factory" button. Per-tone
+      bypass and the chosen cab-IR variant are still preserved.
     """
     global _batch_disk_bytes
     try:
@@ -5229,8 +5241,12 @@ def _batch_worker(mode: str = "all"):
                     #    in THIS tone, keep it exactly as-is — the batch never
                     #    overwrites a per-song manual choice. (Only reachable in
                     #    "all" mode; "new" skips already-mapped tones entirely.)
+                    #    EXCEPTION: "factory" mode ignores assigned_mode entirely
+                    #    and re-resolves every piece to its default mapping (the
+                    #    "Reset to factory" button) — manual swaps are discarded.
                     _prev_piece = existing_by_gear.get(rs_type, {})
-                    if (_prev_piece.get("assigned_mode") in ("manual", "manual_vst")
+                    if (mode != "factory"
+                            and _prev_piece.get("assigned_mode") in ("manual", "manual_vst")
                             and _manual_piece_usable(_prev_piece)):
                         try:
                             _kept_params = json.loads(_prev_piece.get("params_json") or "{}")
@@ -6163,6 +6179,40 @@ def setup(app, context):
     _get_dlc_dir = context["get_dlc_dir"]
     _get_sloppak_cache_dir = context.get("get_sloppak_cache_dir")
     _db_path = str(_config_dir / "nam_tone.db")
+
+    # Generated data (rs_to_real.json, default_captures.json, …) must be
+    # writable. The bundled plugin dir is read-only in packaged builds (e.g. an
+    # AppImage squashfs mount), so the extractor subprocess writing the bundled
+    # data/ fails with OSError(Errno 30). Use a writable per-user data dir, seed
+    # the bundled defaults into it once, and export RIG_BUILDER_DATA_DIR so both
+    # _data_path() and the extractor subprocesses (common.DATA_DIR honours it)
+    # read/write there. Idempotent: only seeds files without a (user-edited)
+    # copy already present.
+    # Only these are user-generated (the extractors / "Export defaults") and must
+    # PERSIST across updates — seed them once if missing, never overwrite.
+    # EVERYTHING ELSE is a static ship-with-plugin catalog (gear→VST map, display
+    # names, knob→param map, loudness model, cab makeup, type tags, …) and is
+    # refreshed from the bundle whenever it differs, so a plugin update actually
+    # takes effect. The old "seed once for all" left these stale on update — e.g.
+    # the seeded vst_display_names.json predated the amp clones, so amps showed
+    # their Rocksmith names, and the gear map predated the amp VSTs, so amps fell
+    # back to NAM.
+    _USER_GENERATED = {"rs_to_real.json", "rs_cab_to_ir.json", "default_captures.json"}
+    _writable_data = _config_dir / "nam_rig_builder" / "data"
+    try:
+        _writable_data.mkdir(parents=True, exist_ok=True)
+        _bundled_data = _plugin_dir / "data"
+        if _bundled_data.is_dir():
+            for _src in _bundled_data.glob("*.json"):
+                _dest = _writable_data / _src.name
+                if _src.name in _USER_GENERATED:
+                    if not _dest.exists():
+                        _dest.write_bytes(_src.read_bytes())
+                elif not _dest.exists() or _dest.read_bytes() != _src.read_bytes():
+                    _dest.write_bytes(_src.read_bytes())
+        os.environ["RIG_BUILDER_DATA_DIR"] = str(_writable_data)
+    except OSError:
+        log.exception("could not set up writable data dir; falling back to bundled data/")
 
     # Force migration on cold start so the table exists by the time the
     # UI first asks for assignments.
@@ -9373,7 +9423,7 @@ def setup(app, context):
     def batch_all(data: dict = Body(default={})):
         global _batch_thread
         mode = (data or {}).get("mode", "all")
-        if mode not in ("all", "new"):
+        if mode not in ("all", "new", "factory"):
             mode = "all"
         with _batch_lock:
             if _batch_state["running"]:
