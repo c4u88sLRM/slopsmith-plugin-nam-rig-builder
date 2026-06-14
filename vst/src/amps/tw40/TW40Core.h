@@ -447,10 +447,10 @@ public:
 
         // BRIGHT channel: bright cap + body, its own 12AY7 triode, then volume.
         float bch = brightShelf.process(brightBody.process(x));
-        bch = asymTube(bch, 0.90f + 2.25f * effDrive + 2.3f * g, 0.012f + 0.016f * effDrive);
+        bch = asymTube(bch, 0.94f + 1.30f * effDrive + 1.05f * g, 0.012f + 0.016f * effDrive);
         // NORMAL channel: darker body, its own triode, then volume.
         float nch = normalBody.process(x);
-        nch = asymTube(nch, 0.82f + 2.0f * effDrive + 2.0f * g, 0.010f + 0.014f * effDrive);
+        nch = asymTube(nch, 0.84f + 1.18f * effDrive + 0.92f * g, 0.010f + 0.014f * effDrive);
 
         // Jumpered mix: each channel scaled by its Volume and gated by the cable.
         float y = brightG * brightVol * bch + normalG * normalVol * 0.92f * nch;
@@ -460,7 +460,7 @@ public:
 
         // 12AX7 recovery / cathode-follower into the FMV tone stack.
         y = interstageHp.process(y);
-        y = asymTube(y, 0.82f + 1.60f * effDrive + 2.2f * pushed, -0.006f - 0.010f * effDrive);
+        y = asymTube(y, 0.80f + 1.05f * effDrive + 0.95f * pushed, -0.006f - 0.010f * effDrive);
         y = cathodeFollowerLp.process(y);
 
         y = toneStack.process(y) * 1.70f;
@@ -475,9 +475,9 @@ public:
         sag += (env - sag) * (env > sag ? attack : release);
         const float sagDrop = 1.0f / (1.0f + sag * (0.36f + 0.86f * effDrive + 0.50f * pushed));
 
-        const float powerDrive = (0.92f + 1.55f * effDrive + 2.25f * pushed) * sagDrop;
+        const float powerDrive = (0.86f + 1.05f * effDrive + 1.05f * pushed) * sagDrop;
         y = asymTube(y, powerDrive, 0.006f + 0.014f * (treble - bass) + 0.010f * pres);
-        y = 0.86f * y + 0.14f * softClip(y * (1.65f + 1.35f * pushed));
+        y = 0.91f * y + 0.09f * softClip(y * (1.65f + 1.35f * pushed));
         y *= 0.98f - 0.08f * sag;
 
         y = presenceShelf.process(y);

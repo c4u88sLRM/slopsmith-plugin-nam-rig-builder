@@ -190,9 +190,9 @@ public:
         float y = asymTube(x, 1.10f + 0.7f * g, 0.008f);
         // GAIN pot -> V1b cascade (the JCM800 drive). LO removes some cascade gain.
         const float drv = 1.0f;
-        y = asymTube(y * (0.40f + 2.0f * gain), (1.25f + 4.6f * gain + 2.6f * g) * drv, 0.012f + 0.014f * gain);
+        y = asymTube(y * (0.20f + 2.20f * gain), (0.80f + 4.6f * gain + 3.05f * g) * drv, 0.012f + 0.014f * gain);
         y = interHp.process(y);
-        y = asymTube(y, (0.95f + 4.4f * gain + 2.8f * pushed) * drv, -0.008f - 0.012f * gain);
+        y = asymTube(y, (0.50f + 4.4f * gain + 3.25f * pushed) * drv, -0.008f - 0.012f * gain);
         y = cathodeLp.process(y);
 
         // Marshall tone stack + cathode follower makeup

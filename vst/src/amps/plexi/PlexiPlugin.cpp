@@ -440,10 +440,10 @@ public:
 
         // HIGH TREBLE (bright) channel: 5000pF bright cap + body, its own 12AX7.
         float bch = brightCapShelf.process(brightBody.process(x));
-        bch = asymTube(bch, 1.10f + 3.40f * effDrive + 3.2f * g, 0.014f + 0.018f * effDrive);
+        bch = asymTube(bch, 1.35f + 5.40f * effDrive + 3.6f * g, 0.014f + 0.018f * effDrive);
         // NORMAL channel: darker, its own triode.
         float nch = normalBody.process(x);
-        nch = asymTube(nch, 0.95f + 2.6f * effDrive + 2.4f * g, 0.011f + 0.015f * effDrive);
+        nch = asymTube(nch, 1.15f + 4.4f * effDrive + 2.8f * g, 0.011f + 0.015f * effDrive);
 
         // Jumpered mix: each channel scaled by its Loudness pot, gated by the cable.
         float y = brightG * loud1 * bch + normalG * loud2 * 0.92f * nch;
@@ -453,7 +453,7 @@ public:
 
         // 12AX7 recovery / cathode follower into the tone stack — the grind stage.
         y = interstageHp.process(y);
-        y = asymTube(y, 0.95f + 2.0f * effDrive + 2.6f * pushed, -0.007f - 0.012f * effDrive);
+        y = asymTube(y, 1.15f + 3.2f * effDrive + 2.2f * pushed, -0.007f - 0.012f * effDrive);
         y = cathodeFollowerLp.process(y);
 
         y = toneStack.process(y) * 1.70f;
@@ -469,9 +469,10 @@ public:
         sag += (env - sag) * (env > sag ? attack : release);
         const float sagDrop = 1.0f / (1.0f + sag * (0.40f + 0.95f * effDrive + 0.55f * pushed));
 
-        const float powerDrive = (1.05f + 1.90f * effDrive + 3.0f * pushed) * sagDrop;
+        const float powerDrive = (1.55f + 3.40f * effDrive + 2.6f * pushed) * sagDrop;
         y = asymTube(y, powerDrive, 0.008f + 0.016f * (treble - bass) + 0.012f * pres);
-        y = 0.82f * y + 0.18f * softClip(y * (1.80f + 1.50f * pushed));
+        const float clipMix = 0.18f + 0.35f * pushed;
+        y = (1.0f - clipMix) * y + clipMix * softClip(y * (1.80f + 1.60f * pushed));
         y *= 0.97f - 0.09f * sag;
 
         y = presenceShelf.process(y);
@@ -496,7 +497,13 @@ public:
         const float cleanMakeup = 1.0f + 12.0f * std::exp(-effDrive / 0.185f);
         const float level = (0.585f + 0.15f * (1.0f - effDrive)) * cleanMakeup /
             ((1.0f + 0.30f * effDrive + 0.16f * pushed) * toneEnergy);
-        return softClip(y * level) * 0.97f;
+        // Final output clip: drive it harder as the amp is cranked so the cranked
+        // Plexi genuinely squashes its peaks (crest collapses) the way the power
+        // amp/OT do on a real 100W head. This is a saturation knob, not a level
+        // change — `level` (the loudness makeup) is untouched, and the post-clip
+        // is renormalized by tanh(finalDrive) so makeup gain stays calibrated.
+        const float finalDrive = 1.0f + 1.2f * pushed * pushed;
+        return softClip(y * level * finalDrive) / std::tanh(finalDrive) * 0.97f;
     }
 };
 

@@ -198,11 +198,24 @@ class DualRectCore {
         // Vintage trim it. Clean channel stays low (Pushed nudges it).
         const float drive = (0.7f + 1.4f * chHot) * (0.5f + 1.4f * g + 0.9f * hot)
                           * (1.0f + 0.35f * modern + 0.30f * pushed) * (0.85f + 0.15f * (1.0f - vint));
-        aDrv1 = 0.9f + 0.6f * g;
-        aDrv2 = 0.6f + drive * (cleanCh > 0.5f ? 0.7f : 1.3f);
-        aDrv3 = 0.5f + drive * (cleanCh > 0.5f ? 0.0f : 1.1f);   // 3rd stage only really bites on Orange/Red
+        // Per-channel saturation-amount trim (distortion / crest match vs the
+        // AmpliTube refs). Green stays nearly CLEAN (highest crest), Orange a
+        // notch tamer to hit the vintage crest, Red barely trimmed (it's already
+        // matched). Each is a constant per channel so the Gain knob stays
+        // monotonic. Only the drive AMOUNT changes here — EQ, tone stack,
+        // cab/presence and makeup are untouched.
+        //   C1 0.15: clean channel barely saturates; crest is dominated by the
+        //            cab/transient path, so this lever has little headroom but is
+        //            set low to keep the green channel as clean as possible.
+        //   C2 0.66: tuned to the AmpliTube vintage crest (~11.6).
+        //   C3 0.96: left at match (lowering it does NOT raise crest here — the
+        //            power stage dominates — so don't over-clean it).
+        const float satScale = (ch < 0.25f) ? 0.15f : (ch < 0.75f ? 0.66f : 0.96f);
+        aDrv1 = (0.9f + 0.6f * g) * satScale;
+        aDrv2 = 0.6f + drive * (cleanCh > 0.5f ? 0.7f : 1.3f) * satScale;
+        aDrv3 = 0.5f + drive * (cleanCh > 0.5f ? 0.0f : 1.1f) * satScale;   // 3rd stage only really bites on Orange/Red
         aRecov = 0.8f + 0.7f * g;
-        aPower = 1.0f + 1.0f * g + 1.6f * hot + 0.4f * chHot;
+        aPower = 1.0f + (1.0f * g + 1.6f * hot) * satScale + 0.4f * chHot;
 
         // output makeup: hold ~constant loudness at the BOX DC30 reference across
         // gain + channel, with a tone-energy term so big EQ moves don't shift level.

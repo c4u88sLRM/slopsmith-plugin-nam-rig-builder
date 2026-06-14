@@ -253,12 +253,24 @@ public:
         vt *= (0.45f + 1.10f * vintVol);
 
         // --- BURN channel: cascaded gain stages ---
-        float bn = burnTighten.process(x);
-        const float g1 = 1.7f + 6.0f * gain1 + 3.0f * chBoost;
-        bn = triode12AX7(bn * g1, 0.026f + 0.030f * gain1);
+        // Drive is mostly GAIN-knob dependent (steep clean->crunch range) with a
+        // small fixed Burn-channel floor, so low gain stays clean and the knob
+        // sweeps a wide range like the AmpliTube reference.
+        const float bnDry = burnTighten.process(x);
+        float bn = bnDry;
+        const float g1 = 0.55f + 0.65f * gain1 + 1.95f * gain1 * gain1;
+        bn = triode12AX7(bn * g1, 0.004f + 0.020f * gain1);
         bn = interstageLp.process(bn);
-        const float g2 = 1.4f + 4.5f * gain2 + 2.5f * chBoost;
-        bn = triode12AX7(bn * g2, -0.018f - 0.026f * gain2);
+        const float g2 = 0.50f + 0.55f * gain2 + 2.55f * gain2 * gain2;
+        bn = triode12AX7(bn * g2, -0.003f - 0.016f * gain2);
+        // Clean dry-blend on the Burn preamp: at low Gain1/Gain2 most of the
+        // signal stays the (full-band, transient-preserving) clean copy — keeps
+        // the crest HIGH and the top end intact; fades to all-driven on crank.
+        // bnDry is scaled by the stages' small-signal gain so its level matches
+        // the un-clipped part of the driven path (blend changes SHAPE, not gain).
+        const float burnClean = 0.55f * (1.0f - smoothstep(gain1)) * (1.0f - smoothstep(gain2));
+        const float dryGain = 1.55f * g1 * g2;   // ~one-stage small-signal gain
+        bn = bn * (1.0f - burnClean) + (bnDry * dryGain) * burnClean;
         bn = burnBassShelf.process(bn);
         bn = burnMidScoop.process(bn);
         bn = burnTrebleShelf.process(bn);
@@ -272,9 +284,12 @@ public:
         const float rel = 1.0f - std::exp(-1.0f / (0.090f * sampleRate));
         sag += (env - sag) * (env > sag ? atk : rel);
         const float sagDrop = 1.0f / (1.0f + sag * (0.26f + 0.50f * wBurn));
-        const float powerDrive = (1.0f + 1.1f * wBurn + 1.6f * hot) * sagDrop;
+        const float powerDrive = (1.0f - 0.70f * wBurn + 1.05f * hot) * sagDrop;
         y = sixV6Pair(y * powerDrive, 0.03f + 0.012f * (burnTre - burnBass));
-        y = 0.90f * y + 0.10f * softClip(y * (1.5f + 1.0f * wBurn));
+        // Parallel clip: keep the Vintage character (0.90/0.10 @ 1.5x) but ease
+        // it on the Burn channel so the lead tone keeps a higher crest.
+        const float clipMix = 0.10f - 0.06f * wBurn;
+        y = (1.0f - clipMix) * y + clipMix * softClip(y * (1.5f + 0.5f * wBurn));
         y = presence.process(y);
 
         y = dcBlock.process(y);
