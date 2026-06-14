@@ -6034,13 +6034,16 @@ def setup(app, context):
     # _data_path() and the extractor subprocesses (common.DATA_DIR honours it)
     # read/write there. Idempotent: only seeds files without a (user-edited)
     # copy already present.
-    # Static, ship-with-plugin catalogs that are NEVER user-edited: always
-    # refresh them from the bundle so a plugin update's new gear→VST / knob→param
-    # mappings take effect (the old "seed once" left these stale on update, so
-    # amps/pedals fell back to NAM because the seeded map predated their VSTs).
-    # User-generated files (rs_to_real.json from the extractor, default_captures.json
-    # from "Export defaults", rs_cab_to_ir.json from extract_irs) keep seed-if-missing.
-    _ALWAYS_REFRESH = {"rs_gear_to_vst.json", "rs_knob_to_vst_param.json"}
+    # Only these are user-generated (the extractors / "Export defaults") and must
+    # PERSIST across updates — seed them once if missing, never overwrite.
+    # EVERYTHING ELSE is a static ship-with-plugin catalog (gear→VST map, display
+    # names, knob→param map, loudness model, cab makeup, type tags, …) and is
+    # refreshed from the bundle whenever it differs, so a plugin update actually
+    # takes effect. The old "seed once for all" left these stale on update — e.g.
+    # the seeded vst_display_names.json predated the amp clones, so amps showed
+    # their Rocksmith names, and the gear map predated the amp VSTs, so amps fell
+    # back to NAM.
+    _USER_GENERATED = {"rs_to_real.json", "rs_cab_to_ir.json", "default_captures.json"}
     _writable_data = _config_dir / "nam_rig_builder" / "data"
     try:
         _writable_data.mkdir(parents=True, exist_ok=True)
@@ -6048,8 +6051,10 @@ def setup(app, context):
         if _bundled_data.is_dir():
             for _src in _bundled_data.glob("*.json"):
                 _dest = _writable_data / _src.name
-                _refresh = _src.name in _ALWAYS_REFRESH
-                if not _dest.exists() or (_refresh and _dest.read_bytes() != _src.read_bytes()):
+                if _src.name in _USER_GENERATED:
+                    if not _dest.exists():
+                        _dest.write_bytes(_src.read_bytes())
+                elif not _dest.exists() or _dest.read_bytes() != _src.read_bytes():
                     _dest.write_bytes(_src.read_bytes())
         os.environ["RIG_BUILDER_DATA_DIR"] = str(_writable_data)
     except OSError:
