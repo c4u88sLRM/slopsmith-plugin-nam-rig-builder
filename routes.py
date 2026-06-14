@@ -1886,6 +1886,129 @@ def _load_rs_cab_mic_map() -> dict:
                              post=_CaseInsensitiveDict, empty=_CaseInsensitiveDict)
 
 
+def _load_cab_overrides() -> dict:
+    """Load (and cache) `rb_cab_overrides.json` — OUR own synthesized/captured
+    cab IRs that OVERRIDE the Rocksmith-extracted mic-position table for a cab.
+
+    Schema (one entry per cab gear key):
+      { "Cab_MARSHALL1960A": { "ir_dir": "cabs", "prefix": "Marsten_4x12" } }
+
+    The per-suffix file is NOT listed here — it is derived from the *authoritative*
+    Wwise `effect_name` of each RS mic-map entry (see `_override_variant`), which
+    also auto-fixes the condenser label rotation present in some extracted maps.
+
+    These ship WITH the plugin under nam_irs/<ir_dir>/, so the song editor marks
+    them always-available (no fragile on-disk existence gate — that flaked when
+    the generated mic-map was edited in place), they get the same +18 dB
+    convolution makeup as RS cabs via `_is_synth_cab_ir`, and they are exempt
+    from the global 'bypass all Rocksmith cabs' (their path is not under
+    nam_irs/rocksmith/, so `_is_rocksmith_ir_file` is False)."""
+    return _load_cached_json("rb_cab_overrides.json",
+                             post=_CaseInsensitiveDict, empty=_CaseInsensitiveDict)
+
+
+# effect_name token -> our filename stem / friendly labels
+_OVR_MIC = {"57": "dyn", "condenser": "cond", "ribbon": "ribbon"}
+_OVR_MIC_LABEL = {"dyn": "Dynamic", "cond": "Condenser", "ribbon": "Ribbon"}
+_OVR_POS_LABEL = {"cone": "Cone", "edge": "Edge", "offaxis": "OffAxis"}
+_OVR_POS_DESC = {"cone": "Cone (close)", "edge": "Edge", "offaxis": "Off-axis"}
+
+
+def _override_variant(ovr: dict, entry: dict) -> dict | None:
+    """Resolve OUR cab IR for one RS mic-map entry, deriving mic + position from
+    the entry's `effect_name` (Cab_<model>_<mic>_<pos>) — NOT its friendly
+    `label`, which is rotated for the condenser positions in some maps.
+
+    Returns {ir_file, label, position} or None when effect_name is unparseable
+    (caller then falls back to the RS file for that suffix)."""
+    parts = (entry.get("effect_name") or "").split("_")
+    if len(parts) < 2:
+        return None
+    mic = _OVR_MIC.get(parts[-2].lower())
+    pos = parts[-1].lower()
+    if not mic or pos not in _OVR_POS_DESC:
+        return None
+    ir_dir = str(ovr.get("ir_dir") or "cabs").strip("/")
+    prefix = str(ovr.get("prefix") or "")
+    return {
+        "ir_file": f"{ir_dir}/{prefix}_{mic}_{pos}.wav",
+        "label": f"{_OVR_MIC_LABEL[mic]} {_OVR_POS_LABEL[pos]}",
+        "position": _OVR_POS_DESC[pos],
+    }
+
+
+def _apply_cab_override(ir_path):
+    """Auto-substitute a Rocksmith cab IR with OUR own equivalent.
+
+    If `ir_path` is a Rocksmith mic-position IR for a cab we ship our own IRs
+    for (rb_cab_overrides.json), return OUR IR for the SAME mic position —
+    matched by the RS mic-map's `ir_file` basename, then resolved through the
+    authoritative `effect_name`. Otherwise return `ir_path` unchanged.
+
+    This makes every song that references an overridden RS cab play our own
+    distributable IR automatically, with NO per-song edit and WITHOUT touching
+    the stored preset_pieces row (we rewrite only at read / chain-build time).
+
+    Path form is preserved: an absolute `<irs_root>/rocksmith/<f>.wav` maps to
+    an absolute `<irs_root>/<ir_dir>/<our>.wav` (so the native engine resolves
+    it like any cab stage); a relative `rocksmith/<f>.wav` maps to the relative
+    `<ir_dir>/<our>.wav` (UI display / `assigned.file`). Idempotent — a path
+    already under our cab dir isn't a Rocksmith file, so it returns unchanged."""
+    if not ir_path:
+        return ir_path
+    s = str(ir_path)
+    if not _is_rocksmith_ir_file(s):
+        return ir_path
+    overrides = _load_cab_overrides()
+    if not overrides:
+        return ir_path
+    mic_map = _load_rs_cab_mic_map()
+    base = Path(s).name.lower()
+    for cab_key, ovr in overrides.items():
+        if not isinstance(ovr, dict):
+            continue                                    # skip the "_meta" doc string
+        for entry in (mic_map.get(cab_key) or {}).values():
+            ef = entry.get("ir_file") or ""
+            if ef and Path(ef).name.lower() == base:
+                o = _override_variant(ovr, entry)
+                if not o:
+                    return ir_path
+                rel = o["ir_file"]
+                pp = Path(s)
+                # RS IRs live at <irs_root>/rocksmith/<file>; swap the tail.
+                return str(pp.parent.parent / rel) if pp.is_absolute() else rel
+    return ir_path
+
+
+def _install_bundled_cab_irs() -> None:
+    """Install OUR bundled, distributable cab IRs into <config>/nam_irs/cabs/.
+
+    The override layer (rb_cab_overrides.json) points songs/catalog at
+    `cabs/<prefix>_<mic>_<pos>.wav`, which the engine loads from nam_irs/. So a
+    fresh install needs those files on disk. We ship them under
+    `<plugin>/assets/cab_irs/` and copy any that are MISSING here — never
+    overwriting, so a user's own re-synthesized IR is preserved. Runs once at
+    `setup()`; no-op when either dir is absent."""
+    if not _config_dir:
+        return
+    src = Path(__file__).resolve().parent / "assets" / "cab_irs"
+    if not src.is_dir():
+        return
+    dst = _config_dir / "nam_irs" / "cabs"
+    try:
+        dst.mkdir(parents=True, exist_ok=True)
+        n = 0
+        for wav in sorted(src.glob("*.wav")):
+            target = dst / wav.name
+            if not target.exists():
+                shutil.copy2(wav, target)
+                n += 1
+        if n:
+            log.info("installed %d bundled cab IR(s) into nam_irs/cabs", n)
+    except Exception:
+        log.exception("bundled cab IR install failed")
+
+
 # ── NAM/IR storage layout — category subdirs ─────────────────────────
 #
 # Before v1.2 every downloaded NAM landed in `nam_models/` flat and every
@@ -2494,7 +2617,10 @@ def _load_saved_chain(conn: sqlite3.Connection, preset_id: int,
             "preset_piece_id": piece_id,
             "preset_id": preset_id,
             "kind": kind,
-            "file": file,
+            # Show OUR cab IR when we ship one for this RS cab (rb_cab_overrides)
+            # so the song editor highlights the matching mic button and the label
+            # reads our file — mirrors the auto-substitution done at playback.
+            "file": _apply_cab_override(file),
             "tone3000_id": t3kid,
             "assigned_mode": assigned_mode,
             "vst_path": vst_path,
@@ -2595,22 +2721,34 @@ def _enrich_chain_piece(piece: dict, img_idx: dict | None = None) -> dict:
         # Cone", "Condenser Edge", "Tube Off-axis", …) instead of a raw
         # filename dropdown. Sorted by ir_index for stable layout.
         mic_map = _load_rs_cab_mic_map().get(rs_type) or {}
+        ovr = _load_cab_overrides().get(rs_type) or {}
         if mic_map and irs_root is not None:
             for suffix, entry in sorted(
                     mic_map.items(),
                     key=lambda kv: kv[1].get("ir_index", 99)):
                 f = entry.get("ir_file")
-                available = (
-                    bool(f) and (irs_root / f).exists()
-                )
+                label = entry.get("label") or suffix
+                position = entry.get("position")
+                # OUR shipped cab IRs override the RS mic-position table when
+                # rb_cab_overrides.json has an entry for this cab. Mark them
+                # always-available (we ship them; don't gate on an on-disk check
+                # that flaked when the generated mic-map was edited in place).
+                our = False
+                if ovr:
+                    o = _override_variant(ovr, entry)
+                    if o:
+                        f, label, position = o["ir_file"], o["label"], o["position"]
+                        our = True
+                available = True if our else (bool(f) and (irs_root / f).exists())
                 cab_mic_variants.append({
                     "suffix": suffix,
                     "ir_index": entry.get("ir_index"),
                     "ir_file": f,
-                    "label": entry.get("label") or suffix,
+                    "label": label,
                     "mic_type": entry.get("mic_type"),
-                    "position": entry.get("position"),
+                    "position": position,
                     "available": available,
+                    "our_synth": our,
                 })
 
     # Amp gain variant info — only relevant when the curator has
@@ -3332,6 +3470,16 @@ def _is_rocksmith_ir_file(value: str | Path | None) -> bool:
     return "rocksmith" in Path(value).as_posix().lower()
 
 
+def _is_synth_cab_ir(value: str | Path | None) -> bool:
+    """Our own synthesized/captured cab IRs live under nam_irs/cabs/. The engine's
+    JUCE convolution force-normalizes EVERY cab IR to ~-18 dB, so these need the
+    SAME +18 dB makeup as the RS cabs to land at a usable level — but they are NOT
+    rocksmith assets, so the global 'bypass all Rocksmith cabs' must NOT skip them."""
+    if not value:
+        return False
+    return "cabs/" in Path(value).as_posix().lower()
+
+
 def _ir_stage_gain(kind: str | None, ir_path: str | Path | None, base_gain: float = 1.0) -> float:
     """Final IR gain sent to the native engine.
 
@@ -3344,7 +3492,7 @@ def _ir_stage_gain(kind: str | None, ir_path: str | Path | None, base_gain: floa
         g = float(base_gain)
     except (TypeError, ValueError):
         g = 1.0
-    if (kind or "").lower() == "rs_ir" or _is_rocksmith_ir_file(ir_path):
+    if (kind or "").lower() == "rs_ir" or _is_rocksmith_ir_file(ir_path) or _is_synth_cab_ir(ir_path):
         return g * _RS_IR_MAKEUP
     return g
 
@@ -3717,6 +3865,12 @@ def _ir_stage(ir_path, *, bypassed, gain=1.0,
     `di_cab` (set only by the per-tone chain builders) swaps a BASS cab IR for
     its DI+cab blend when the feature is on — see the DI+Cab helpers."""
     ir_path = str(ir_path)
+    # Auto-use OUR own cab IR in place of the Rocksmith mic-position IR whenever
+    # we ship one (rb_cab_overrides.json). Done here (not via a DB rewrite) so it
+    # covers every chain-build path and stays non-destructive. After this the
+    # path is under nam_irs/cabs/ → NOT a Rocksmith file → exempt from the global
+    # bypass below, and `_is_synth_cab_ir` still applies the +18 dB makeup.
+    ir_path = _apply_cab_override(ir_path)
     # Global "Bypass all Rocksmith cabs" (Settings): force-skip the RS cab on the
     # song chain (di_cab path) so the user can run their own cab/IR. This makes the
     # toggle authoritative even for songs whose preset_pieces row predates / wasn't
@@ -3751,7 +3905,7 @@ def _ir_stage(ir_path, *, bypassed, gain=1.0,
     # `gain` above (engine-applied, works for VST + NAM amps alike), so keep the
     # chain-gain cab makeup neutral here — else NAM-amp chains would double it.
     p = Path(ir_path)
-    if _is_rocksmith_ir_file(p):
+    if _is_rocksmith_ir_file(p) or _is_synth_cab_ir(p):
         stage["cab_rms_makeup"] = round(1.0 if di_cab_blend else _ir_rms_makeup(p), 4)
     stage["state"] = _state_b64({"irPath": str(ir_path), "gain": gain})
     return stage
@@ -6015,6 +6169,10 @@ def setup(app, context):
     _get_conn()
     _load_settings()
 
+    # Install OUR bundled cab IRs into nam_irs/cabs so rb_cab_overrides
+    # resolves on a fresh install (copies only missing files).
+    _install_bundled_cab_irs()
+
     # Start the background materialization watcher so songs played from
     # Slopsmith's main view (which only triggers cloud_loader to put the
     # PSARC on disk) get their NAM chain auto-downloaded too — not just
@@ -8255,22 +8413,33 @@ def setup(app, context):
 
         def _mic_variants_for(rs_gear: str) -> list[dict]:
             spec = mic_map.get(rs_gear) or {}
+            ovr = _load_cab_overrides().get(rs_gear) or {}
             out = []
             for suffix, entry in sorted(spec.items(),
                                           key=lambda kv: kv[1].get("ir_index", 99)):
                 f = entry.get("ir_file")
-                available = (
-                    bool(f) and irs_root is not None
-                    and (irs_root / f).exists()
-                )
+                label = entry.get("label") or suffix
+                position = entry.get("position")
+                # OUR shipped cab IRs override the RS mic table (rb_cab_overrides),
+                # same as the per-song picker — always-available, label/position
+                # derived from the authoritative effect_name.
+                our = False
+                if ovr:
+                    o = _override_variant(ovr, entry)
+                    if o:
+                        f, label, position = o["ir_file"], o["label"], o["position"]
+                        our = True
+                available = True if our else (
+                    bool(f) and irs_root is not None and (irs_root / f).exists())
                 out.append({
                     "suffix": suffix,
                     "ir_index": entry.get("ir_index"),
                     "ir_file": f,
-                    "label": entry.get("label") or suffix,
+                    "label": label,
                     "mic_type": entry.get("mic_type"),
-                    "position": entry.get("position"),
+                    "position": position,
                     "available": available,
+                    "our_synth": our,
                 })
             return out
 
@@ -8350,7 +8519,10 @@ def setup(app, context):
                 "category": category,
                 "assigned": b["has_assignment"],
                 "kind": b["kind"],
-                "file": b["file"],
+                # Show OUR cab IR when we ship one (rb_cab_overrides) so the
+                # catalog card + its active mic highlight match the per-song
+                # editor and the ▶ audition plays ours. No-op for non-cab files.
+                "file": _apply_cab_override(b["file"]),
                 "vst_path": b["vst_path"],
                 "vst_format": b["vst_format"],
                 "vst_state": vst_state,

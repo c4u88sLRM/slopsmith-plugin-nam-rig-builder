@@ -3086,24 +3086,35 @@ function rbRenderPieceEditor(p, toneIdx, pIdx, filename) {
     const micVariants = p.cab_mic_variants || [];
     if (micVariants.length > 0) {
         const activeFile = effFile;
+        const allOurs = micVariants.every(v => v.our_synth);
+        const anyOurs = micVariants.some(v => v.our_synth);
         const btns = micVariants.map(v => {
             const active = v.ir_file === activeFile;
             if (!v.available || !v.ir_file) {
                 return `<button disabled title="IR not extracted"
                                 class="px-2.5 py-0.5 rounded border text-[11px] bg-dark-800/40 text-gray-600 border-gray-800 cursor-not-allowed">${rbEsc(v.label || v.suffix)}</button>`;
             }
+            const ours = !!v.our_synth;   // OUR own cab IR (rb_cab_overrides) — accent emerald, not RS sky
             const cls = active
-                ? 'bg-sky-700/60 text-sky-100 border-sky-500/60 font-semibold'
-                : 'bg-dark-800 text-gray-300 border-gray-700 hover:bg-sky-900/40 hover:text-sky-200 hover:border-sky-700/40';
+                ? (ours ? 'bg-emerald-700/60 text-emerald-100 border-emerald-500/60 font-semibold'
+                        : 'bg-sky-700/60 text-sky-100 border-sky-500/60 font-semibold')
+                : (ours ? 'bg-dark-800 text-gray-300 border-gray-700 hover:bg-emerald-900/40 hover:text-emerald-200 hover:border-emerald-700/40'
+                        : 'bg-dark-800 text-gray-300 border-gray-700 hover:bg-sky-900/40 hover:text-sky-200 hover:border-sky-700/40');
             return `<button onclick="rbPickCabMic(${toneIdx}, ${pIdx}, '${rbEsc(v.ir_file).replace(/'/g,"\\'")}')"
-                            title="${rbEsc(v.mic_type || '')} · ${rbEsc(v.position || '')} (suffix ${rbEsc(v.suffix)})"
+                            title="${rbEsc(v.mic_type || '')} · ${rbEsc(v.position || '')} (suffix ${rbEsc(v.suffix)})${ours ? ' · IR propio' : ''}"
                             class="px-2.5 py-0.5 rounded border text-[11px] transition ${cls}">${rbEsc(v.label || v.suffix)}</button>`;
         }).join(' ');
+        const micBox = allOurs ? 'bg-emerald-900/15 border-emerald-800/30'
+                               : 'bg-sky-900/15 border-sky-800/30';
+        const micIcon = allOurs ? 'text-emerald-400' : 'text-sky-400';
+        const micNote = allOurs ? 'IRs propios — click para cambiar de micrófono'
+                       : anyOurs ? 'IRs propios + Rocksmith — click para cambiar'
+                       : 'Rocksmith-extracted IRs — click to switch';
         rsIrControl = `
-            <div class="bg-sky-900/15 border border-sky-800/30 rounded p-2.5 mt-2">
+            <div class="${micBox} border rounded p-2.5 mt-2">
                 <div class="flex items-center gap-2 mb-1.5">
-                    <span class="text-xs text-sky-400">🎙 Mic position</span>
-                    <span class="text-[10px] text-gray-500">Rocksmith-extracted IRs — click to switch</span>
+                    <span class="text-xs ${micIcon}">🎙 Mic position</span>
+                    <span class="text-[10px] text-gray-500">${micNote}</span>
                 </div>
                 <div class="flex items-center gap-1.5 flex-wrap">${btns}</div>
             </div>`;
@@ -7289,8 +7300,10 @@ function rbRenderGearDetail(g) {
         ? `<div class="flex items-center gap-1 flex-wrap">${g.mic_variants.map(v => {
             const vId = `rb-aud-${_rbCatalogSeq++}`;
             if (!v.available || !v.ir_file) return `<button disabled class="text-[10px] px-2 py-0.5 rounded bg-dark-800/50 text-gray-600 cursor-not-allowed">▶ ${rbEsc(v.label || v.suffix)}</button>`;
+            const aud = v.our_synth ? 'bg-emerald-900/30 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-800/40'
+                                    : 'bg-sky-900/30 hover:bg-sky-900/60 text-sky-300 border border-sky-800/40';
             return `<button id="${vId}" onclick="rbAuditionFile('${rbEsc(v.ir_file).replace(/'/g,"\\'")}','ir','${vId}')"
-                            class="text-[10px] px-2 py-0.5 rounded bg-sky-900/30 hover:bg-sky-900/60 text-sky-300 border border-sky-800/40">▶ ${rbEsc(v.label || v.suffix)}</button>`;
+                            class="text-[10px] px-2 py-0.5 rounded ${aud}">▶ ${rbEsc(v.label || v.suffix)}</button>`;
         }).join('')}</div>` : '';
     const visualBlock = rbCatalogVisualForGear(g, 'large');
 
@@ -7616,9 +7629,11 @@ function rbRenderCatalogCard(g) {
                 return `<button disabled title="IR not extracted — re-run Setup → Extract everything"
                                 class="text-[10px] px-2 py-0.5 rounded bg-dark-800/50 text-gray-600 cursor-not-allowed">▶ ${rbEsc(v.label || v.suffix)}</button>`;
             }
+            const aud = v.our_synth ? 'bg-emerald-900/30 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-800/40'
+                                    : 'bg-sky-900/30 hover:bg-sky-900/60 text-sky-300 border border-sky-800/40';
             return `<button id="${vId}" onclick="event.stopPropagation(); rbAuditionFile('${rbEsc(v.ir_file).replace(/'/g,"\\'")}','ir','${vId}')"
-                            title="${rbEsc(v.mic_type || '')} · ${rbEsc(v.position || '')} (suffix ${rbEsc(v.suffix)})"
-                            class="text-[10px] px-2 py-0.5 rounded bg-sky-900/30 hover:bg-sky-900/60 text-sky-300 border border-sky-800/40">▶ ${rbEsc(v.label || v.suffix)}</button>`;
+                            title="${rbEsc(v.mic_type || '')} · ${rbEsc(v.position || '')} (suffix ${rbEsc(v.suffix)})${v.our_synth ? ' · IR propio' : ''}"
+                            class="text-[10px] px-2 py-0.5 rounded ${aud}">▶ ${rbEsc(v.label || v.suffix)}</button>`;
         }).join(' ');
         micVariantAuditionRow = `<div class="flex items-center gap-1 flex-wrap">
             <span class="text-[10px] text-gray-500">Mic positions:</span>${btns}
