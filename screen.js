@@ -5677,15 +5677,22 @@ function rbDefaultToneHasContent() {
 }
 
 // Build the default tone's native payload and load it into the engine.
+// Mirrors the working ▶ Listen flow (rbListenTone): load the chain, then
+// SYNC the audio-effects capability so the host actually routes input through
+// it (without that select-chain dispatch the plan loads but stays silent).
 async function rbLoadDefaultTone(options) {
     const api = window.slopsmithDesktop && window.slopsmithDesktop.audio;
     if (!api) return false;
     const r = await fetch(`${window.RB_API}/default_tone/native`);
     if (!r.ok) return false;
     const payload = await r.json();
+    const presetId = payload && payload.id;
+    const chain = (payload && payload.native_preset && Array.isArray(payload.native_preset.chain))
+        ? payload.native_preset.chain : [];
     await rbLoadNativePresetPayload(api, payload, Object.assign({
-        mode: 'default', ref: 'default-tone', authorization: 'user-action',
+        mode: 'preview', ref: presetId, authorization: 'user-action',
     }, options || {}));
+    await rbSyncAudioEffectsCapability('default-tone', { chain, mode: 'preview', userAction: true }).catch(() => {});
     // A prior Listen/song may have left the monitor muted — unmute so the
     // idle tone is actually audible.
     if (api.setMonitorMute) await api.setMonitorMute(false).catch(() => {});
@@ -5712,7 +5719,7 @@ async function rbReloadDefaultTone() {
     }
     if (!enabled) { rbState._defaultToneActive = false; return false; }
     if (!rbDefaultToneHasContent()) { rbState._defaultToneActive = false; return false; }
-    try { return await rbLoadDefaultTone({ authorization: 'playback-session' }); }
+    try { return await rbLoadDefaultTone(); }
     catch (e) { return false; }
 }
 
