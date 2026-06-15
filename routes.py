@@ -265,6 +265,11 @@ _DEFAULT_SETTINGS = {
     # extra NAM but on M-series Macs it's a clear win. Users on weak
     # x86 hardware can flip it off in Settings.
     "mega_chain_mode": True,
+    # When on, the user's default tone (assembled in Settings → Default Tone)
+    # is loaded into the engine at startup and re-loaded whenever they leave a
+    # song or stop a Listen preview — so the idle/menu sound is the chosen
+    # default rather than whatever tone happened to load last.
+    "default_tone_enabled": False,
     # NAM loudness normalization. Each .nam carries an integrated LUFS
     # value in its JSON header; we read it and apply a per-stage
     # `outputLevel` so every NAM lands at `target_lufs`, eliminating
@@ -2434,6 +2439,49 @@ def _load_master_chain(role: str) -> list[dict]:
     (same shape as _load_saved_chain). Empty list if the sentinel
     preset has no pieces yet."""
     pid = _get_master_preset_id(role)
+    if pid is None:
+        return []
+    conn = _get_conn()
+    return _load_saved_chain(conn, pid) or []
+
+
+# ── Default tone ────────────────────────────────────────────────────
+# A single standalone chain the user assembles from gear (amp/cab/pedals).
+# It plays when no song is active — at startup, and again whenever the user
+# leaves a song or stops a Listen preview — so the menu no longer just keeps
+# "whatever tone was loaded last". Stored exactly like the master chain: a
+# sentinel preset whose pieces are read by native_preset_full, which wraps it
+# with the master pre/post + final leveler like any ordinary song tone (its
+# name does NOT start with "__rig_builder_master_", so it isn't excluded).
+_DEFAULT_TONE_PRESET_NAME = "__rig_builder_default_tone__"
+
+
+def _get_default_tone_preset_id() -> int | None:
+    """Return the sentinel preset id for the user's default tone, creating
+    it on first call so callers can assume it exists."""
+    conn = _get_conn()
+    with _lock:
+        row = conn.execute(
+            "SELECT id FROM presets WHERE name = ?", (_DEFAULT_TONE_PRESET_NAME,)
+        ).fetchone()
+        if row:
+            return int(row[0])
+        conn.execute(
+            "INSERT INTO presets (name, model_file, ir_file, input_gain, output_gain, gate_threshold, settings_json) "
+            "VALUES (?, '', '', 1.0, 1.0, -60.0, ?)",
+            (_DEFAULT_TONE_PRESET_NAME, json.dumps({"default_tone": True})),
+        )
+        conn.commit()
+        new_row = conn.execute(
+            "SELECT id FROM presets WHERE name = ?", (_DEFAULT_TONE_PRESET_NAME,)
+        ).fetchone()
+        return int(new_row[0]) if new_row else None
+
+
+def _load_default_tone_chain() -> list[dict]:
+    """Return the default tone's chain as enriched pieces (same shape as
+    _load_master_chain). Empty list if nothing configured yet."""
+    pid = _get_default_tone_preset_id()
     if pid is None:
         return []
     conn = _get_conn()
@@ -6214,6 +6262,7 @@ def setup(app, context):
             "curated_only": s.get("curated_only", False),
             "preferred_size": s.get("preferred_size", "standard"),
             "mega_chain_mode": s.get("mega_chain_mode", True),
+            "default_tone_enabled": bool(s.get("default_tone_enabled", False)),
             "bypass_all_cabs": s.get("bypass_all_cabs", True),
             # Chain-input drive (engine setGain('input', X)). Read by JS
             # at every chain load — value of 8.0 = +18 dB feeds NAM amps
@@ -6249,6 +6298,8 @@ def setup(app, context):
                 allowed["preferred_size"] = size
         if "mega_chain_mode" in data:
             allowed["mega_chain_mode"] = bool(data["mega_chain_mode"])
+        if "default_tone_enabled" in data:
+            allowed["default_tone_enabled"] = bool(data["default_tone_enabled"])
         if "nam_chain_input_drive" in data:
             try:
                 v = float(data["nam_chain_input_drive"])
@@ -6433,6 +6484,57 @@ def setup(app, context):
             return JSONResponse({"error": f"{type(e).__name__}: {e}"}, 500)
         return {"ok": True, "preset_id": preset_id, "role": role,
                 "piece_count": len(pieces)}
+
+    @app.get("/api/plugins/rig_builder/default_tone")
+    def get_default_tone():
+        """Return the user's default tone: its chain (enriched pieces, same
+        shape as a master half), the sentinel preset id, and the enabled
+        flag. The Settings UI's Default Tone editor renders from this."""
+        return {
+            "pieces": _load_default_tone_chain(),
+            "preset_id": _get_default_tone_preset_id(),
+            "enabled": bool(_load_settings().get("default_tone_enabled", False)),
+        }
+
+    @app.post("/api/plugins/rig_builder/default_tone/save")
+    def save_default_tone(data: dict = Body(...)):
+        """Persist the default tone chain. Body: `{pieces: [...]}` — same
+        piece shape save_master_chain/save_preset accept. Replaces the whole
+        chain (client sends the full ordered list every time)."""
+        pieces = data.get("pieces") or []
+        if not isinstance(pieces, list):
+            return JSONResponse({"error": "pieces must be a list"}, 400)
+        pid = _get_default_tone_preset_id()
+        if pid is None:
+            return JSONResponse({"error": "could not get default tone preset"}, 500)
+        try:
+            preset_id = _persist_preset_chain(
+                filename="__default_tone__",
+                tone_key="default",
+                name=_DEFAULT_TONE_PRESET_NAME,
+                pieces=pieces,
+                input_gain=1.0,
+                output_gain=1.0,
+                gate_threshold=-60.0,
+                assigned_mode="default",
+            )
+        except Exception as e:
+            log.exception("save_default_tone failed")
+            return JSONResponse({"error": f"{type(e).__name__}: {e}"}, 500)
+        return {"ok": True, "preset_id": preset_id, "piece_count": len(pieces)}
+
+    @app.get("/api/plugins/rig_builder/default_tone/native")
+    def default_tone_native():
+        """Build the native_preset payload for the default tone using the
+        same full-chain builder songs use — so it's wrapped with the master
+        pre/post + final leveler. The frontend feeds this straight to the
+        engine when no song is active. When nothing is assigned yet the
+        chain is just the master wrap; the caller gates on the piece list
+        from /default_tone and skips loading in that case."""
+        pid = _get_default_tone_preset_id()
+        if pid is None:
+            return JSONResponse({"error": "could not get default tone preset"}, 500)
+        return native_preset_full(pid)
 
     @app.get("/api/plugins/rig_builder/gears_catalog")
     def gears_catalog():
