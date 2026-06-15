@@ -5683,13 +5683,15 @@ async function rbLoadDefaultTone(options) {
     const r = await fetch(`${window.RB_API}/default_tone/native`);
     if (!r.ok) return false;
     const payload = await r.json();
-    const presetId = payload && payload.id;
-    const chain = (payload && payload.native_preset && Array.isArray(payload.native_preset.chain))
-        ? payload.native_preset.chain : [];
+    // Force the LEGACY loadPreset path. The v0.3.0 audio-effects executor
+    // routes the chain to a song-bound route that's silent when no song is
+    // active, so at idle the chain must load straight into the engine monitor.
+    // Dropping the preset id makes rbLoadChainPlanWithHost return null (no
+    // target) → rbLoadNativePresetPayload falls through to api.loadPreset.
+    delete payload.id;
     await rbLoadNativePresetPayload(api, payload, Object.assign({
-        mode: 'preview', ref: presetId, authorization: 'user-action',
+        mode: 'preview', authorization: 'user-action',
     }, options || {}));
-    await rbSyncAudioEffectsCapability('default-tone', { chain, mode: 'preview', userAction: true }).catch(() => {});
     // A prior Listen/song may have left the monitor muted — unmute it.
     if (api.setMonitorMute) await api.setMonitorMute(false).catch(() => {});
     if (api.startAudio) await api.startAudio().catch(() => {});
