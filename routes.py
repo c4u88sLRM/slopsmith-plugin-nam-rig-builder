@@ -2769,40 +2769,6 @@ def _gear_category(rs_gear: str) -> str:
 # ── PSARC / sloppak readers ──────────────────────────────────────────
 
 
-def _read_tones_from_psarc(psarc_path: Path) -> list[dict]:
-    """Return raw RS tone definitions from a PSARC's arrangement JSON."""
-    from psarc import read_psarc_entries
-    files = read_psarc_entries(str(psarc_path), ["*.json"])
-    tones: list[dict] = []
-    seen_keys: set[str] = set()
-    for path, data in sorted(files.items()):
-        if not path.endswith(".json"):
-            continue
-        try:
-            j = json.loads(data)
-        except json.JSONDecodeError:
-            import re
-            text = data.decode("utf-8", errors="ignore")
-            text = re.sub(r",\s*([}\]])", r"\1", text)
-            try:
-                j = json.loads(text)
-            except Exception:
-                continue
-        for _, v in j.get("Entries", {}).items():
-            attrs = v.get("Attributes", {}) or {}
-            arr_name = attrs.get("ArrangementName", "")
-            if arr_name in ("Vocals", "ShowLights", "JVocals"):
-                continue
-            for t in attrs.get("Tones", []) or []:
-                key = t.get("Key", "")
-                if isinstance(key, str) and key:
-                    if key in seen_keys:
-                        continue
-                    seen_keys.add(key)
-                tones.append(t)
-    return tones
-
-
 def _read_tones_from_sloppak(filename: str, dlc: Path) -> list[dict]:
     try:
         import sloppak as sloppak_mod
@@ -2866,7 +2832,7 @@ def _resolve_song_file(filename: str) -> Path | None:
     if "/" not in filename and "\\" not in filename:
         try:
             for p in dlc.rglob(filename):
-                if p.is_file() and p.suffix.lower() in (".psarc", ".sloppak"):
+                if p.is_file() and p.suffix.lower() == ".sloppak":
                     return p
         except OSError:
             return None
@@ -4368,7 +4334,7 @@ def _list_library_songs() -> tuple[list[Path], int]:
         for p in dlc.rglob("*"):
             if not p.is_file():
                 continue
-            if p.suffix.lower() not in (".psarc", ".sloppak"):
+            if p.suffix.lower() != ".sloppak":
                 continue
             candidates.append(p)
     except OSError:
@@ -5107,11 +5073,14 @@ def _batch_worker(mode: str = "all"):
                 _batch_state["progress"] = idx + 1
             filename = _db_song_key(song_path.name, song_path)
 
+            if song_path.suffix.lower() != ".sloppak":
+                # Sloppak-only: skip raw .psarc songs (convert them first).
+                _batch_log(f"skip {filename}: not a .sloppak")
+                with _batch_lock:
+                    _batch_state["skipped"] += 1
+                continue
             try:
-                if song_path.suffix.lower() == ".sloppak":
-                    tones = _read_tones_from_sloppak(filename, _get_dlc_dir() or song_path.parent)
-                else:
-                    tones = _read_tones_from_psarc(song_path)
+                tones = _read_tones_from_sloppak(filename, _get_dlc_dir() or song_path.parent)
             except Exception as e:
                 _batch_log(f"skip {filename}: {type(e).__name__}: {e}")
                 with _batch_lock:
@@ -5499,10 +5468,9 @@ def _auto_download_for_song(filename: str, path: Path) -> dict:
         known_vst_lookup = _build_known_vst_lookup()
         song_key = _db_song_key(filename, path)
 
-        if path.suffix.lower() == ".sloppak":
-            raw_tones = _read_tones_from_sloppak(song_key, _get_dlc_dir())
-        else:
-            raw_tones = _read_tones_from_psarc(path)
+        # Sloppak-only: a raw .psarc yields no tones (convert it first).
+        raw_tones = (_read_tones_from_sloppak(song_key, _get_dlc_dir())
+                     if path.suffix.lower() == ".sloppak" else [])
 
         # Dedupe gear across the song's tones — the same JCM800 appears
         # in clean + lead + bass, but we only hit tone3000 once. Reset
@@ -5789,7 +5757,7 @@ def _watch_scan_dlc() -> dict[str, int] | None:
         for p in dlc.rglob("*"):
             if not p.is_file():
                 continue
-            if p.suffix.lower() not in (".psarc", ".sloppak"):
+            if p.suffix.lower() != ".sloppak":
                 continue
             try:
                 key = _dlc_relative_song_key(p)
@@ -5902,10 +5870,9 @@ def _watch_fire(name: str) -> None:
         # user doesn't need to open the song in the editor for the fix
         # to land. Idempotent: already-correct rows are no-ops.
         try:
-            if path.suffix.lower() == ".sloppak":
-                raw_tones = _read_tones_from_sloppak(song_key, _get_dlc_dir())
-            else:
-                raw_tones = _read_tones_from_psarc(path)
+            # Sloppak-only: a raw .psarc yields no tones (convert it first).
+            raw_tones = (_read_tones_from_sloppak(song_key, _get_dlc_dir())
+                         if path.suffix.lower() == ".sloppak" else [])
             _auto_fix_cab_mics_for_song_module(song_key, raw_tones)
             _promote_generic_gear_for_song_module(song_key, raw_tones)
         except Exception:
@@ -6632,13 +6599,15 @@ def setup(app, context):
             if path.suffix.lower() == ".sloppak":
                 raw_tones = _read_tones_from_sloppak(song_key, _get_dlc_dir())
             elif path.suffix.lower() == ".psarc":
-                raw_tones = _read_tones_from_psarc(path)
+                return JSONResponse(
+                    {"error": "psarc_unsupported", "filename": filename,
+                     "hint": "Rig Builder reads .sloppak songs only. Convert this "
+                             ".psarc to .sloppak first, then reopen it."},
+                    400,
+                )
             else:
                 return JSONResponse({"error": "unsupported file type"}, 400)
         except ValueError as e:
-            # Bad/corrupt PSARC header or non-PSARC bytes with a .psarc
-            # extension. The psarc reader raises ValueError in this case
-            # — surface it instead of letting it bubble to a 500.
             return JSONResponse({"error": f"unreadable file: {e}"}, 400)
         except Exception as e:
             log.exception("get_song failed for %s", filename)

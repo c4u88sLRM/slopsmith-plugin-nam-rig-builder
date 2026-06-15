@@ -71,7 +71,7 @@
                     title="Library source">
                 <option value="local">My Library</option>
             </select>
-            <input type="text" id="rb-song-search" placeholder="Filename (e.g. 2minutes_p.psarc)"
+            <input type="text" id="rb-song-search" placeholder="Filename (e.g. 2minutes.sloppak)"
                    oninput="rbOnSongSearchInput()"
                    onfocus="rbShowSongList()"
                    onkeydown="if(event.key==='Enter')rbListSongs()"
@@ -296,7 +296,7 @@
         <div class="bg-dark-700/50 border border-gray-800/50 rounded-xl p-5 mb-6">
             <h3 class="text-white font-semibold mb-2">Scan library &amp; auto-assign captures</h3>
             <p class="text-gray-500 text-sm mb-3">
-                Walks every PSARC / sloppak in your library and, for each
+                Walks every sloppak song in your library and, for each
                 gear in each tone, resolves a NAM / IR / VST in this order:
                 <span class="text-gray-400">(1)</span> reuse an assignment you've already made for that gear in
                 another song, <span class="text-gray-400">(2)</span> your curated picks

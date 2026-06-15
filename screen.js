@@ -3279,7 +3279,7 @@ function rbRenderStatus() {
     if (!s.rs_to_real_loaded) {
         el.innerHTML = rbBanner(
             'yellow', 'Gear map not found',
-            `Missing <code class="bg-dark-800 px-1 rounded">rs_to_real.json</code>. Go to Settings → Regenerate gear map and point it at your game's <code class="bg-dark-800 px-1 rounded">gears.psarc</code>.`
+            `Missing <code class="bg-dark-800 px-1 rounded">rs_to_real.json</code> (the bundled gear map). Reinstall Rig Builder to restore it.`
         );
         return;
     }
