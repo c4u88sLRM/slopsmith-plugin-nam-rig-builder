@@ -3261,12 +3261,25 @@ async function rbInit() {
     // populated as soon as the user opens a song. Failure is non-fatal
     // (they'll see "no VSTs scanned yet" hint and can Scan from the panel).
     rbLoadKnownVsts().catch(() => {});
-    // Gentle single-shot attempt to play the idle default tone on entry, well
-    // after the screen mounts so the native audio + VST host have time to come
-    // up. ONE attempt, no retry loop (the aggressive retry version crashed app
-    // launch). Best-effort: if audio isn't ready it fails quietly, and the
-    // default tone still loads on ▶ Test or after a song/Listen stops.
-    setTimeout(() => rbReloadDefaultTone().catch(() => {}), 5000);
+    rbScheduleDefaultToneIdleLoad();
+}
+
+// Play the idle default tone on entry. GENTLE: first attempt well after the
+// screen mounts (5s), then a few more widely-spaced single retries so it takes
+// once the native audio/VST host is actually ready. This is NOT the aggressive
+// 12x-from-1s loop that crashed app launch — few attempts, 7s apart, and it
+// stops the moment it plays (or if the tone is disabled/empty).
+function rbScheduleDefaultToneIdleLoad() {
+    let tries = 0;
+    const attempt = async () => {
+        tries++;
+        await rbReloadDefaultTone().catch(() => {});
+        if (!rbState._defaultToneActive && tries < 4
+            && window.__rbDefaultToneSetting !== false && rbDefaultToneHasContent()) {
+            setTimeout(attempt, 7000);
+        }
+    };
+    setTimeout(attempt, 5000);
 }
 
 function rbBanner(color, title, body) {
@@ -5649,6 +5662,9 @@ async function rbLoadDefaultToneEditor() {
         rbState.master.default = [];
     }
     rbRenderMasterChain('default');
+    // Opening the Default tone tab is a safe, deliberate moment (audio is up by
+    // now) — play it so the user hears their idle rig without pressing Test.
+    if (!rbState._defaultToneActive) rbReloadDefaultTone().catch(() => {});
 }
 
 async function rbSetDefaultToneEnabled(checked) {
