@@ -60,6 +60,41 @@ _GEAR_PHOTO_DIRS = (
 _GEAR_PHOTO_ASSETS_SUBDIR = "assets"
 
 
+def _gear_photo_write_base() -> Path:
+    """Writable dir the extractor writes gear photos into.
+
+    In a packaged build the plugin dir is read-only (AppImage squashfs /
+    asar mount), so writing into the bundled `assets/` raises
+    OSError(Errno 30) and silently drops every extracted photo (issue #34).
+    setup() points RIG_BUILDER_DATA_DIR at a writable per-user dir (its
+    `data/` subdir); we put photos in a sibling `assets/` under the same
+    per-user root. When the override isn't set (source / standalone tool
+    runs) the bundled `assets/` is itself writable, so keep using it.
+    """
+    override = os.environ.get("RIG_BUILDER_DATA_DIR")
+    if override:
+        return Path(override).parent / _GEAR_PHOTO_ASSETS_SUBDIR
+    return _plugin_dir / _GEAR_PHOTO_ASSETS_SUBDIR
+
+
+def _gear_photo_bases() -> tuple[Path, ...]:
+    """Ordered, de-duplicated dirs `_find_gear_photo` scans for photos:
+    the writable per-user `assets/` first (freshly extracted photos win),
+    then the bundled `assets/`, then the legacy flat plugin-folder layout."""
+    ordered = (
+        _gear_photo_write_base(),
+        _plugin_dir / _GEAR_PHOTO_ASSETS_SUBDIR,
+        _plugin_dir,
+    )
+    seen: set[Path] = set()
+    out: list[Path] = []
+    for b in ordered:
+        if b not in seen:
+            seen.add(b)
+            out.append(b)
+    return tuple(out)
+
+
 def _find_gear_photo(rs_gear: str) -> Path | None:
     """Locate the PNG for a Rocksmith gear if extract_gear_photos.py
     has been run. The script names files `<rs_gear> - <name>.png`, so
@@ -89,9 +124,10 @@ def _find_gear_photo(rs_gear: str) -> Path | None:
     prefix = f"{rs_gear} - ".lower()
     variant_prefix = f"{rs_gear}_".lower()
     fallback: Path | None = None
-    # Candidate dirs: the new `assets/<sub>` location first, then the
-    # legacy flat `<sub>` so installs that haven't re-extracted still work.
-    bases = (_plugin_dir / _GEAR_PHOTO_ASSETS_SUBDIR, _plugin_dir)
+    # Candidate dirs: the writable per-user `assets/<sub>` first (where the
+    # extractor now writes in packaged builds), then the bundled `assets/<sub>`,
+    # then the legacy flat `<sub>` so installs that haven't re-extracted work.
+    bases = _gear_photo_bases()
     for d in (base / sub for base in bases for sub in _GEAR_PHOTO_DIRS):
         if not d.is_dir():
             continue
@@ -6401,8 +6437,11 @@ def setup(app, context):
         #     other relative path the script might use later.
         rs_map_path = _data_path("rs_to_real.json")
         # Photos live under assets/ (per-category subdirs created by the
-        # script). _find_gear_photo looks here first, legacy flat second.
-        assets_dir = _plugin_dir / _GEAR_PHOTO_ASSETS_SUBDIR
+        # script). Use the WRITABLE per-user assets dir — the bundled assets/
+        # is read-only in packaged builds (AppImage/asar), so writing there
+        # dropped every photo (issue #34). _find_gear_photo scans the same
+        # writable base first, then the bundled/legacy locations.
+        assets_dir = _gear_photo_write_base()
         assets_dir.mkdir(parents=True, exist_ok=True)
         try:
             result = subprocess.run(
