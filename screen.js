@@ -3261,6 +3261,12 @@ async function rbInit() {
     // populated as soon as the user opens a song. Failure is non-fatal
     // (they'll see "no VSTs scanned yet" hint and can Scan from the panel).
     rbLoadKnownVsts().catch(() => {});
+    // Gentle single-shot attempt to play the idle default tone on entry, well
+    // after the screen mounts so the native audio + VST host have time to come
+    // up. ONE attempt, no retry loop (the aggressive retry version crashed app
+    // launch). Best-effort: if audio isn't ready it fails quietly, and the
+    // default tone still loads on ▶ Test or after a song/Listen stops.
+    setTimeout(() => rbReloadDefaultTone().catch(() => {}), 5000);
 }
 
 function rbBanner(color, title, body) {
