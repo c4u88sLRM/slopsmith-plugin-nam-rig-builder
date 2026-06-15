@@ -3176,6 +3176,8 @@ window.addEventListener('rig-builder:tones-state', () => rbInjectPlayerToneButto
                 window.__rbPlaybackSettingsKey = '';
                 window.__rbPlaybackSettingsFilename = '';
                     if (RbMegaChain.isActive() || RbMegaChain.isPending()) RbMegaChain.teardown(false).catch(() => {});
+                // Back to the idle default tone (if enabled + configured).
+                setTimeout(() => rbReloadDefaultTone().catch(() => {}), 250);
             });
             window.slopsmith.on('playback:ended', () => {
                 _lastSeenFile = null;
@@ -3185,6 +3187,8 @@ window.addEventListener('rig-builder:tones-state', () => rbInjectPlayerToneButto
                 window.__rbPlaybackSettingsKey = '';
                 window.__rbPlaybackSettingsFilename = '';
                     if (RbMegaChain.isActive() || RbMegaChain.isPending()) RbMegaChain.teardown(false).catch(() => {});
+                // Back to the idle default tone (if enabled + configured).
+                setTimeout(() => rbReloadDefaultTone().catch(() => {}), 250);
             });
         }
         installPlaybackLifecycle();
@@ -3257,6 +3261,25 @@ async function rbInit() {
     // populated as soon as the user opens a song. Failure is non-fatal
     // (they'll see "no VSTs scanned yet" hint and can Scan from the panel).
     rbLoadKnownVsts().catch(() => {});
+    rbScheduleDefaultToneIdleLoad();
+}
+
+// Play the idle default tone on entry. GENTLE: first attempt well after the
+// screen mounts (5s), then a few more widely-spaced single retries so it takes
+// once the native audio/VST host is actually ready. This is NOT the aggressive
+// 12x-from-1s loop that crashed app launch — few attempts, 7s apart, and it
+// stops the moment it plays (or if the tone is disabled/empty).
+function rbScheduleDefaultToneIdleLoad() {
+    let tries = 0;
+    const attempt = async () => {
+        tries++;
+        await rbReloadDefaultTone().catch(() => {});
+        if (!rbState._defaultToneActive && tries < 4
+            && window.__rbDefaultToneSetting !== false && rbDefaultToneHasContent()) {
+            setTimeout(attempt, 7000);
+        }
+    };
+    setTimeout(attempt, 5000);
 }
 
 function rbBanner(color, title, body) {
@@ -3350,7 +3373,7 @@ function rbShowTab(name) {
 // top-level tab so the user doesn't ping-pong between two tabs to
 // resolve a gear and inspect its file.
 function rbGearFilter(filter) {
-    if (!['all', 'pending', 'files'].includes(filter)) filter = 'all';
+    if (!['all', 'default', 'files'].includes(filter)) filter = 'all';
     rbState.currentGearFilter = filter;
     document.querySelectorAll('.rb-gear-view').forEach(v => v.classList.add('hidden'));
     const view = document.getElementById(`rb-gear-view-${filter}`);
@@ -3362,7 +3385,7 @@ function rbGearFilter(filter) {
         b.classList.toggle('text-gray-400', !active);
     });
     if (filter === 'all') rbLoadCatalog();
-    else if (filter === 'pending') rbLoadPending();
+    else if (filter === 'default') rbLoadDefaultToneEditor();
     else if (filter === 'files') rbLoadManageTab();
 }
 
@@ -4586,7 +4609,7 @@ function rbRenderPieceEditor(p, toneIdx, pIdx, filename) {
                             ${rbEsc(bypassLabel)}
                         </button>
                     </div>
-                    <div class="text-xs ${stageClass} truncate" title="${rbEsc(hasVst ? effVstPath : (hasFile ? effFile : ''))}">${rbEsc(stageLabel)}
+                    <div class="text-xs ${stageClass} truncate" title="${rbEsc(hasVst ? (effVstPath || '').split('/').pop() : (hasFile ? effFile : ''))}">${rbEsc(stageLabel)}
                         ${(hasFile || hasVst) && mode ? `<span class="text-[10px] text-gray-600 ml-1">(${rbEsc(mode)})</span>` : ''}
                     </div>
                 </div>
@@ -5589,7 +5612,7 @@ async function rbRefreshSongAfterEdit(toneIdx) {
 // per-tone chain, so e.g. an input gate + output limiter stay applied
 // regardless of which song / tone is loaded.
 
-rbState.master = { pre: [], post: [] };
+rbState.master = { pre: [], post: [], default: [] };
 
 async function rbLoadMasterChain() {
     const statusEl = document.getElementById('rb-master-status');
@@ -5613,6 +5636,125 @@ async function rbLoadMasterChain() {
     }
     rbRenderMasterChain('pre');
     rbRenderMasterChain('post');
+}
+
+// ── Default tone (standalone idle rig) ───────────────────────────────
+// Reuses the whole master-chain editor under role='default' — render,
+// add-piece, assign, VST edit, bypass, reorder all key off rbState.master
+// .default and rb-master-default-* DOM ids. Only persistence (its own
+// endpoint) and these wrappers are default-specific.
+
+async function rbLoadDefaultToneEditor() {
+    const statusEl = document.getElementById('rb-default-tone-status');
+    try {
+        const r = await fetch(`${window.RB_API}/default_tone`);
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+        rbState.master.default = Array.isArray(data.pieces) ? data.pieces : [];
+        const cb = document.getElementById('rb-default-tone-enabled');
+        if (cb) cb.checked = !!data.enabled;
+        window.__rbDefaultToneSetting = !!data.enabled;
+        if (statusEl) statusEl.textContent = rbState.master.default.length
+            ? `${rbState.master.default.length} piece(s).` + (data.enabled ? '' : ' Enable the toggle to hear it when idle.')
+            : 'No pieces yet — use ＋ Add piece to build your idle rig.';
+    } catch (e) {
+        if (statusEl) statusEl.textContent = `Failed to load default tone: ${e.message || e}`;
+        rbState.master.default = [];
+    }
+    rbRenderMasterChain('default');
+    // Opening the Default tone tab is a safe, deliberate moment (audio is up by
+    // now) — play it so the user hears their idle rig without pressing Test.
+    if (!rbState._defaultToneActive) rbReloadDefaultTone().catch(() => {});
+}
+
+async function rbSetDefaultToneEnabled(checked) {
+    const statusEl = document.getElementById('rb-default-tone-status');
+    try {
+        const r = await fetch(`${window.RB_API}/settings`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ default_tone_enabled: !!checked }),
+        });
+        if (!r.ok) throw new Error('save failed');
+        window.__rbDefaultToneSetting = !!checked;
+        if (checked) {
+            if (statusEl) statusEl.textContent = 'Enabled — loading default tone…';
+            await rbReloadDefaultTone();
+            if (statusEl) statusEl.textContent = rbState._defaultToneActive
+                ? '✓ Default tone is now your idle sound.'
+                : '✓ Enabled. Add at least one assigned piece to hear it.';
+        } else {
+            if (statusEl) statusEl.textContent = '✓ Disabled. The engine keeps the last-loaded tone when idle.';
+        }
+    } catch (e) {
+        if (statusEl) statusEl.textContent = '⚠ Could not save — try again.';
+    }
+}
+
+// True when the default tone has at least one piece with an actual file/VST.
+function rbDefaultToneHasContent() {
+    return (rbState.master.default || []).some(p => rbEffVstPath(p) || rbEffFile(p));
+}
+
+// Build the default tone's native payload and load it into the engine.
+// Mirrors the working ▶ Listen flow (rbListenTone): load the chain, then
+// SYNC the audio-effects capability so the host actually routes input through
+// it (without that select-chain dispatch the plan loads but stays silent).
+async function rbLoadDefaultTone(options) {
+    const api = window.slopsmithDesktop && window.slopsmithDesktop.audio;
+    if (!api) return false;
+    const r = await fetch(`${window.RB_API}/default_tone/native`);
+    if (!r.ok) return false;
+    const payload = await r.json();
+    // Force the LEGACY loadPreset path. The v0.3.0 audio-effects executor
+    // routes the chain to a song-bound route that's silent when no song is
+    // active, so at idle the chain must load straight into the engine monitor.
+    // Dropping the preset id makes rbLoadChainPlanWithHost return null (no
+    // target) → rbLoadNativePresetPayload falls through to api.loadPreset.
+    delete payload.id;
+    await rbLoadNativePresetPayload(api, payload, Object.assign({
+        mode: 'preview', authorization: 'user-action',
+    }, options || {}));
+    // A prior Listen/song may have left the monitor muted — unmute it.
+    if (api.setMonitorMute) await api.setMonitorMute(false).catch(() => {});
+    if (api.startAudio) await api.startAudio().catch(() => {});
+    rbState._defaultToneActive = true;
+    return true;
+}
+
+// Reload the default tone IFF enabled and it has assigned content; else
+// no-op (leave the engine as-is). Called at startup and whenever the user
+// leaves a song or stops a Listen preview.
+async function rbReloadDefaultTone() {
+    // Self-sufficient: fetch the enabled flag + pieces from the backend when
+    // the editor hasn't been opened yet (e.g. at startup or right after a
+    // song), so this works without the Gear → Default tone tab being visited.
+    let enabled = window.__rbDefaultToneSetting;
+    if (enabled === undefined || !(rbState.master.default || []).length) {
+        try {
+            const d = await (await fetch(`${window.RB_API}/default_tone`)).json();
+            enabled = !!d.enabled;
+            window.__rbDefaultToneSetting = enabled;
+            rbState.master.default = Array.isArray(d.pieces) ? d.pieces : [];
+        } catch (_) {}
+    }
+    if (!enabled) { rbState._defaultToneActive = false; return false; }
+    if (!rbDefaultToneHasContent()) { rbState._defaultToneActive = false; return false; }
+    try { return await rbLoadDefaultTone(); }
+    catch (e) { return false; }
+}
+
+async function rbPreviewDefaultTone(btn) {
+    const statusEl = document.getElementById('rb-default-tone-status');
+    if (!rbDefaultToneHasContent()) {
+        if (statusEl) statusEl.textContent = 'Add at least one assigned piece (Assign…) before testing.';
+        return;
+    }
+    try {
+        await rbLoadDefaultTone();
+        if (statusEl) statusEl.textContent = '▶ Playing default tone — play your guitar to hear it.';
+    } catch (e) {
+        if (statusEl) statusEl.textContent = `⚠ Could not load: ${e.message || e}`;
+    }
 }
 
 function rbRenderMasterChain(role) {
@@ -5680,7 +5822,7 @@ function rbRenderMasterPiece(role, idx, p, total) {
                 </div>
             </div>
             <div class="flex items-center gap-2">
-                <span class="flex-1 text-xs ${labelClass} truncate" title="${rbEsc(effVstPath || effFile || '')}">${rbEsc(label)}</span>
+                <span class="flex-1 text-xs ${labelClass} truncate" title="${rbEsc((effVstPath ? effVstPath.split('/').pop() : '') || effFile || '')}">${rbEsc(label)}</span>
                 ${effVstPath ? `
                 <button onclick="rbMasterEditVst('${role}', ${idx})"
                         title="Load this VST in the engine and edit its parameters with inline sliders"
@@ -5729,6 +5871,15 @@ function rbMasterToggleBypass(role, idx, btn) {
 async function rbAfterMasterEdit(role) {
     await rbPersistMasterChain(role).catch(() => null);
     rbRenderMasterChain(role);
+    if (role === 'default') {
+        // Refresh the editor's status line + reload live if it's the idle sound.
+        const statusEl = document.getElementById('rb-default-tone-status');
+        if (statusEl) statusEl.textContent = rbState.master.default.length
+            ? `${rbState.master.default.length} piece(s).`
+            : 'No pieces yet — use ＋ Add piece to build your idle rig.';
+        if (rbState._defaultToneActive) await rbReloadDefaultTone().catch(() => {});
+        return;
+    }
     // If a tone preview is running, reload it so the new master wrap is heard live.
     if (rbState.listeningTone !== null && rbState._previewPayload?.id) {
         await rbReloadPreview(rbState._previewPayload.id).catch(() => {});
@@ -5766,20 +5917,26 @@ async function rbPersistMasterChain(role) {
             bypassed: !!p._bypassed,
         };
     });
+    // The default tone is a standalone chain (its own endpoint, no pre/post
+    // role); master pre/post POST to the two-half master endpoint.
+    const isDefault = role === 'default';
+    const url  = isDefault ? `${window.RB_API}/default_tone/save` : `${window.RB_API}/master_chain/save`;
+    const body = isDefault ? { pieces } : { role, pieces };
+    const what = isDefault ? 'default tone' : `master ${role}`;
     try {
-        const r = await fetch(`${window.RB_API}/master_chain/save`, {
+        const r = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ role, pieces }),
+            body: JSON.stringify(body),
         });
         if (!r.ok) {
             const err = await r.json().catch(() => ({}));
-            alert(`Save master ${role} failed: ${err.error || r.status}`);
+            alert(`Save ${what} failed: ${err.error || r.status}`);
             return null;
         }
         return await r.json();
     } catch (e) {
-        alert(`Save master ${role} failed: ${e.message || e}`);
+        alert(`Save ${what} failed: ${e.message || e}`);
         return null;
     }
 }
@@ -8049,6 +8206,8 @@ async function rbStopPreview() {
     } catch (_) { /* best-effort */ }
     rbState._previewStartedAudio = false;
     rbState._previewPayload = null;
+    // After a Listen/audition stops, fall back to the idle default tone.
+    setTimeout(() => rbReloadDefaultTone().catch(() => {}), 150);
     // Restore whichever button label was showing "⏸ Stop".
     if (wasListening !== null) {
         const b = document.getElementById(`rb-listen-${wasListening}`);
@@ -8902,7 +9061,7 @@ function rbRenderCatalogCardCompact(g) {
     const file = g.file
         ? `<span class="text-xs text-gray-500 truncate font-mono" title="${rbEsc(g.file)}">${rbEsc(g.file.split('/').pop())}</span>`
         : (g.vst_path
-            ? `<span class="text-xs text-purple-400 truncate" title="${rbEsc(g.vst_path)}">VST: ${rbEsc(g.vst_path.split('/').pop())}</span>`
+            ? `<span class="text-xs text-purple-400 truncate" title="${rbEsc((g.vst_path || '').split('/').pop())}">VST: ${rbEsc(g.vst_path.split('/').pop())}</span>`
             : `<span class="text-xs text-gray-600 italic">unassigned</span>`);
     return `<div class="flex items-center gap-2 px-3 py-2 hover:bg-dark-700/30">
         ${photo}
@@ -8947,7 +9106,7 @@ function rbRenderCatalogCard(g) {
     let assignedLine;
     if (isVst) {
         const vstName = g.vst_path.split('/').pop();
-        assignedLine = `<div class="text-xs text-purple-300/90 break-all" title="${rbEsc(g.vst_path)}">✓ VST: ${rbEsc(vstName)}</div>`;
+        assignedLine = `<div class="text-xs text-purple-300/90 break-all" title="${rbEsc((g.vst_path || '').split('/').pop())}">✓ VST: ${rbEsc(vstName)}</div>`;
     } else if (g.assigned) {
         const label = g.tone3000_title || rbLibShortName(g.file) || 'assigned';
         assignedLine = `<div class="text-xs text-green-400/90 break-all" title="${rbEsc(g.file || '')}">✓ ${rbEsc(label)}</div>`;
@@ -10115,7 +10274,9 @@ async function rbRecoverFailedVstLoad(api, partialSlot = null) {
 }
 
 async function rbSafeLoadStandaloneVst(api, vstPath) {
-    console.log('[rig_builder vst] preparing clean host:', vstPath);
+    // Log only the basename — never the absolute path (leaks the user's home
+    // dir / username in console output and shared logs).
+    console.log('[rig_builder vst] preparing clean host:', (vstPath || '').split('/').pop());
 
     await rbResetStandaloneVstHost(api);
 
