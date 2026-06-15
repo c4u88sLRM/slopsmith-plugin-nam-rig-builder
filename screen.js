@@ -3261,9 +3261,27 @@ async function rbInit() {
     // populated as soon as the user opens a song. Failure is non-fatal
     // (they'll see "no VSTs scanned yet" hint and can Scan from the panel).
     rbLoadKnownVsts().catch(() => {});
-    // Load the idle default tone (if enabled + configured). Best-effort and
-    // delayed so the native audio + VST host have a moment to come up.
-    setTimeout(() => rbReloadDefaultTone().catch(() => {}), 1200);
+    // Load the idle default tone (if enabled + configured) so it's audible on
+    // entry without pressing Test. The native audio + VST host may still be
+    // warming up at startup, so retry until it actually plays (or give up).
+    rbScheduleDefaultToneIdleLoad();
+}
+
+// Retry the idle default-tone load until it takes — at app start the native
+// audio engine / VST host often aren't ready on the first attempt.
+function rbScheduleDefaultToneIdleLoad() {
+    let tries = 0;
+    const attempt = async () => {
+        tries++;
+        await rbReloadDefaultTone().catch(() => {});
+        // Keep retrying only while it SHOULD play (enabled + has content) but
+        // isn't active yet. Stops once it plays, or if disabled/empty.
+        const shouldPlay = window.__rbDefaultToneSetting !== false && rbDefaultToneHasContent();
+        if (!rbState._defaultToneActive && shouldPlay && tries < 12) {
+            setTimeout(attempt, 1500);
+        }
+    };
+    setTimeout(attempt, 1000);
 }
 
 function rbBanner(color, title, body) {
@@ -5646,6 +5664,7 @@ async function rbLoadDefaultToneEditor() {
         rbState.master.default = [];
     }
     rbRenderMasterChain('default');
+    rbRenderDefaultToneMuteBtn();
 }
 
 async function rbSetDefaultToneEnabled(checked) {
@@ -5693,12 +5712,31 @@ async function rbLoadDefaultTone(options) {
         mode: 'preview', ref: presetId, authorization: 'user-action',
     }, options || {}));
     await rbSyncAudioEffectsCapability('default-tone', { chain, mode: 'preview', userAction: true }).catch(() => {});
-    // A prior Listen/song may have left the monitor muted — unmute so the
-    // idle tone is actually audible.
-    if (api.setMonitorMute) await api.setMonitorMute(false).catch(() => {});
+    // Honour the user's idle guitar/bass mute toggle (default: audible). A
+    // prior Listen/song may have left the monitor muted, so set it explicitly.
+    if (api.setMonitorMute) await api.setMonitorMute(!!rbState._defaultToneMuted).catch(() => {});
     if (api.startAudio) await api.startAudio().catch(() => {});
     rbState._defaultToneActive = true;
     return true;
+}
+
+// Mute/unmute the live guitar/bass monitoring of the idle default tone.
+async function rbToggleDefaultToneMute(btn) {
+    rbState._defaultToneMuted = !rbState._defaultToneMuted;
+    const api = window.slopsmithDesktop && window.slopsmithDesktop.audio;
+    if (api && api.setMonitorMute) await api.setMonitorMute(!!rbState._defaultToneMuted).catch(() => {});
+    rbRenderDefaultToneMuteBtn();
+}
+
+function rbRenderDefaultToneMuteBtn() {
+    const btn = document.getElementById('rb-default-tone-mute');
+    if (!btn) return;
+    const muted = !!rbState._defaultToneMuted;
+    btn.textContent = muted ? '🔇 Guitar/Bass muted' : '🔊 Guitar/Bass on';
+    btn.classList.toggle('bg-amber-700/40', muted);
+    btn.classList.toggle('text-amber-200', muted);
+    btn.classList.toggle('bg-dark-600', !muted);
+    btn.classList.toggle('text-gray-200', !muted);
 }
 
 // Reload the default tone IFF enabled and it has assigned content; else
