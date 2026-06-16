@@ -1133,8 +1133,8 @@ let rbState = {
     status: null,
     songTones: null,        // currently inspected song
     batchPoll: null,        // setInterval handle while batch is running
-    currentTab: 'gear',        // default landing tab = Gear (user pref 2026-06)
-    currentGearFilter: 'studio',  // chip filter inside the Gear tab (Studio room lands first)
+    currentTab: 'studio',      // default landing tab = Studio (the Default tone room)
+    currentGearFilter: 'all',  // chip filter inside the Gear tab (catalog by default)
     currentSongFile: null,  // filename of the song open in the per-song view
     listeningTone: null,    // toneIdx currently previewed, or null
     _previewMode: null,     // 'native' (full chain) | 'nam' (WASM fallback)
@@ -3344,6 +3344,8 @@ function rbShowTab(name) {
     rbCloseActiveVstEditor();
     rbState.currentTab = name;
     document.getElementById('rb-root')?.classList.toggle('rb-wide', name === 'gear');
+    // Studio is the one full-bleed tab (edge-to-edge room + right-docked swap rail).
+    document.getElementById('rb-root')?.classList.toggle('rb-studio-bleed', name === 'studio');
     document.querySelectorAll('.rb-tab-panel').forEach(el => el.classList.add('hidden'));
     const panel = document.getElementById(`rb-tab-${name}`);
     if (panel) panel.classList.remove('hidden');
@@ -3359,7 +3361,8 @@ function rbShowTab(name) {
     // Post-restructure: only 4 active tabs. The old dashboard/pending/
     // manage are absorbed — dashboard → settings (top), pending and
     // manage → gear (chip-filtered sub-views).
-    if (name === 'gear') rbGearFilter(rbState.currentGearFilter || 'studio');
+    if (name === 'studio') rbLoadStudioRoom();
+    if (name === 'gear') rbGearFilter(rbState.currentGearFilter || 'all');
     if (name === 'master') rbLoadMasterChain();
     if (name === 'settings') {
         rbLoadCoverage();        // batch / coverage panel (was dashboard)
@@ -3373,7 +3376,7 @@ function rbShowTab(name) {
 // top-level tab so the user doesn't ping-pong between two tabs to
 // resolve a gear and inspect its file.
 function rbGearFilter(filter) {
-    if (!['studio', 'all', 'default', 'files'].includes(filter)) filter = 'studio';
+    if (!['all', 'files'].includes(filter)) filter = 'all';
     rbState.currentGearFilter = filter;
     document.querySelectorAll('.rb-gear-view').forEach(v => v.classList.add('hidden'));
     const view = document.getElementById(`rb-gear-view-${filter}`);
@@ -3384,9 +3387,7 @@ function rbGearFilter(filter) {
         b.classList.toggle('text-white', active);
         b.classList.toggle('text-gray-400', !active);
     });
-    if (filter === 'studio') rbLoadStudioRoom();
-    else if (filter === 'all') rbLoadCatalog();
-    else if (filter === 'default') rbLoadDefaultToneEditor();
+    if (filter === 'all') rbLoadCatalog();
     else if (filter === 'files') rbLoadManageTab();
 }
 
@@ -3405,11 +3406,29 @@ function rbStudioPieceStem(p) {
 function rbStudioPedalImg(p) {
     const stem = rbStudioPieceStem(p);
     if (stem && window.RBPedalCanvas && window.RBPedalCanvas.has(stem)) {
-        try { return window.RBPedalCanvas.dataURL(stem, {}); } catch (_) {}
+        // Render the face at the piece's SAVED knob values (not plugin defaults)
+        // so the room thumbnail mirrors the current tone.
+        let values = {};
+        try { values = rbCanvasThumbValues(p) || {}; } catch (_) {}
+        try { return window.RBPedalCanvas.dataURL(stem, values); } catch (_) {}
     }
     return null;
 }
 function rbStudioIsBypassed(p) { return !!p._bypassed || !!(p.assigned && p.assigned.bypassed); }
+
+// Mirror each saved knob value under its param NAME as well as its numeric id.
+// On a fresh room load there's no live VST param model to map ids → knobs, so
+// the static face thumbnail resolves values by NAME (via the canvas spec). Keep
+// the id keys too (the editor reads those).
+function rbStudioDualKeyParams(piece) {
+    if (!piece || !piece._vst_params || !Array.isArray(piece._vst_param_meta)) return;
+    const m = piece._vst_params;
+    piece._vst_param_meta.forEach(pm => {
+        const id = pm.id ?? pm.paramId ?? pm.index;
+        const nm = pm.name ?? pm.label;
+        if (nm != null && m[id] != null && m[nm] == null) m[nm] = m[id];
+    });
+}
 
 function rbStudioGroupDefault() {
     const pieces = rbState.master.default || [];
@@ -3508,7 +3527,7 @@ function rbRenderStudioRoom() {
         </div>
         ${empty ? `<div class="absolute inset-0 flex items-center justify-center text-gray-500 text-sm z-10">
             No default tone yet —
-            <button onclick="rbGearFilter('default')" class="underline ml-1 text-gray-300 hover:text-white">set one up</button>.
+            <button onclick="rbShowTab('gear')" class="underline ml-1 text-gray-300 hover:text-white">add gear</button>.
         </div>` : ''}`;
 }
 
@@ -3531,8 +3550,8 @@ function rbStudioClickAmp(idx) {
     if (room && room.classList.contains('rb-focus-active')) return;   // already focused — don't re-enter
     rbStudioFocusAmp(idx);
 }
-function rbStudioClickPiece(_idx) { rbGearFilter('default'); }
-function rbStudioClickAdd(_role) { rbGearFilter('default'); }
+function rbStudioClickPiece(_idx) { rbShowTab('gear'); }
+function rbStudioClickAdd(_role) { rbShowTab('gear'); }
 
 // ── Phase 2: amp focus — zoom to the real knobs ─────────────────────────
 // Reuses the standalone-VST editor primitives (load / restore / setParameter
@@ -3543,7 +3562,7 @@ async function rbStudioFocusAmp(idx) {
     const room = document.getElementById('rb-studio-room');
     const piece = (rbState.master.default || [])[idx];
     if (!room) return;
-    if (idx == null || idx < 0 || !piece) { rbGearFilter('default'); return; }  // no amp → editor to add one
+    if (idx == null || idx < 0 || !piece) { rbShowTab('gear'); return; }  // no amp → catalog to add one
     rbState._studioFocusIdx = idx;
     const _focusStart = Date.now();   // so the canvas swap waits out the grow animation
     const api = window.slopsmithDesktop && window.slopsmithDesktop.audio;
@@ -3559,14 +3578,13 @@ async function rbStudioFocusAmp(idx) {
     let bar = document.getElementById('rb-studio-focus-bar');
     if (!bar) { bar = document.createElement('div'); bar.id = 'rb-studio-focus-bar'; room.appendChild(bar); }
     bar.className = 'rb-focus-bar2';
+    // Amp name omitted here — the swap rail on the right already labels it.
     bar.innerHTML = `
         <button class="rb-focus-back" onclick="rbStudioCloseFocus()">← Room</button>
-        <div class="rb-focus-title">${rbEsc(name)}</div>
-        <div class="rb-focus-actions">
-            <button onclick="rbStudioSwapAmp(${idx})" title="Swap this amp">⇄ Swap</button>
-            <button onclick="rbPreviewDefaultTone(this)" title="Hear the default tone">▶ Listen</button>
-        </div>`;
+        <div class="rb-focus-actions" style="min-width:80px"></div>`;
     requestAnimationFrame(() => bar.classList.add('rb-focus-open'));
+    // The amp-alternatives rail is always shown in focus (amp sits left for it).
+    rbStudioOpenSwap(idx);
 
     if (!vstPath || !api) return;            // static face stays; nothing to load
     if (rbState._vstEditorBusy) return;
@@ -3620,6 +3638,17 @@ function rbStudioMakeAmpFaceInteractive(idx) {
     if (!(window.RBPedalCanvas && (window.RBPedalCanvas.has(stem) || (piece._vst_param_meta || []).length))) return;
     face.innerHTML = `<canvas class="rb-amp-face-canvas" style="width:100%;display:block;cursor:ns-resize;touch-action:none"></canvas>`;
     const canvas = face.querySelector('canvas');
+    // Seed logical-id-keyed values from the CURRENT params (model.values is
+    // keyed by logical id), so the saved state carries the right thumbnail
+    // values even if the user never moves a knob this session.
+    try {
+        const seed = rbCanvasParamModel(piece);
+        piece._vst_logical = piece._vst_logical || {};
+        Object.keys(seed.idMap || {}).forEach(lid => {
+            const v = seed.values[lid];
+            if (typeof v === 'number') piece._vst_logical[lid] = v;
+        });
+    } catch (_) {}
     const draw = () => {
         const model = rbCanvasParamModel(piece);
         window.RBPedalCanvas.attach(canvas, stem, {
@@ -3631,6 +3660,11 @@ function rbStudioMakeAmpFaceInteractive(idx) {
                 if (piece._vst_slot_id != null && api) { try { api.setParameter(piece._vst_slot_id, realId, val); } catch (_) {} }
                 piece._vst_params = piece._vst_params || {};
                 piece._vst_params[realId] = val;
+                // Also keep the value under its LOGICAL id so a fresh-load room
+                // thumbnail (no live param model to map real→logical) renders the
+                // right knob — the canvas spec draws by logical id.
+                piece._vst_logical = piece._vst_logical || {};
+                piece._vst_logical[logicalId] = val;
             },
         });
     };
@@ -3646,6 +3680,7 @@ async function rbStudioCloseFocus() {
     const api = window.slopsmithDesktop && window.slopsmithDesktop.audio;
     const bar = document.getElementById('rb-studio-focus-bar');
     const idx = rbState._studioFocusIdx;
+    try { rbStudioCloseSwap(); } catch (_) {}   // close the always-on amp rail too
     // Swap the interactive canvas back to the static face IMG *first*, at the
     // current (focus) size — visually identical. This way the dolly-out
     // animation shrinks a plain image smoothly; the canvas was what popped at
@@ -3656,28 +3691,182 @@ async function rbStudioCloseFocus() {
         const img = rbStudioPedalImg(piece);
         face.innerHTML = img ? `<img src="${img}" alt="${rbEsc(piece.real_name || piece.type || 'Amp')}">` : '';
     }
-    // Now play the smooth return: fade the bar + un-focus (the amp animates
-    // back to its corner over ~0.5s — kept, you liked it).
+    // Save the moved knobs RIGHT AWAY from the values we already track on every
+    // drag — no slow getStateInformation round-trip — so the edits stick without
+    // a manual "Capture state" and the return stays snappy.
+    if (piece && piece._vst_params && Object.keys(piece._vst_params).length) {
+        try {
+            rbStudioDualKeyParams(piece);   // add NAME keys so a fresh-load thumbnail renders right
+            rbStampVstState(piece, piece._vst_opaque || null);
+            rbPersistMasterChain('default');
+        } catch (_) {}
+    }
+    // Now play the smooth return. The AMP animates back to its corner (~0.5s —
+    // kept, you liked it), but SNAP the room backdrop (walls/camera) straight
+    // back so the zoomed + blurred wall doesn't linger on the way out (that was
+    // the "slow to load the room" feeling).
     if (bar) { bar.classList.remove('rb-focus-open'); setTimeout(() => { try { bar.remove(); } catch (_) {} }, 220); }
+    const _cam = room && room.querySelector('.rb-room-camera');
+    const _r3d = room && room.querySelector('.rb-room-3d');
+    // Faster (but still smooth) dolly-out for the backdrop so the wall doesn't
+    // linger — the slower, cinematic approach on the way IN stays (CSS default).
+    if (_r3d) _r3d.style.transition = 'transform .32s cubic-bezier(.33,0,.2,1), opacity .32s ease, filter .32s ease';
+    if (_cam) _cam.style.transition = 'perspective-origin .32s cubic-bezier(.33,0,.2,1)';
     if (room) room.classList.remove('rb-focus-active');
-    // Persist the edited knobs + tear the editor VST down in the background.
-    try { await rbMasterCaptureVstState('default', idx); } catch (_) {}
+    setTimeout(() => { if (_r3d) _r3d.style.transition = ''; if (_cam) _cam.style.transition = ''; }, 360);
+    // Capture the full opaque engine state (playback fidelity) + tear the editor
+    // VST down in the BACKGROUND. These are slow on the sandboxed host, so they
+    // must NOT block the return — that was the lag when coming back.
+    setTimeout(() => rbStudioFinalizeFocusEdit(api, idx), 0);
+}
+
+async function rbStudioFinalizeFocusEdit(api, idx) {
+    const piece = (rbState.master.default || [])[idx];
+    try {
+        if (piece && piece._vst_slot_id != null) {
+            const opaque = await rbCaptureVstOpaqueState(api,
+                piece._vst_path || (piece.assigned && piece.assigned.vst_path));
+            if (opaque) { rbStampVstState(piece, opaque); await rbPersistMasterChain('default').catch(() => null); }
+        }
+    } catch (_) {}
     try { await rbTeardownVstEditor(api); } catch (_) {}
 }
 
-function rbStudioSwapAmp(idx) {
-    // Phase 3: in-room swap rail comes next; for now route to the existing
-    // Default-tone editor. Close the focus cleanly first.
-    rbStudioCloseFocus();
-    rbGearFilter('default');
+// ── Phase 3: amp swap rail — right-docked translucent carousel of alt amps ──
+function rbStudioSwapAmp(idx) { rbStudioOpenSwap(idx); }
+
+async function rbStudioOpenSwap(idx) {
+    const room = document.getElementById('rb-studio-room');
+    if (!room) return;
+    rbState._studioFocusIdx = idx;
+    if (!rbState.gearCatalog || !rbState.gearCatalog.amp || !rbState.gearCatalog.amp.length) {
+        try {
+            const d = await (await fetch(`${window.RB_API}/gear_catalog`)).json();
+            rbState.gearCatalog = (d && d.categories) || rbState.gearCatalog || {};
+        } catch (_) {}
+    }
+    let panel = document.getElementById('rb-swap-panel');
+    if (!panel) { panel = document.createElement('div'); panel.id = 'rb-swap-panel'; room.appendChild(panel); }
+    panel.className = 'rb-swap-panel';
+    panel.innerHTML = `
+        <div class="rb-swap-head">
+            <input type="text" placeholder="Search amps…" oninput="rbStudioRenderSwapList(this.value)">
+        </div>
+        <div id="rb-swap-list" class="rb-swap-list" onscroll="rbStudioScheduleCarousel()"></div>`;
+    room.classList.add('rb-swap-active');
+    rbStudioRenderSwapList('');
+    rbStudioPinSwapRail();   // pin to the viewport's right edge (covers the host's margin)
+    if (!rbState._swapResizeHooked) {
+        rbState._swapResizeHooked = true;
+        window.addEventListener('resize', () => { try { rbStudioPinSwapRail(); } catch (_) {} });
+    }
+    requestAnimationFrame(() => panel.classList.add('rb-swap-open'));
+}
+
+function rbStudioPinSwapRail() {
+    const room = document.getElementById('rb-studio-room');
+    const panel = document.getElementById('rb-swap-panel');
+    if (!room || !panel) return;
+    const r = room.getBoundingClientRect();
+    const topOff = 60;   // clear the floating ← Room bar so the search stays visible
+    panel.style.position = 'fixed';
+    panel.style.right = '0';
+    panel.style.top = (r.top + topOff) + 'px';
+    panel.style.bottom = 'auto';
+    panel.style.height = Math.max(0, r.height - topOff) + 'px';
+}
+
+function rbStudioCloseSwap() {
+    const room = document.getElementById('rb-studio-room');
+    const panel = document.getElementById('rb-swap-panel');
+    if (room) room.classList.remove('rb-swap-active');
+    if (panel) { panel.classList.remove('rb-swap-open'); setTimeout(() => { try { panel.remove(); } catch (_) {} }, 320); }
+}
+
+function rbStudioAmpThumb(g) {
+    const stem = rbGearCanvasStem(g);
+    if (stem && window.RBPedalCanvas && window.RBPedalCanvas.has(stem)) {
+        try { return `<img src="${window.RBPedalCanvas.dataURL(stem, {})}" alt="">`; } catch (_) {}
+    }
+    return `<img src="${window.RB_API}/gear_photo/${encodeURIComponent(g.rs_gear)}${(typeof _RB_GEAR_PHOTO_CB !== 'undefined' ? _RB_GEAR_PHOTO_CB : '')}" alt="" loading="lazy" onerror="this.style.opacity=0">`;
+}
+
+function rbStudioRenderSwapList(search) {
+    const list = document.getElementById('rb-swap-list');
+    if (!list) return;
+    const idx = rbState._studioFocusIdx;
+    const cur = (rbState.master.default || [])[idx];
+    const curGear = cur && cur.type;
+    const q = rbNorm(search || '').trim();
+    let amps = ((rbState.gearCatalog && rbState.gearCatalog.amp) || [])
+        .filter(g => rbGearHasVst(g) && (!q || rbGearSearchHaystack(g).includes(q)));
+    if (!amps.length) {
+        list.innerHTML = `<div style="text-align:center;color:#8893a8;font-size:12px;padding:24px 0">No amps found</div>`;
+        return;
+    }
+    list.innerHTML = amps.map(g => {
+        const name = g.real_name || g.rs_gear;
+        return `<div class="rb-swap-item ${g.rs_gear === curGear ? 'rb-swap-current' : ''}"
+                     onclick="rbStudioSwapToAmp(${rbEsc(JSON.stringify(g.rs_gear))})" title="${rbEsc(name)}">
+            <span class="rb-swap-thumb">${rbStudioAmpThumb(g)}</span>
+            <span class="rb-swap-name">${rbEsc(name)}</span>
+        </div>`;
+    }).join('');
+    requestAnimationFrame(() => {
+        const curEl = list.querySelector('.rb-swap-item.rb-swap-current') || list.querySelector('.rb-swap-item');
+        if (curEl) curEl.scrollIntoView({ block: 'center' });
+        rbStudioUpdateSwapCarousel();
+    });
+}
+
+function rbStudioScheduleCarousel() {
+    if (rbState._swapRaf) return;
+    rbState._swapRaf = requestAnimationFrame(() => { rbState._swapRaf = null; rbStudioUpdateSwapCarousel(); });
+}
+
+// Center-focus wheel: the item nearest the list centre is full size/opacity,
+// neighbours shrink + fade with distance.
+function rbStudioUpdateSwapCarousel() {
+    const list = document.getElementById('rb-swap-list');
+    if (!list) return;
+    const cr = list.getBoundingClientRect();
+    const mid = cr.top + cr.height / 2;
+    const half = cr.height / 2 || 1;
+    list.querySelectorAll('.rb-swap-item').forEach(it => {
+        const r = it.getBoundingClientRect();
+        const d = Math.min(1, Math.abs((r.top + r.height / 2) - mid) / half);
+        it.style.transform = `scale(${(1 - d * 0.42).toFixed(3)})`;
+        it.style.opacity = (1 - d * 0.78).toFixed(3);
+    });
+}
+
+function rbStudioSwapToAmp(rsGear) {
+    const idx = rbState._studioFocusIdx;
+    const piece = (rbState.master.default || [])[idx];
+    const g = ((rbState.gearCatalog && rbState.gearCatalog.amp) || []).find(x => x.rs_gear === rsGear);
+    if (!piece || !g) return;
+    const vstPath = rbGearVstPath(g);
+    if (!vstPath) return;
+    piece.type = g.rs_gear;
+    piece.real_name = g.real_name || g.rs_gear;
+    piece.category = 'amp'; piece.rs_category = 'amp';
+    piece._vst_path = vstPath; piece._vst_format = g.vst_format || 'VST3';
+    piece.assigned = { kind: 'vst', vst_path: vstPath, vst_format: g.vst_format || 'VST3', vst_state: null };
+    // Reset captured state for the new amp (loads at its own defaults).
+    piece._vst_state = null; piece._vst_params = null; piece._vst_logical = null;
+    piece._vst_param_meta = null; piece._vst_slot_id = null; piece._vst_opaque = null;
+    try { rbPersistMasterChain('default'); } catch (_) {}
+    // Show the new amp face immediately, then reload focus (loads its VST + knobs
+    // and re-renders the rail with the new amp centred).
+    const face = document.querySelector('#rb-studio-room .rb-amp-face');
+    if (face) { const img = rbStudioPedalImg(piece); face.innerHTML = img ? `<img src="${img}" alt="${rbEsc(piece.real_name)}">` : ''; }
+    rbStudioFocusAmp(idx);
 }
 
 // Entry point for the host's main-menu "Studio" item (v3 shell.js): show the
 // Gear tab and land on the Studio room regardless of the last-used tab.
 window.rbOpenStudio = function rbOpenStudio() {
-    rbState.currentGearFilter = 'studio';
-    try { rbShowTab('gear'); } catch (_) {}
-    try { rbGearFilter('studio'); } catch (_) {}
+    try { rbShowTab('studio'); } catch (_) {}
 };
 
 // ── Manage tab: inventory of downloaded NAM/IR files ────────────────
@@ -5190,6 +5379,9 @@ function rbStampVstState(piece, opaque) {
     if (opaque) piece._vst_opaque = opaque;
     const env = { params: piece._vst_params || {} };
     if (piece._vst_opaque) env.opaque = piece._vst_opaque;
+    // Logical-id-keyed values for the canvas thumbnail (rendered without a live
+    // param model on a fresh load). Only present for in-app canvas edits.
+    if (piece._vst_logical && Object.keys(piece._vst_logical).length) env.logical = piece._vst_logical;
     piece._vst_state = JSON.stringify(env);
 }
 
@@ -5430,6 +5622,13 @@ function rbCanvasParamModel(piece) {
 function rbCanvasThumbValues(piece) {
     const v = rbCanvasParamModel(piece).values;
     if (Object.keys(v).length) return v;
+    // In-app canvas edits also persist values keyed by LOGICAL id — render
+    // straight from those when there's no live param model (fresh load), so the
+    // thumbnail matches without the real→logical offset guessing.
+    try {
+        const env = JSON.parse(rbEffVstState(piece) || '{}');
+        if (env && env.logical && Object.keys(env.logical).length) return env.logical;
+    } catch (_) { /* fall through */ }
     let byName = {};
     try { byName = rbParseVstStateParams(rbEffVstState(piece)) || {}; } catch (_) { byName = {}; }
     if (!Object.keys(byName).length) return byName;

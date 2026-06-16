@@ -23,6 +23,9 @@
     /* v3: sidebar + Plugins page own navigation, so hide the legacy "< Back". */
     #v3-main #rb-root .rb-back{display:none!important}
     #rb-root.rb-wide { max-width: min(1400px, calc(100vw - 3rem)); }
+    /* Studio runs edge-to-edge: full viewport width, no horizontal padding, so
+       the room + the right-docked swap rail reach the screen edges. */
+    #rb-root.rb-studio-bleed { max-width: none !important; padding-left: 0 !important; padding-right: 0 !important; }
     @media (max-width: 1023px) {
         #rb-root .rb-gear-browser { grid-template-columns: 1fr !important; }
         #rb-root.rb-wide { max-width: 100%; }
@@ -31,7 +34,8 @@
     /* ── Studio room (premium dark + perspective) — Phase 1 ───────────── */
     #rb-studio-room{
         --rb-accent:#34d3c0;
-        position:relative; border-radius:1.25rem; overflow:hidden; min-height:640px;
+        position:relative; border-radius:1.25rem; overflow:hidden;
+        min-height:0; height:calc(100vh - 210px);
         background:#070809;
         border:1px solid rgba(255,255,255,.06);
         box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
@@ -45,6 +49,8 @@
     /* soft atmosphere vignette over the whole scene */
     #rb-studio-room::after{ content:""; position:absolute; inset:0; pointer-events:none; z-index:4;
         background:radial-gradient(88% 72% at 50% 40%, transparent 56%, rgba(0,0,0,.46) 100%); }
+    /* hide the room header while focused so the ← Room button isn't crowded */
+    #rb-studio-room.rb-focus-active .rb-studio-head{ opacity:0; pointer-events:none; }
 
     /* ── 3D control room: three black walls w/ acoustic foam + wood floor ── */
     .rb-room-3d{ position:absolute; inset:0; transform-style:preserve-3d;
@@ -103,7 +109,8 @@
         transition:left .55s cubic-bezier(.33,0,.2,1), top .55s cubic-bezier(.33,0,.2,1),
             bottom .55s cubic-bezier(.33,0,.2,1), width .55s cubic-bezier(.33,0,.2,1),
             transform .55s cubic-bezier(.33,0,.2,1), filter .2s ease; }
-    .rb-amp-stack:hover{ transform:translateX(-50%) rotateY(32deg); filter:brightness(1.12); }
+    .rb-amp-stack:hover{ transform:translateX(-50%) rotateY(32deg); }
+    .rb-amp-stack:hover .rb-amp-face{ filter:brightness(1.13); }
     /* extruded side panel = box depth for the amp + cab (hidden when flat) */
     .rb-amp-stack::before{ content:''; position:absolute; top:1%; bottom:0; left:0; width:54px;
         transform-origin:left center; transform:rotateY(90deg);
@@ -149,32 +156,70 @@
     .rb-room-camera{ position:absolute; inset:0; perspective:1300px; perspective-origin:50% 41%;
         transition:perspective-origin .55s cubic-bezier(.33,0,.2,1); }
 
-    /* focus mode — the amp comes to centre at FULL resolution (grown by layout,
-       NOT transform:scale, so the canvas stays crisp + editable). The camera
-       pushes toward the amp's corner and the 3D room scales up + dims behind. */
-    #rb-studio-room.rb-focus-active .rb-room-camera{ perspective-origin:32% 35%; }
-    #rb-studio-room.rb-focus-active .rb-room-3d{ transform:scale(1.55); opacity:.32; filter:blur(2.5px); }
+    /* focus mode — the amp grows by layout (canvas stays crisp + editable). The
+       3D room stays centred and full-frame, just gently pushed back + dimmed +
+       blurred behind the amp (left) and the swap rail (right). No perspective
+       shift / big scale — that left a black void behind the translucent rail. */
+    #rb-studio-room.rb-focus-active .rb-room-3d{ transform:scale(1.12); opacity:.5; filter:blur(1.5px); }
     #rb-studio-room.rb-focus-active .rb-pedalboard,
     #rb-studio-room.rb-focus-active .rb-rack-case{ opacity:0; pointer-events:none; transition:opacity .4s ease; }
     /* straightens out (rotateY → 0) + frames the AMP HEAD only: the head fills
        the view BIG (knob names read) and the cab runs off the bottom (cut off,
        not the focus — cab switching comes later). */
+    /* sits LEFT of centre so the swap rail (always shown in focus) fits on the
+       right; head fills the frame, cab runs off the bottom. */
     #rb-studio-room.rb-focus-active .rb-amp-stack{
-        left:50%; top:24%; bottom:auto; width:min(780px,92%); z-index:6; cursor:default;
+        left:38%; top:24%; bottom:auto; width:min(720px,56%); z-index:6; cursor:default;
         transform:translateX(-50%) rotateY(0deg); }
     #rb-studio-room.rb-focus-active .rb-amp-stack:hover{ transform:translateX(-50%) rotateY(0deg); filter:none; }
     .rb-amp-face-canvas{ border-radius:6px; }
 
+    /* swap rail — right-docked, translucent-blue carousel of alternative amps */
+    .rb-swap-panel{ position:absolute; top:0; right:0; bottom:0; width:min(320px,30%); z-index:8;
+        display:flex; flex-direction:column; gap:12px; padding:16px 14px;
+        background:linear-gradient(180deg, rgba(48,74,134,.15), rgba(30,52,100,.20));
+        -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px);
+        border-left:1px solid rgba(120,160,220,.14);
+        transform:translateX(100%); opacity:0;
+        transition:transform .35s cubic-bezier(.33,0,.2,1), opacity .3s ease; }
+    .rb-swap-panel.rb-swap-open{ transform:none; opacity:1; }
+    .rb-swap-head{ display:flex; align-items:center; gap:8px; flex:0 0 auto; }
+    .rb-swap-head input{ flex:1; background:rgba(8,14,28,.55); border:1px solid rgba(120,160,220,.22);
+        border-radius:10px; padding:9px 12px; font-size:12px; color:#dbe4f2; outline:none; }
+    .rb-swap-head input::placeholder{ color:#7e8aa3; }
+    .rb-swap-head input:focus{ border-color:rgba(120,170,240,.5); }
+    .rb-swap-close{ flex:0 0 auto; width:30px; height:30px; border-radius:8px; cursor:pointer;
+        background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1); color:#aeb8cc; font-size:14px; }
+    .rb-swap-close:hover{ background:rgba(255,255,255,.12); color:#fff; }
+    .rb-swap-list{ flex:1 1 auto; overflow-y:auto; overflow-x:hidden;
+        display:flex; flex-direction:column; gap:8px; padding:44% 4px; scroll-snap-type:y proximity;
+        -webkit-mask-image:linear-gradient(180deg, transparent, #000 20%, #000 80%, transparent);
+        mask-image:linear-gradient(180deg, transparent, #000 20%, #000 80%, transparent); }
+    .rb-swap-list::-webkit-scrollbar{ width:0; height:0; }
+    .rb-swap-item{ flex:0 0 auto; scroll-snap-align:center; cursor:pointer; transform-origin:center;
+        display:flex; align-items:center; gap:11px; padding:8px 10px; border-radius:13px;
+        background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.06);
+        transition:background .15s, border-color .15s, box-shadow .2s; will-change:transform, opacity; }
+    .rb-swap-item:hover{ background:rgba(120,160,220,.12); }
+    .rb-swap-item.rb-swap-current{ border-color:rgba(120,170,240,.55);
+        background:rgba(120,160,220,.15); box-shadow:0 0 22px rgba(80,130,220,.28); }
+    .rb-swap-thumb{ flex:0 0 auto; width:92px; height:56px; border-radius:8px; overflow:hidden;
+        background:#0b0d12; display:flex; align-items:center; justify-content:center; }
+    .rb-swap-thumb img{ width:100%; height:100%; object-fit:contain; }
+    .rb-swap-name{ flex:1 1 auto; min-width:0; font-size:12.5px; color:#e8eef8; font-weight:500; line-height:1.25;
+        white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
     /* floating control bar shown in focus mode */
     .rb-focus-bar2{ position:absolute; top:0; left:0; right:0; z-index:7; display:flex; align-items:center;
-        justify-content:space-between; gap:10px; padding:14px 18px; opacity:0; pointer-events:none;
+        justify-content:space-between; gap:10px; padding:24px 52px; opacity:0; pointer-events:none;
         transition:opacity .25s ease; }
     .rb-focus-bar2.rb-focus-open{ opacity:1; }
     .rb-focus-bar2 > *{ pointer-events:auto; }
     .rb-focus-bar2 .rb-focus-title{ flex:1; text-align:center; }
-    .rb-focus-bar2 button{ font-size:11px; padding:6px 11px; border-radius:8px; color:#cbd2dc; cursor:pointer;
-        background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1); transition:.15s; white-space:nowrap; }
-    .rb-focus-bar2 button:hover{ background:rgba(255,255,255,.12); color:#fff; }
+    .rb-focus-bar2 button{ font-size:12.5px; padding:8px 14px; border-radius:9px; color:#dbe2ee; cursor:pointer;
+        background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.14); transition:.15s; white-space:nowrap; }
+    .rb-focus-bar2 button:hover{ background:rgba(255,255,255,.16); color:#fff; }
+    .rb-focus-bar2 .rb-focus-back{ background:rgba(120,160,220,.16); border-color:rgba(120,170,240,.4); color:#eaf1fb; }
 
     /* amp face = the VST's own canvas UI render, sitting on the cab */
     .rb-amp-face{ border-radius:8px 8px 4px 4px; overflow:hidden;
@@ -255,11 +300,11 @@
     <button onclick="showScreen('home')" class="rb-back text-gray-500 hover:text-white text-sm mb-6 flex items-center gap-1">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg> Back
     </button>
-    <h2 class="text-3xl font-bold text-white mb-2">Rig Builder</h2>
-    <p class="text-gray-500 mb-6">Map song tones to NAM captures + VST3/AU plugins, persisted as nam_tone presets.</p>
+    <h2 class="text-3xl font-bold text-white mb-2" style="display:none">Rig Builder</h2>
+    <p class="text-gray-500 mb-6" style="display:none">Map song tones to NAM captures + VST3/AU plugins, persisted as nam_tone presets.</p>
 
     <!-- Setup status -->
-    <div id="rb-status" class="mb-6"></div>
+    <div id="rb-status" class="mb-6" style="display:none"></div>
 
     <!-- Tab nav — simplified from 7 → 4 tabs (2026-05-27):
          · Songs  (per-song chain editor — was "By song")
@@ -267,6 +312,10 @@
          · Master (global pre/post FX — unchanged)
          · Setup  (was Dashboard + Settings — batch ops + tone3000 + prefs) -->
     <div class="flex gap-2 mb-6 border-b border-gray-800">
+        <button data-rb-tab="studio" onclick="rbShowTab('studio')"
+                class="rb-tab px-4 py-2 text-sm text-gray-400 border-b-2 border-transparent hover:text-white transition">
+            Studio
+        </button>
         <button data-rb-tab="gear" onclick="rbShowTab('gear')"
                 class="rb-tab px-4 py-2 text-sm text-gray-400 border-b-2 border-transparent hover:text-white transition">
             Gear
@@ -283,6 +332,11 @@
                 class="rb-tab px-4 py-2 text-sm text-gray-400 border-b-2 border-transparent hover:text-white transition">
             Setup
         </button>
+    </div>
+
+    <!-- Studio (main view — the Default tone visualised as a 3D control room) -->
+    <div id="rb-tab-studio" class="rb-tab-panel hidden">
+        <div id="rb-studio-room"></div>
     </div>
 
     <!-- Songs (per-song chain editor) -->
@@ -309,17 +363,9 @@
     <div id="rb-tab-gear" class="rb-tab-panel hidden">
         <div class="flex items-center justify-between gap-3 mb-4 flex-wrap">
             <div class="inline-flex gap-1 bg-dark-800/50 border border-gray-800/50 rounded-lg p-1">
-                <button onclick="rbGearFilter('studio')" data-rb-gear-filter="studio"
-                        class="rb-gear-filter-btn px-3 py-1.5 rounded text-xs text-gray-300 transition">
-                    Studio
-                </button>
                 <button onclick="rbGearFilter('all')" data-rb-gear-filter="all"
                         class="rb-gear-filter-btn px-3 py-1.5 rounded text-xs text-gray-300 transition">
                     All gear
-                </button>
-                <button onclick="rbGearFilter('default')" data-rb-gear-filter="default"
-                        class="rb-gear-filter-btn px-3 py-1.5 rounded text-xs text-gray-300 transition">
-                    Default tone
                 </button>
                 <button onclick="rbGearFilter('files')" data-rb-gear-filter="files"
                         class="rb-gear-filter-btn px-3 py-1.5 rounded text-xs text-gray-300 transition">
@@ -339,13 +385,8 @@
             </div>
         </div>
 
-        <!-- View: Studio (the room — Default tone as an amp/pedalboard scene). -->
-        <div id="rb-gear-view-studio" class="rb-gear-view">
-            <div id="rb-studio-room"></div>
-        </div>
-
         <!-- View: All gear (catalog browser). -->
-        <div id="rb-gear-view-all" class="rb-gear-view hidden">
+        <div id="rb-gear-view-all" class="rb-gear-view">
             <div class="rb-gear-browser grid grid-cols-1 lg:grid-cols-2 gap-4" style="grid-template-columns:minmax(260px,320px) minmax(0,1fr)">
                 <aside class="bg-dark-700/50 border border-gray-800/50 rounded-xl p-3 space-y-3">
                     <input id="rb-gear-search" type="text"
