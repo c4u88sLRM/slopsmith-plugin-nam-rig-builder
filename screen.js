@@ -3398,6 +3398,7 @@ function rbGearFilter(filter) {
 // Default-tone editor for now; Phase 2 swaps them for an in-room zoom.
 const RB_STUDIO_KNOB_ANGLES = [-135, -70, -10, 45, 110];
 const RB_MAX_PEDALS = 4;   // pedalboard capacity
+const RB_MAX_RACKS = 4;    // rack-tower capacity
 
 function rbStudioPieceStem(p) {
     const vp = rbEffVstPath(p);
@@ -3474,17 +3475,30 @@ function rbRenderStudioRoom() {
             <div class="rb-amp-cab" title="${rbEsc(cabName)}"></div>
         </div>`;
 
+    // Rack tower on a table (right side), angled to point left + slightly frontal.
+    // Units stack one on top of another, capped at RB_MAX_RACKS.
+    const racks = g.rack.slice(0, RB_MAX_RACKS);
     const rackHtml = `
-        <div class="rb-rack-case">
-            ${g.rack.length ? g.rack.map(r => {
-                const name = r.p.real_name || r.p.type || 'Rack';
-                return `<div class="rb-rack-unit" onclick="rbStudioClickPiece(${r.idx})" title="${rbEsc(name)}">
-                    <span class="rb-rack-led ${rbStudioIsBypassed(r.p) ? 'off' : ''}"></span>
-                    <span class="text-xs text-gray-300 truncate">${rbEsc(name)}</span>
-                </div>`;
-            }).join('') : `<div class="rb-rack-unit" onclick="rbStudioClickAdd('rack')" title="Add a rack effect">
-                    <span class="rb-rack-led off"></span><span class="text-xs text-gray-500">＋ rack</span>
-                </div>`}
+        <div class="rb-rack-ground"></div>
+        <div class="rb-rack-zone ${racks.length ? '' : 'rb-rack-empty'}"
+             onclick="rbStudioBrowseRacks()" title="${racks.length ? 'Rack' : 'Click to add a rack'}">
+            <div class="rb-rack-stack">
+                ${racks.length ? racks.map(r => {
+                    const img = rbStudioPedalImg(r.p);
+                    const name = r.p.real_name || r.p.type || 'Rack';
+                    const byp = rbStudioIsBypassed(r.p) ? 'rb-rack-bypassed' : '';
+                    return `<div class="rb-rack ${byp}" onclick="event.stopPropagation();rbStudioClickRack(${r.idx})" title="${rbEsc(name)} — click to edit / swap">
+                        ${img ? `<img src="${img}" alt="${rbEsc(name)}">` : `<div class="rb-rack-fallback">${rbEsc(name)}</div>`}
+                    </div>`;
+                }).join('') : `<div class="rb-rack-placeholder">＋ rack</div>`}
+            </div>
+            <div class="rb-rack-table">
+                <div class="rb-rack-leg rb-rack-leg-back" style="left:3%"></div>
+                <div class="rb-rack-leg rb-rack-leg-back" style="right:3%"></div>
+                <div class="rb-rack-leg" style="left:3%"></div>
+                <div class="rb-rack-leg" style="right:3%"></div>
+                <div class="rb-rack-tabletop"></div>
+            </div>
         </div>`;
 
     const pedalHtml = `
@@ -3532,7 +3546,7 @@ function rbRenderStudioRoom() {
                 ${amp ? '<div class="rb-amp-ground"></div>' : ''}
                 ${ampHtml}
                 ${pedalHtml}
-                <!-- rack placement deferred — re-enable: ${'${rackHtml}'} -->
+                ${rackHtml}
             </div>
         </div>
         ${empty ? `<div class="absolute inset-0 flex items-center justify-center text-gray-500 text-sm z-10">
@@ -3784,16 +3798,34 @@ function rbStudioQuickSavePiece(idx) {
     }
 }
 
-// ── Pedal focus: one pedal large + left/right chain nav + swap rail ─────────
-// Chain order of the pedal-group pieces (indices into master.default).
+// ── Pedal / rack focus: one item large + left/right chain nav + swap rail ────
+// The focus flow is shared between the pedal group and the rack group; the
+// active group is rbState._studioFocusGroup ('pedal' | 'rack'). These helpers
+// resolve the right slot group, capacity, and labels for the active focus.
+function rbStudioActiveGroup() { return rbState._studioFocusGroup === 'rack' ? 'rack' : 'pedal'; }
+function rbStudioFocusMax() { return rbStudioActiveGroup() === 'rack' ? RB_MAX_RACKS : RB_MAX_PEDALS; }
+function rbStudioGroupLabel() { return rbStudioActiveGroup() === 'rack' ? 'rack' : 'pedal'; }
+
+// Chain order (indices into master.default) of the active focus group's pieces.
 function rbStudioPedalOrder() {
-    return rbStudioGroupDefault().pedal.map(e => e.idx);
+    return rbStudioGroupDefault()[rbStudioActiveGroup()].map(e => e.idx);
 }
 
 // Click a floor pedal → enter focus at its position in the chain.
 function rbStudioClickPedal(idx) {
     const room = document.getElementById('rb-studio-room');
     if (room && room.classList.contains('rb-focus-active')) return;   // already focused
+    rbState._studioFocusGroup = 'pedal';
+    const order = rbStudioPedalOrder();
+    const pos = order.indexOf(idx);
+    rbStudioFocusPedal(pos < 0 ? 0 : pos);
+}
+
+// Click a rack unit → enter focus on the rack chain.
+function rbStudioClickRack(idx) {
+    const room = document.getElementById('rb-studio-room');
+    if (room && room.classList.contains('rb-focus-active')) return;
+    rbState._studioFocusGroup = 'rack';
     const order = rbStudioPedalOrder();
     const pos = order.indexOf(idx);
     rbStudioFocusPedal(pos < 0 ? 0 : pos);
@@ -3805,6 +3837,17 @@ function rbStudioClickPedal(idx) {
 function rbStudioBrowsePedals() {
     const room = document.getElementById('rb-studio-room');
     if (room && room.classList.contains('rb-focus-active')) return;
+    rbState._studioFocusGroup = 'pedal';
+    const order = rbStudioPedalOrder();
+    if (order.length) { rbStudioFocusPedal(0); return; }
+    rbStudioFocusPedalAdd();
+}
+
+// Click the rack table → focus the first rack, or add one if the tower is empty.
+function rbStudioBrowseRacks() {
+    const room = document.getElementById('rb-studio-room');
+    if (room && room.classList.contains('rb-focus-active')) return;
+    rbState._studioFocusGroup = 'rack';
     const order = rbStudioPedalOrder();
     if (order.length) { rbStudioFocusPedal(0); return; }
     rbStudioFocusPedalAdd();
@@ -3815,8 +3858,8 @@ function rbStudioBrowsePedals() {
 async function rbStudioFocusPedalAdd() {
     const room = document.getElementById('rb-studio-room');
     if (!room) return;
-    if (rbStudioPedalOrder().length >= RB_MAX_PEDALS) return;   // board full
-    rbState._studioFocusKind = 'pedal';
+    if (rbStudioPedalOrder().length >= rbStudioFocusMax()) return;   // group full
+    rbState._studioFocusKind = 'pedal';   // layer-based cleanup (same for racks)
     rbState._studioPedalAddMode = true;
     rbState._studioFocusIdx = -1;
     let layer = document.getElementById('rb-pedal-focus');
@@ -3824,7 +3867,7 @@ async function rbStudioFocusPedalAdd() {
     layer.innerHTML = `
         <div class="rb-pf-row">
             <div class="rb-pf-side rb-pf-side-empty"></div>
-            <div class="rb-pf-stage"><div class="rb-pf-pedal rb-pf-empty">Pick a pedal from the menu →</div></div>
+            <div class="rb-pf-stage"><div class="rb-pf-pedal rb-pf-empty">Pick a ${rbStudioGroupLabel()} from the menu →</div></div>
             <div class="rb-pf-side rb-pf-side-empty"></div>
         </div>`;
     room.classList.add('rb-focus-active', 'rb-pfocus');
@@ -3833,7 +3876,7 @@ async function rbStudioFocusPedalAdd() {
     bar.className = 'rb-focus-bar2';
     bar.innerHTML = `<button class="rb-focus-back" onclick="rbStudioCloseFocus()">← Room</button>`;
     requestAnimationFrame(() => bar.classList.add('rb-focus-open'));
-    rbStudioOpenSwap(-1, 'pedal');
+    rbStudioOpenSwap(-1, rbStudioActiveGroup());
     requestAnimationFrame(() => layer.classList.add('rb-pf-open'));
 }
 
@@ -3885,8 +3928,8 @@ async function rbStudioFocusPedal(pos) {
             <div class="rb-pf-dots">${order.map((_, i) => `<span class="${i === pos ? 'on' : ''}"></span>`).join('')}</div>
             <div class="rb-pf-actions">
                 <button onclick="rbStudioMovePedal(-1)" ${pos === 0 ? 'disabled' : ''} title="Move earlier in the chain">◀ Move</button>
-                <button onclick="rbStudioFocusPedalAdd()" ${order.length >= RB_MAX_PEDALS ? 'disabled' : ''} title="${order.length >= RB_MAX_PEDALS ? 'Pedalboard full (max ' + RB_MAX_PEDALS + ')' : 'Add another pedal'}">＋ Add</button>
-                <button class="rb-focus-remove" onclick="rbStudioRemovePedal()" title="Remove this pedal">Remove</button>
+                <button onclick="rbStudioFocusPedalAdd()" ${order.length >= rbStudioFocusMax() ? 'disabled' : ''} title="${order.length >= rbStudioFocusMax() ? rbStudioGroupLabel() + 's full (max ' + rbStudioFocusMax() + ')' : 'Add another ' + rbStudioGroupLabel()}">＋ Add</button>
+                <button class="rb-focus-remove" onclick="rbStudioRemovePedal()" title="Remove this ${rbStudioGroupLabel()}">Remove</button>
                 <button onclick="rbStudioMovePedal(1)" ${pos === order.length - 1 ? 'disabled' : ''} title="Move later in the chain">Move ▶</button>
             </div>
         </div>`;
@@ -3905,7 +3948,7 @@ async function rbStudioFocusPedal(pos) {
         bar.className = 'rb-focus-bar2';
         bar.innerHTML = `<button class="rb-focus-back" onclick="rbStudioCloseFocus()">← Room</button>`;
         requestAnimationFrame(() => bar.classList.add('rb-focus-open'));
-        rbStudioOpenSwap(idx, 'pedal');     // right-docked rail of alternative pedals
+        rbStudioOpenSwap(idx, rbStudioActiveGroup());   // rail of alternative pedals/racks
         requestAnimationFrame(() => layer.classList.add('rb-pf-open'));
     } else {
         // Rail already open: just retarget + re-highlight the current pedal
@@ -4056,7 +4099,7 @@ async function rbStudioOpenSwap(idx, kind) {
     panel.className = 'rb-swap-panel';
     panel.innerHTML = `
         <div class="rb-swap-head">
-            <input type="text" placeholder="Search ${kind === 'pedal' ? 'pedals' : 'amps'}…" oninput="rbStudioRenderSwapList(this.value)">
+            <input type="text" placeholder="Search ${kind === 'pedal' ? 'pedals' : (kind === 'rack' ? 'racks' : 'amps')}…" oninput="rbStudioRenderSwapList(this.value)">
         </div>
         <div id="rb-swap-list" class="rb-swap-list" onscroll="rbStudioScheduleCarousel()"></div>`;
     room.classList.add('rb-swap-active');
@@ -4108,7 +4151,7 @@ function rbStudioRenderSwapList(search) {
     let items = ((rbState.gearCatalog && rbState.gearCatalog[kind]) || [])
         .filter(g => rbGearHasVst(g) && (!q || rbGearSearchHaystack(g).includes(q)));
     if (!items.length) {
-        list.innerHTML = `<div style="text-align:center;color:#8893a8;font-size:12px;padding:24px 0">No ${kind === 'pedal' ? 'pedals' : 'amps'} found</div>`;
+        list.innerHTML = `<div style="text-align:center;color:#8893a8;font-size:12px;padding:24px 0">No ${kind === 'pedal' ? 'pedals' : (kind === 'rack' ? 'racks' : 'amps')} found</div>`;
         return;
     }
     list.innerHTML = items.map(g => {
@@ -4151,15 +4194,15 @@ function rbStudioSwapToGear(rsGear) {
     const kind = rbState._swapKind || 'amp';
     const g = ((rbState.gearCatalog && rbState.gearCatalog[kind]) || []).find(x => x.rs_gear === rsGear);
     if (!g) return;
-    // Add mode (empty pedalboard): create a new pedal piece, append it to the
-    // chain, persist, then focus the freshly-added pedal.
-    if (kind === 'pedal' && rbState._studioPedalAddMode) {
-        if (rbStudioPedalOrder().length >= RB_MAX_PEDALS) { rbStudioCloseFocus(); return; }
+    // Add mode (empty pedalboard / rack tower): create a new piece, append it to
+    // the chain, persist, then focus the freshly-added piece.
+    if ((kind === 'pedal' || kind === 'rack') && rbState._studioPedalAddMode) {
+        if (rbStudioPedalOrder().length >= rbStudioFocusMax()) { rbStudioCloseFocus(); return; }
         const vp = rbGearVstPath(g);
         if (!vp) return;
         const newPiece = {
             type: g.rs_gear, real_name: g.real_name || g.rs_gear,
-            category: 'pedal', rs_category: 'pedal', slot: 'post_pedal',
+            category: kind, rs_category: kind, slot: kind === 'rack' ? 'rack' : 'post_pedal',
             _vst_kind: 'vst', _vst_path: vp, _vst_format: g.vst_format || 'VST3',
             assigned: { kind: 'vst', vst_path: vp, vst_format: g.vst_format || 'VST3', vst_state: null },
         };

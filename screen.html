@@ -191,8 +191,7 @@
        blurred behind the amp (left) and the swap rail (right). No perspective
        shift / big scale — that left a black void behind the translucent rail. */
     #rb-studio-room.rb-focus-active .rb-room-3d{ transform:scale(1.12); opacity:.5; filter:blur(1.5px); }
-    #rb-studio-room.rb-focus-active .rb-pedalboard,
-    #rb-studio-room.rb-focus-active .rb-rack-case{ opacity:0; pointer-events:none; transition:opacity .4s ease; }
+    #rb-studio-room.rb-focus-active .rb-pedalboard{ opacity:0; pointer-events:none; transition:opacity .4s ease; }
     /* straightens out (rotateY → 0) + frames the AMP HEAD only: the head fills
        the view BIG (knob names read) and the cab runs off the bottom (cut off,
        not the focus — cab switching comes later). */
@@ -259,23 +258,64 @@
         box-shadow:inset 0 1px 0 rgba(255,255,255,.08), 0 10px 22px rgba(0,0,0,.55); }
     .rb-amp-face img{ width:100%; display:block; }
 
-    /* rack case (right) */
-    .rb-rack-case{ position:absolute; right:6%; bottom:23%; width:208px;
-        border-radius:8px; padding:9px; display:flex; flex-direction:column; gap:7px;
-        background:linear-gradient(180deg,#202329,#131519);
-        border:1px solid rgba(255,255,255,.08);
-        box-shadow:inset 0 1px 0 rgba(255,255,255,.07), 0 12px 26px rgba(0,0,0,.55); }
-    .rb-rack-unit{ height:44px; border-radius:4px; cursor:pointer; padding:0 11px;
-        display:flex; align-items:center; gap:8px;
-        background:linear-gradient(180deg,#15171b,#0d0e11);
-        border:1px solid rgba(255,255,255,.06);
-        box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
-        transition:border-color .2s, box-shadow .2s; }
-    .rb-rack-unit:hover{ border-color:rgba(52,211,192,.4);
-        box-shadow:inset 0 1px 0 rgba(255,255,255,.05), 0 0 12px rgba(52,211,192,.18); }
-    .rb-rack-led{ width:7px; height:7px; border-radius:50%; background:var(--rb-accent);
-        box-shadow:0 0 7px var(--rb-accent); flex:0 0 auto; }
-    .rb-rack-led.off{ background:#3a3f47; box-shadow:none; }
+    /* ── Rack tower on a table — set back against the RIGHT WALL, on the wood
+       floor, angled almost to the left (faces into the room) ── */
+    .rb-rack-zone{ position:absolute; right:11%; bottom:6%; width:min(280px,26%); cursor:pointer;
+        transform-style:preserve-3d; transform:translateZ(-35px) rotateY(-80deg);
+        transform-origin:bottom right; transition:filter .2s; }
+    .rb-rack-zone.rb-rack-empty:hover{ filter:brightness(1.2); }
+    /* a long WOODEN desk: a top slab (front edge + horizontal top surface) on legs */
+    .rb-rack-table{ position:absolute; left:0; right:0; bottom:0; height:92px; transform-style:preserve-3d; }
+    /* front edge of the top (the thickness seen straight on) — wood */
+    .rb-rack-tabletop{ position:absolute; left:-4%; right:-4%; bottom:76px; height:14px; transform-style:preserve-3d;
+        background:
+            repeating-linear-gradient(90deg, rgba(0,0,0,.16) 0 1px, transparent 1px 26px),
+            linear-gradient(180deg,#5e4124,#3a2614);
+        border-radius:2px; box-shadow:0 14px 26px rgba(0,0,0,.5); }
+    /* the horizontal TOP surface (wood planks), lying flat, extending back */
+    .rb-rack-tabletop::before{ content:""; position:absolute; left:0; right:0; bottom:100%; height:64px;
+        transform-origin:bottom center; transform:rotateX(90deg);
+        background:
+            repeating-linear-gradient(90deg, rgba(0,0,0,.20) 0 2px, transparent 2px 30px),
+            linear-gradient(180deg,#6e4c2b,#49301a);
+        box-shadow:inset 0 0 44px rgba(0,0,0,.3); }
+    /* thin dark underside */
+    .rb-rack-tabletop::after{ content:""; position:absolute; left:0; right:0; top:100%; height:5px;
+        background:#241809; }
+    .rb-rack-leg{ position:absolute; bottom:0; height:78px; width:13px;
+        background:linear-gradient(90deg,#5a3d22,#2a1c0e);
+        border-radius:0 0 2px 2px; box-shadow:2px 7px 11px rgba(0,0,0,.5); }
+    .rb-rack-leg-back{ transform:translateZ(-60px); filter:brightness(.6); }
+    /* rack tower sits on the FAR end of the desk (near end left open) */
+    .rb-rack-stack{ position:absolute; left:4%; width:56%; bottom:90px; display:flex; flex-direction:column-reverse;
+        gap:2px; transform-style:preserve-3d; }
+    /* each rack is its own 3D box: a right SIDE face + a TOP face give it depth */
+    .rb-rack{ width:100%; cursor:pointer; position:relative; border-radius:2px;
+        transform-style:preserve-3d; transition:filter .2s; box-shadow:0 2px 7px rgba(0,0,0,.55); }
+    .rb-rack::after{ content:""; position:absolute; top:0; bottom:0; right:0; width:44px;
+        transform-origin:right center; transform:rotateY(-90deg);
+        background:linear-gradient(90deg,#2b2f35,#0a0b0d);
+        box-shadow:inset 0 0 16px rgba(0,0,0,.5); }
+    .rb-rack::before{ content:""; position:absolute; left:0; right:0; bottom:100%; height:44px;
+        transform-origin:bottom center; transform:rotateX(90deg);
+        background:linear-gradient(180deg,#3a3f47,#16191d); }
+    /* hover brightens the FACES only — a filter on the preserve-3d .rb-rack would
+       flatten it and make the depth faces vanish */
+    .rb-rack:hover > img, .rb-rack:hover::after, .rb-rack:hover::before{ filter:brightness(1.18); }
+    .rb-rack img{ width:100%; display:block; border-radius:2px; }
+    .rb-rack-fallback{ height:42px; display:flex; align-items:center; justify-content:center; text-align:center;
+        padding:4px; font-size:11px; color:#9aa3af; border-radius:2px;
+        background:linear-gradient(180deg,#1c1f24,#101114); border:1px solid rgba(255,255,255,.06); }
+    .rb-rack-bypassed{ opacity:.45; filter:grayscale(.6); }
+    .rb-rack-placeholder{ height:42px; display:flex; align-items:center; justify-content:center;
+        color:#7c848f; font-size:11px; border-radius:3px; border:1.5px dashed rgba(255,255,255,.12); }
+    /* contact shadow under the rack table */
+    .rb-rack-ground{ position:absolute; right:12%; bottom:4%; width:230px; height:30px; pointer-events:none;
+        transform:translateZ(-35px) rotateX(66deg) rotateZ(-12deg); transform-origin:bottom right;
+        background:radial-gradient(ellipse 50% 50% at 50% 50%, rgba(0,0,0,.6), transparent 72%);
+        filter:blur(8px); transition:opacity .4s ease; }
+    #rb-studio-room.rb-focus-active .rb-rack-zone,
+    #rb-studio-room.rb-focus-active .rb-rack-ground{ opacity:0; pointer-events:none; transition:opacity .4s ease; }
 
     /* pedalboard = a SLIM angled platform on the floor; pedals stand proud of it.
        Width grows with the pedals (each sized by HEIGHT so landscape pedals like
