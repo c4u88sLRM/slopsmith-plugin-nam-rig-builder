@@ -52,23 +52,53 @@
     /* hide the room header while focused so the ← Room button isn't crowded */
     #rb-studio-room.rb-focus-active .rb-studio-head{ opacity:0; pointer-events:none; }
 
-    /* ── 3D control room: three black walls w/ acoustic foam + wood floor ── */
+    /* ── 3D control room: black walls w/ mounted grey acoustic panels (3D) ── */
     .rb-room-3d{ position:absolute; inset:0; transform-style:preserve-3d;
         transition:transform .55s cubic-bezier(.33,0,.2,1), opacity .5s ease, filter .5s ease; }
     .rb-wall{ position:absolute; overflow:hidden;
-        background:linear-gradient(180deg, rgba(255,255,255,.015), rgba(0,0,0,.28)), #0b0c0f; }
-    /* acoustic-foam pyramid tiles, mounted inside a black frame */
-    .rb-wall::before{ content:""; position:absolute; inset:14px; border-radius:2px; background-color:#131418;
-        background-image:conic-gradient(from 0deg at 50% 50%,
-            rgba(255,255,255,.055) 0deg 90deg, rgba(0,0,0,.30) 90deg 180deg,
-            rgba(255,255,255,.028) 180deg 270deg, rgba(0,0,0,.20) 270deg 360deg);
-        background-size:34px 34px;
-        box-shadow:inset 0 0 0 1px rgba(255,255,255,.03), inset 0 0 70px rgba(0,0,0,.6); }
-    .rb-wall-back{ inset:0; transform:translateZ(-760px); filter:brightness(1.05); }
+        background:linear-gradient(180deg,#111317,#070809); }
+    .rb-wall::before{ content:""; position:absolute; inset:0;
+        background-image:repeating-linear-gradient(45deg, rgba(255,255,255,.012) 0 1px, transparent 1px 5px);
+        box-shadow:inset 0 0 130px rgba(0,0,0,.6); }
+    .rb-wall-back{ inset:0; transform:translateZ(-760px); filter:brightness(1.06); }
     .rb-wall-left{ top:0; bottom:0; left:0; width:760px; transform-origin:left center;
-        transform:rotateY(90deg); filter:brightness(.82); }
+        transform:rotateY(90deg); filter:brightness(.8); }
     .rb-wall-right{ top:0; bottom:0; right:0; width:760px; transform-origin:right center;
-        transform:rotateY(-90deg); filter:brightness(.92); }
+        transform:rotateY(-90deg); filter:brightness(.9); }
+    /* grey fabric acoustic panel — raised off the wall with a SUBTLE depth face.
+       The face direction depends on which side of the room the panel sits
+       (modifier -l / -r) so every panel's depth points toward the camera and the
+       perspective stays consistent. */
+    .rb-acpanel{ position:absolute; border-radius:3px; z-index:1;
+        background:
+            repeating-linear-gradient(45deg, rgba(0,0,0,.04) 0 1px, transparent 1px 5px),
+            linear-gradient(155deg,#666d74,#454c53);
+        box-shadow:
+            inset 0 1px 0 rgba(255,255,255,.12), inset 0 -2px 0 rgba(0,0,0,.3),
+            5px 9px 18px rgba(0,0,0,.5); }
+    /* bottom face (very subtle) — skews toward the panel's lit side */
+    .rb-acpanel-r::after{ content:""; position:absolute; left:0; top:100%; width:100%; height:3px;
+        background:#3a4046; transform:skewX(45deg); transform-origin:top left; border-radius:0 0 3px 3px; }
+    .rb-acpanel-l::after{ content:""; position:absolute; left:0; top:100%; width:100%; height:3px;
+        background:#3a4046; transform:skewX(-45deg); transform-origin:top right; border-radius:0 0 3px 3px; }
+    /* side face (very subtle, darker) — RIGHT side for left-of-centre panels, LEFT
+       for right-of-centre, so it always faces the room centre / camera */
+    .rb-acpanel-r::before{ content:""; position:absolute; top:0; left:100%; width:4px; height:100%;
+        background:#2f353a; transform:skewY(45deg); transform-origin:top left; border-radius:0 3px 3px 0; }
+    .rb-acpanel-l::before{ content:""; position:absolute; top:0; right:100%; width:4px; height:100%;
+        background:#2f353a; transform:skewY(-45deg); transform-origin:top right; border-radius:3px 0 0 3px; }
+    /* side-wall panels read at a grazing angle, so their side face needs more
+       depth than the head-on back-wall panels to look right */
+    .rb-wall-left .rb-acpanel-l::before,
+    .rb-wall-right .rb-acpanel-r::before{ width:12px; }
+    /* full-height warm wood-slat panel (back wall centre) — head-on, no side face */
+    .rb-woodpanel{ position:absolute; z-index:1; border-radius:2px;
+        background:
+            repeating-linear-gradient(90deg, #714e2c 0 10px, #2c1d0f 10px 12px, #5e4124 12px 22px, #3a2614 22px 24px),
+            linear-gradient(180deg,#5e4124,#34220f);
+        box-shadow:
+            inset 0 0 60px rgba(0,0,0,.4), inset 0 2px 0 rgba(255,220,170,.12),
+            0 0 0 5px #0b0c0f, 0 12px 26px rgba(0,0,0,.5); }
     .rb-floor3d{ position:absolute; left:0; right:0; bottom:0; height:760px;
         transform-origin:bottom center; transform:rotateX(90deg); background-color:#4a3018;
         background-image:
@@ -104,12 +134,12 @@
     /* amp + cab tucked into the back-left corner, ANGLED into the room (3D —
        not facing the camera flat), with an extruded side panel for real box
        depth. On focus it straightens out, steps forward + the side disappears. */
-    .rb-amp-stack{ position:absolute; left:24%; top:45%; bottom:auto; width:196px; cursor:pointer;
-        transform-style:preserve-3d; transform:translateX(-50%) rotateY(32deg);
+    .rb-amp-stack{ position:absolute; left:28%; top:48%; bottom:auto; width:168px; cursor:pointer;
+        transform-style:preserve-3d; transform:translateX(-50%) rotateY(32deg) translateZ(-140px);
         transition:left .55s cubic-bezier(.33,0,.2,1), top .55s cubic-bezier(.33,0,.2,1),
             bottom .55s cubic-bezier(.33,0,.2,1), width .55s cubic-bezier(.33,0,.2,1),
             transform .55s cubic-bezier(.33,0,.2,1), filter .2s ease; }
-    .rb-amp-stack:hover{ transform:translateX(-50%) rotateY(32deg); }
+    .rb-amp-stack:hover{ transform:translateX(-50%) rotateY(32deg) translateZ(-140px); }
     .rb-amp-stack:hover .rb-amp-face{ filter:brightness(1.13); }
     /* extruded side panel = box depth for the amp + cab (hidden when flat) */
     .rb-amp-stack::before{ content:''; position:absolute; top:1%; bottom:0; left:0; width:54px;
@@ -119,7 +149,7 @@
         transition:opacity .35s ease; }
     #rb-studio-room.rb-focus-active .rb-amp-stack::before{ opacity:0; }
     /* contact shadow on the floor so the amp reads as grounded, not floating */
-    .rb-amp-ground{ position:absolute; left:24%; top:78%; width:210px; height:44px; pointer-events:none;
+    .rb-amp-ground{ position:absolute; left:28%; top:78%; width:178px; height:40px; pointer-events:none;
         transform:translateX(-50%) rotateX(66deg);
         background:radial-gradient(ellipse 50% 50% at 50% 50%, rgba(0,0,0,.62), transparent 72%);
         filter:blur(8px); transition:opacity .4s ease; }
@@ -220,6 +250,8 @@
         background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.14); transition:.15s; white-space:nowrap; }
     .rb-focus-bar2 button:hover{ background:rgba(255,255,255,.16); color:#fff; }
     .rb-focus-bar2 .rb-focus-back{ background:rgba(120,160,220,.16); border-color:rgba(120,170,240,.4); color:#eaf1fb; }
+    .rb-focus-bar2 .rb-focus-remove{ background:rgba(200,70,70,.16); border-color:rgba(220,95,95,.42); color:#f4d4d4; }
+    .rb-focus-bar2 .rb-focus-remove:hover{ background:rgba(212,72,72,.30); color:#fff; }
 
     /* amp face = the VST's own canvas UI render, sitting on the cab */
     .rb-amp-face{ border-radius:8px 8px 4px 4px; overflow:hidden;
@@ -245,35 +277,57 @@
         box-shadow:0 0 7px var(--rb-accent); flex:0 0 auto; }
     .rb-rack-led.off{ background:#3a3f47; box-shadow:none; }
 
-    /* pedalboard = a physical angled tray on the floor; pedals tilt to face up */
-    .rb-pedalboard{ position:absolute; left:50%; bottom:7%; transform:translateX(-50%) rotateX(56deg);
+    /* pedalboard = a SLIM angled platform on the floor; pedals stand proud of it.
+       Width grows with the pedals (each sized by HEIGHT so landscape pedals like
+       Q-Trix read big), capped so it never spans the whole floor. */
+    .rb-pedalboard{ position:absolute; left:50%; bottom:6%; width:fit-content;
+        min-width:min(170px,17%); max-width:74%; min-height:26px; cursor:pointer;
+        transform:translateX(-50%) rotateX(40deg);
         transform-origin:bottom center; transform-style:preserve-3d;
         display:flex; gap:18px; align-items:flex-end; justify-content:center;
-        padding:26px 30px 18px; border-radius:13px;
+        padding:8px 18px 6px; border-radius:9px; transition:filter .2s; }
+    .rb-pedalboard-empty:hover{ filter:brightness(1.25); }
+    .rb-pedalboard{
         background:
             repeating-linear-gradient(90deg, rgba(0,0,0,.30) 0 3px, transparent 3px 27px),
             linear-gradient(180deg,#1b1d22,#0c0d0f);
         border:1px solid rgba(255,255,255,.07);
-        box-shadow:inset 0 2px 0 rgba(255,255,255,.06), inset 0 -12px 32px rgba(0,0,0,.6); }
-    /* extruded front lip = board thickness */
-    .rb-pedalboard::after{ content:''; position:absolute; left:-1px; right:-1px; bottom:0; height:24px;
+        box-shadow:inset 0 1px 0 rgba(255,255,255,.06), inset 0 -8px 20px rgba(0,0,0,.55); }
+    /* short extruded front lip = a thin platform edge (no longer a thick block) */
+    .rb-pedalboard::after{ content:''; position:absolute; left:-1px; right:-1px; bottom:0; height:11px;
         transform-origin:bottom center; transform:rotateX(-90deg);
         background:linear-gradient(180deg,#26282d,#0f1012);
-        border-radius:0 0 13px 13px; box-shadow:inset 0 0 22px rgba(0,0,0,.6); }
+        border-radius:0 0 9px 9px; box-shadow:inset 0 0 14px rgba(0,0,0,.55); }
     /* contact shadow under the board */
     .rb-pedalboard::before{ content:''; position:absolute; inset:-8% -4% -22% -4%; z-index:-1;
         background:radial-gradient(ellipse 60% 60% at 50% 62%, rgba(0,0,0,.6), transparent 72%); filter:blur(8px); }
-    .rb-pedal{ width:96px; cursor:pointer; transform-style:preserve-3d;
-        transform:rotateX(-30deg); transition:transform .2s, filter .2s;
-        filter:drop-shadow(0 14px 11px rgba(0,0,0,.5)); }
-    .rb-pedal:hover{ transform:rotateX(-30deg) translateY(-7px) scale(1.05);
-        filter:drop-shadow(0 18px 14px rgba(0,0,0,.6)) brightness(1.08); }
-    .rb-pedal img{ width:100%; display:block; border-radius:7px; }
+    /* pedals STAND PROUD of the board (translateZ so the edge can't cover them),
+       facing front + tilted up; extruded side + front faces give the 3D box.
+       Hover only brightens (no resize — like the amp). */
+    /* contain pedals in a small box: landscape (Q-Trix) fills width, portrait
+       fills height — consistent, not giant. --rb-d = extrusion depth. The two
+       skewed pseudo faces (bottom-front + right side) form a real 3D box, each
+       shaded differently and tinted with the pedal's own colour (--rb-edge). */
+    .rb-pedal{ flex:0 0 auto; cursor:pointer; position:relative; transform:translateZ(8px) rotateX(2deg);
+        transition:filter .2s; --rb-d:15px; }
+    .rb-pedal:hover{ filter:brightness(1.16); }
+    .rb-pedal img{ max-width:94px; max-height:66px; width:auto; height:auto; display:block;
+        border-radius:6px 6px 2px 2px; position:relative; z-index:1;
+        box-shadow:0 0 0 1px rgba(255,255,255,.07), 14px 30px 24px rgba(0,0,0,.55); }
+    /* bottom-front face (lighter) */
+    .rb-pedal::after{ content:''; position:absolute; left:0; top:100%; width:100%; height:var(--rb-d);
+        background:var(--rb-edge,#15171b); filter:brightness(.74);
+        transform:skewX(45deg); transform-origin:top left; z-index:0; border-radius:0 0 2px 2px; }
+    /* right side face (darker) */
+    .rb-pedal::before{ content:''; position:absolute; top:0; left:100%; width:var(--rb-d); height:100%;
+        background:var(--rb-edge,#15171b); filter:brightness(.5);
+        transform:skewY(45deg); transform-origin:top left; z-index:0; border-radius:0 3px 2px 0; }
+    .rb-pedal > .rb-pedal-fallback{ width:60px; height:66px; }
     .rb-pedal-fallback{ height:116px; border-radius:8px; display:flex; align-items:center;
         justify-content:center; text-align:center; padding:8px; font-size:10px; color:#9aa3af;
         background:linear-gradient(180deg,#1c1f24,#101114); border:1px solid rgba(255,255,255,.07); }
     .rb-pedal-bypassed{ opacity:.4; filter:grayscale(.7) drop-shadow(0 14px 11px rgba(0,0,0,.5)); }
-    .rb-pedal-add{ width:92px; height:112px; border-radius:8px; cursor:pointer; transform:rotateX(-30deg);
+    .rb-pedal-add{ width:92px; height:112px; border-radius:8px; cursor:pointer; transform:rotateX(-20deg);
         display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
         color:#7c848f; font-size:11px; background:rgba(255,255,255,.015);
         border:1.5px dashed rgba(255,255,255,.12); transition:border-color .2s, color .2s; }
@@ -284,25 +338,45 @@
     #rb-studio-room.rb-pfocus .rb-amp-stack,
     #rb-studio-room.rb-pfocus .rb-amp-stack::before,
     #rb-studio-room.rb-pfocus .rb-amp-ground{ opacity:0 !important; pointer-events:none; }
-    /* focus layer sits LEFT of centre so the right swap rail has room */
-    .rb-pedal-focus{ position:absolute; inset:0; z-index:6; display:flex; align-items:center;
-        justify-content:center; gap:14px; padding-right:32%;
+    /* focus layer sits LEFT of centre (right swap rail has room); column =
+       coverflow row on top, dots + Add/Remove buttons underneath. */
+    .rb-pedal-focus{ position:absolute; inset:0; z-index:6; display:flex; flex-direction:column;
+        align-items:center; justify-content:center; gap:18px; padding-right:32%;
         opacity:0; pointer-events:none; transition:opacity .3s ease; }
     .rb-pedal-focus.rb-pf-open{ opacity:1; }
-    .rb-pedal-focus > *{ pointer-events:auto; }
-    .rb-pf-stage{ width:min(360px,40%); transition:transform .25s ease; }
+    .rb-pedal-focus > *, .rb-pedal-focus .rb-pf-side, .rb-pedal-focus button{ pointer-events:auto; }
+    /* coverflow row: prev (small/blur) · current (big) · next (small/blur) */
+    .rb-pf-row{ display:flex; align-items:center; justify-content:center; gap:20px; width:100%; }
+    /* zoom-in: the big pedal grows small → full as focus opens ("se acerque") */
+    .rb-pf-stage{ flex:0 0 auto; width:min(320px,34%); transform:scale(.78);
+        transition:transform .38s cubic-bezier(.33,0,.2,1); }
+    .rb-pedal-focus.rb-pf-open .rb-pf-stage{ transform:scale(1); }
     .rb-pf-pedal{ width:100%; border-radius:12px; overflow:hidden;
         box-shadow:0 30px 70px -20px rgba(0,0,0,.85); }
     .rb-pf-pedal img, .rb-pf-pedal canvas{ width:100%; display:block; }
-    .rb-pf-nav{ flex:0 0 auto; width:46px; height:46px; border-radius:50%; cursor:pointer;
-        font-size:24px; line-height:1; color:#dbe2ee; background:rgba(255,255,255,.06);
-        border:1px solid rgba(255,255,255,.14); display:flex; align-items:center; justify-content:center;
-        transition:background .15s, color .15s; }
-    .rb-pf-nav:hover{ background:rgba(120,160,220,.22); color:#fff; }
-    .rb-pf-dots{ position:absolute; bottom:8%; left:0; right:32%; display:flex; gap:7px; justify-content:center; }
+    .rb-pf-empty{ aspect-ratio:1/1.05; display:flex; align-items:center; justify-content:center;
+        text-align:center; padding:22px; font-size:13px; color:#9fb0cc; line-height:1.5;
+        background:linear-gradient(180deg,#1c2026,#101318); border:1.5px dashed rgba(120,160,220,.32); }
+    /* neighbour pedals — smaller, faded + blurred, click to slide along */
+    .rb-pf-side{ flex:0 0 auto; width:min(132px,14%); cursor:pointer; opacity:.42;
+        filter:blur(2.4px); transform:scale(.9); transition:opacity .2s, filter .2s, transform .2s; }
+    .rb-pf-side:hover{ opacity:.72; filter:blur(1.1px); transform:scale(.96); }
+    .rb-pf-side img{ width:100%; display:block; border-radius:10px;
+        box-shadow:0 18px 40px -16px rgba(0,0,0,.8); }
+    .rb-pf-side-empty{ visibility:hidden; pointer-events:none; }
+    .rb-pf-bottom{ display:flex; flex-direction:column; align-items:center; gap:13px; }
+    .rb-pf-dots{ display:flex; gap:7px; justify-content:center; }
     .rb-pf-dots span{ width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,.22);
         transition:background .15s; }
     .rb-pf-dots span.on{ background:var(--rb-accent); box-shadow:0 0 8px var(--rb-accent); }
+    .rb-pf-actions{ display:flex; gap:10px; }
+    .rb-pf-actions button{ font-size:12.5px; padding:8px 16px; border-radius:9px; color:#dbe2ee; cursor:pointer;
+        background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.14); transition:.15s; }
+    .rb-pf-actions button:hover{ background:rgba(255,255,255,.16); color:#fff; }
+    .rb-pf-actions button:disabled{ opacity:.32; cursor:default; background:rgba(255,255,255,.04); }
+    .rb-pf-actions button:disabled:hover{ color:#dbe2ee; background:rgba(255,255,255,.04); }
+    .rb-pf-actions .rb-focus-remove{ background:rgba(200,70,70,.16); border-color:rgba(220,95,95,.42); color:#f4d4d4; }
+    .rb-pf-actions .rb-focus-remove:hover{ background:rgba(212,72,72,.30); color:#fff; }
 
     /* room header overlay */
     .rb-studio-head{ position:absolute; top:0; left:0; right:0; z-index:3;

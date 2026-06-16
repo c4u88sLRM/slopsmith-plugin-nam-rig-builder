@@ -3397,6 +3397,7 @@ function rbGearFilter(filter) {
 // canvas renders (RBPedalCanvas). Click handlers route to the existing
 // Default-tone editor for now; Phase 2 swaps them for an in-room zoom.
 const RB_STUDIO_KNOB_ANGLES = [-135, -70, -10, 45, 110];
+const RB_MAX_PEDALS = 4;   // pedalboard capacity
 
 function rbStudioPieceStem(p) {
     const vp = rbEffVstPath(p);
@@ -3487,19 +3488,17 @@ function rbRenderStudioRoom() {
         </div>`;
 
     const pedalHtml = `
-        <div class="rb-pedalboard">
+        <div class="rb-pedalboard ${g.pedal.length ? '' : 'rb-pedalboard-empty'}"
+             onclick="rbStudioBrowsePedals()" title="${g.pedal.length ? 'Pedalboard' : 'Click to add a pedal'}">
             ${g.pedal.map(pd => {
                 const img = rbStudioPedalImg(pd.p);
                 const name = pd.p.real_name || pd.p.type || 'Pedal';
                 const byp = rbStudioIsBypassed(pd.p) ? 'rb-pedal-bypassed' : '';
-                return `<div class="rb-pedal ${byp}" onclick="rbStudioClickPedal(${pd.idx})" title="${rbEsc(name)} — click to edit / swap">
+                return `<div class="rb-pedal ${byp}" onclick="event.stopPropagation();rbStudioClickPedal(${pd.idx})" title="${rbEsc(name)} — click to edit / swap">
                     ${img ? `<img src="${img}" alt="${rbEsc(name)}">`
                           : `<div class="rb-pedal-fallback">${rbEsc(name)}</div>`}
                 </div>`;
             }).join('')}
-            <div class="rb-pedal-add" onclick="rbStudioClickAdd('pre')" title="Add a pedal">
-                <span style="font-size:20px;line-height:1">＋</span><span>add</span>
-            </div>
         </div>`;
 
     const empty = !(rbState.master.default && rbState.master.default.length);
@@ -3513,9 +3512,19 @@ function rbRenderStudioRoom() {
         </div>
         <div class="rb-room-camera" id="rb-room-camera">
             <div class="rb-room-3d">
-                <div class="rb-wall rb-wall-back"></div>
-                <div class="rb-wall rb-wall-left"></div>
-                <div class="rb-wall rb-wall-right"></div>
+                <div class="rb-wall rb-wall-back">
+                    <div class="rb-acpanel rb-acpanel-r" style="left:8%;width:23%;top:26%;height:42%"></div>
+                    <div class="rb-woodpanel" style="left:41%;right:41%;top:3%;bottom:3%"></div>
+                    <div class="rb-acpanel rb-acpanel-l" style="right:8%;width:23%;top:26%;height:42%"></div>
+                </div>
+                <div class="rb-wall rb-wall-left">
+                    <div class="rb-acpanel rb-acpanel-l" style="left:15%;width:25%;top:24%;height:46%"></div>
+                    <div class="rb-acpanel rb-acpanel-l" style="left:55%;width:25%;top:24%;height:46%"></div>
+                </div>
+                <div class="rb-wall rb-wall-right">
+                    <div class="rb-acpanel rb-acpanel-r" style="left:18%;width:25%;top:24%;height:46%"></div>
+                    <div class="rb-acpanel rb-acpanel-r" style="left:58%;width:25%;top:24%;height:46%"></div>
+                </div>
                 <div class="rb-ceil3d"></div>
                 <div class="rb-floor3d"><div class="rb-carpet"></div></div>
             </div>
@@ -3530,6 +3539,34 @@ function rbRenderStudioRoom() {
             No default tone yet —
             <button onclick="rbShowTab('gear')" class="underline ml-1 text-gray-300 hover:text-white">add gear</button>.
         </div>` : ''}`;
+    rbStudioTintPedalEdges();   // colour each pedal's extruded depth from its render
+}
+
+// Sample each floor pedal's lower-body colour and expose it as --rb-edge so the
+// box-shadow extrusion (the 3D side/bottom) is tinted to match that pedal.
+function rbStudioTintPedalEdges() {
+    const room = document.getElementById('rb-studio-room');
+    if (!room) return;
+    room.querySelectorAll('.rb-pedal > img').forEach(img => {
+        const apply = () => {
+            try {
+                const nw = img.naturalWidth, nh = img.naturalHeight;
+                if (!nw || !nh) return;
+                const cv = document.createElement('canvas'); cv.width = 6; cv.height = 6;
+                const cx = cv.getContext('2d');
+                // average the bottom ~14% strip (the body colour near the front edge)
+                cx.drawImage(img, 0, Math.floor(nh * 0.86), nw, Math.ceil(nh * 0.14), 0, 0, 6, 6);
+                const d = cx.getImageData(0, 0, 6, 6).data;
+                let r = 0, g = 0, b = 0, n = 0;
+                for (let i = 0; i < d.length; i += 4) { r += d[i]; g += d[i + 1]; b += d[i + 2]; n++; }
+                const k = 0.7;   // darken so the side reads as a shaded edge
+                const col = `rgb(${Math.round(r / n * k)},${Math.round(g / n * k)},${Math.round(b / n * k)})`;
+                img.parentElement.style.setProperty('--rb-edge', col);
+            } catch (_) {}
+        };
+        if (img.complete && img.naturalWidth) apply();
+        else img.addEventListener('load', apply, { once: true });
+    });
 }
 
 async function rbLoadStudioRoom() {
@@ -3691,6 +3728,7 @@ async function rbStudioCloseFocus() {
     const bar = document.getElementById('rb-studio-focus-bar');
     const idx = rbState._studioFocusIdx;
     const kind = rbState._studioFocusKind || 'amp';
+    rbState._studioPedalAddMode = false;
     try { rbStudioCloseSwap(); } catch (_) {}   // close the always-on swap rail too
     // Swap the interactive canvas back to the static face IMG *first*, at the
     // current (focus) size — visually identical. This way the dolly-out
@@ -3761,6 +3799,44 @@ function rbStudioClickPedal(idx) {
     rbStudioFocusPedal(pos < 0 ? 0 : pos);
 }
 
+// Click the pedalboard itself → zoom in + show the pedal menu on the right.
+// With pedals: focus the first one. Empty board: enter add mode so picking a
+// pedal from the rail appends it to the chain.
+function rbStudioBrowsePedals() {
+    const room = document.getElementById('rb-studio-room');
+    if (room && room.classList.contains('rb-focus-active')) return;
+    const order = rbStudioPedalOrder();
+    if (order.length) { rbStudioFocusPedal(0); return; }
+    rbStudioFocusPedalAdd();
+}
+
+// Add-mode focus: no current pedal — a placeholder face + the pedal swap rail.
+// Choosing a pedal in rbStudioSwapToGear creates the piece and focuses it.
+async function rbStudioFocusPedalAdd() {
+    const room = document.getElementById('rb-studio-room');
+    if (!room) return;
+    if (rbStudioPedalOrder().length >= RB_MAX_PEDALS) return;   // board full
+    rbState._studioFocusKind = 'pedal';
+    rbState._studioPedalAddMode = true;
+    rbState._studioFocusIdx = -1;
+    let layer = document.getElementById('rb-pedal-focus');
+    if (!layer) { layer = document.createElement('div'); layer.id = 'rb-pedal-focus'; layer.className = 'rb-pedal-focus'; room.appendChild(layer); }
+    layer.innerHTML = `
+        <div class="rb-pf-row">
+            <div class="rb-pf-side rb-pf-side-empty"></div>
+            <div class="rb-pf-stage"><div class="rb-pf-pedal rb-pf-empty">Pick a pedal from the menu →</div></div>
+            <div class="rb-pf-side rb-pf-side-empty"></div>
+        </div>`;
+    room.classList.add('rb-focus-active', 'rb-pfocus');
+    let bar = document.getElementById('rb-studio-focus-bar');
+    if (!bar) { bar = document.createElement('div'); bar.id = 'rb-studio-focus-bar'; room.appendChild(bar); }
+    bar.className = 'rb-focus-bar2';
+    bar.innerHTML = `<button class="rb-focus-back" onclick="rbStudioCloseFocus()">← Room</button>`;
+    requestAnimationFrame(() => bar.classList.add('rb-focus-open'));
+    rbStudioOpenSwap(-1, 'pedal');
+    requestAnimationFrame(() => layer.classList.add('rb-pf-open'));
+}
+
 // Focus the pedal at position `pos` in the chain: dim the room, show it large +
 // interactive, dock the pedal swap rail on the right, enable ‹ › chain nav.
 async function rbStudioFocusPedal(pos) {
@@ -3768,16 +3844,29 @@ async function rbStudioFocusPedal(pos) {
     if (!room) return;
     const order = rbStudioPedalOrder();
     if (!order.length) { rbShowTab('gear'); return; }   // no pedals → catalog to add one
-    pos = ((pos % order.length) + order.length) % order.length;   // wrap
+    pos = Math.max(0, Math.min(order.length - 1, pos));   // clamp (linear chain)
     rbState._studioPedalOrder = order;
     rbState._studioPedalPos = pos;
+    rbState._studioPedalAddMode = false;
     const idx = order[pos];
     rbState._studioFocusIdx = idx;
     rbState._studioFocusKind = 'pedal';
-    const piece = (rbState.master.default || [])[idx];
+    const arr = rbState.master.default || [];
+    const piece = arr[idx];
     const name = piece ? (piece.real_name || piece.type || 'Pedal') : 'Pedal';
     const img = piece ? rbStudioPedalImg(piece) : null;
-    const multi = order.length > 1;
+    // Neighbours (coverflow): the previous + next pedals peek small + blurred on
+    // each side; click them to move along the chain.
+    const prevP = pos > 0 ? arr[order[pos - 1]] : null;
+    const nextP = pos < order.length - 1 ? arr[order[pos + 1]] : null;
+    const sideHtml = (p, dir) => {
+        if (!p) return `<div class="rb-pf-side rb-pf-side-empty"></div>`;
+        const n = p.real_name || p.type || 'Pedal';
+        const si = rbStudioPedalImg(p);
+        return `<div class="rb-pf-side rb-pf-side-${dir > 0 ? 'next' : 'prev'}" onclick="rbStudioPedalStep(${dir})" title="${rbEsc(n)}">
+            ${si ? `<img src="${si}" alt="${rbEsc(n)}">` : `<div class="rb-pedal-fallback">${rbEsc(n)}</div>`}
+        </div>`;
+    };
     // Re-entry = we're already in pedal focus (chain nav or swap) — keep the
     // open rail + control bar in place so only the pedal face/dots refresh.
     const reentry = room.classList.contains('rb-pfocus');
@@ -3785,12 +3874,27 @@ async function rbStudioFocusPedal(pos) {
     let layer = document.getElementById('rb-pedal-focus');
     if (!layer) { layer = document.createElement('div'); layer.id = 'rb-pedal-focus'; layer.className = 'rb-pedal-focus'; room.appendChild(layer); }
     layer.innerHTML = `
-        <button class="rb-pf-nav rb-pf-prev" onclick="rbStudioPedalStep(-1)" ${multi ? '' : 'style="visibility:hidden"'} title="Previous pedal">‹</button>
-        <div class="rb-pf-stage"><div class="rb-pf-pedal">
-            ${img ? `<img src="${img}" alt="${rbEsc(name)}">` : `<div class="rb-pedal-fallback">${rbEsc(name)}</div>`}
-        </div></div>
-        <button class="rb-pf-nav rb-pf-next" onclick="rbStudioPedalStep(1)" ${multi ? '' : 'style="visibility:hidden"'} title="Next pedal">›</button>
-        <div class="rb-pf-dots">${order.map((_, i) => `<span class="${i === pos ? 'on' : ''}"></span>`).join('')}</div>`;
+        <div class="rb-pf-row">
+            ${sideHtml(prevP, -1)}
+            <div class="rb-pf-stage"><div class="rb-pf-pedal">
+                ${img ? `<img src="${img}" alt="${rbEsc(name)}">` : `<div class="rb-pedal-fallback">${rbEsc(name)}</div>`}
+            </div></div>
+            ${sideHtml(nextP, 1)}
+        </div>
+        <div class="rb-pf-bottom">
+            <div class="rb-pf-dots">${order.map((_, i) => `<span class="${i === pos ? 'on' : ''}"></span>`).join('')}</div>
+            <div class="rb-pf-actions">
+                <button onclick="rbStudioMovePedal(-1)" ${pos === 0 ? 'disabled' : ''} title="Move earlier in the chain">◀ Move</button>
+                <button onclick="rbStudioFocusPedalAdd()" ${order.length >= RB_MAX_PEDALS ? 'disabled' : ''} title="${order.length >= RB_MAX_PEDALS ? 'Pedalboard full (max ' + RB_MAX_PEDALS + ')' : 'Add another pedal'}">＋ Add</button>
+                <button class="rb-focus-remove" onclick="rbStudioRemovePedal()" title="Remove this pedal">Remove</button>
+                <button onclick="rbStudioMovePedal(1)" ${pos === order.length - 1 ? 'disabled' : ''} title="Move later in the chain">Move ▶</button>
+            </div>
+        </div>`;
+
+    // Size the big pedal to FIT a target box (contain), so wide/landscape
+    // pedals (e.g. Q-Trix 560×340) fill the width and read big instead of
+    // staying short. Portrait pedals get height-bound. Aspect from the spec.
+    rbStudioFitFocusStage(layer.querySelector('.rb-pf-stage'), piece, room);
 
     room.classList.add('rb-focus-active', 'rb-pfocus');
 
@@ -3799,9 +3903,7 @@ async function rbStudioFocusPedal(pos) {
         let bar = document.getElementById('rb-studio-focus-bar');
         if (!bar) { bar = document.createElement('div'); bar.id = 'rb-studio-focus-bar'; room.appendChild(bar); }
         bar.className = 'rb-focus-bar2';
-        bar.innerHTML = `
-            <button class="rb-focus-back" onclick="rbStudioCloseFocus()">← Room</button>
-            <div class="rb-focus-actions" style="min-width:80px"></div>`;
+        bar.innerHTML = `<button class="rb-focus-back" onclick="rbStudioCloseFocus()">← Room</button>`;
         requestAnimationFrame(() => bar.classList.add('rb-focus-open'));
         rbStudioOpenSwap(idx, 'pedal');     // right-docked rail of alternative pedals
         requestAnimationFrame(() => layer.classList.add('rb-pf-open'));
@@ -3817,12 +3919,62 @@ async function rbStudioFocusPedal(pos) {
     rbStudioLoadFocusVst(idx, layer.querySelector('.rb-pf-pedal'), reentry ? 0 : 280);
 }
 
+// Remove the focused pedal from the chain, persist, then focus the neighbour
+// (or return to the room if it was the last one).
+function rbStudioRemovePedal() {
+    const idx = rbState._studioFocusIdx;
+    const arr = rbState.master.default || [];
+    if (idx == null || idx < 0 || !arr[idx]) return;
+    const api = window.slopsmithDesktop && window.slopsmithDesktop.audio;
+    try { rbTeardownVstEditor(api); } catch (_) {}
+    const prevPos = rbState._studioPedalPos || 0;
+    arr.splice(idx, 1);
+    try { rbPersistMasterChain('default'); } catch (_) {}
+    const order = rbStudioPedalOrder();   // recomputed fresh from the spliced array
+    if (!order.length) { rbStudioCloseFocus(); return; }
+    rbStudioFocusPedal(Math.min(prevPos, order.length - 1));
+}
+
+// Size the focused pedal's stage so the UI is contained in a target box and
+// reads at a consistent visual size regardless of the spec's aspect ratio.
+// (Width:100% alone makes landscape pedals like Q-Trix render short/small.)
+function rbStudioFitFocusStage(stage, piece, room) {
+    if (!stage || !room) return;
+    let aspect = 0.6;   // default portrait-ish (w/h)
+    try {
+        const spec = window.RBPedalCanvas && window.RBPedalCanvas.specs
+            && window.RBPedalCanvas.specs[rbCanvasStem(piece)];
+        if (spec && spec.w && spec.h) aspect = spec.w / spec.h;
+    } catch (_) {}
+    const rr = room.getBoundingClientRect();
+    const maxW = Math.min(470, rr.width * 0.46);    // clear of the right swap rail
+    const maxH = Math.min(440, rr.height * 0.62);
+    let dW = maxW, dH = maxW / aspect;
+    if (dH > maxH) { dW = maxH * aspect; }          // height-bound → narrow it
+    stage.style.width = Math.round(dW) + 'px';
+}
+
+// Reorder: swap the focused pedal with its neighbour in the signal chain, then
+// re-focus it at its new position.
+function rbStudioMovePedal(delta) {
+    const order = rbState._studioPedalOrder || rbStudioPedalOrder();
+    const pos = rbState._studioPedalPos || 0;
+    const newPos = pos + delta;
+    if (newPos < 0 || newPos >= order.length) return;
+    rbStudioQuickSavePiece(rbState._studioFocusIdx);
+    const arr = rbState.master.default || [];
+    const a = order[pos], b = order[newPos];
+    const tmp = arr[a]; arr[a] = arr[b]; arr[b] = tmp;   // swap chain positions
+    try { rbPersistMasterChain('default'); } catch (_) {}
+    rbStudioFocusPedal(newPos);   // the focused pedal now lives at newPos
+}
+
 // Move to the previous/next pedal in the chain (saves the current one first).
 function rbStudioPedalStep(delta) {
     rbStudioQuickSavePiece(rbState._studioFocusIdx);
     const order = rbState._studioPedalOrder || rbStudioPedalOrder();
     if (!order.length) return;
-    const pos = (((rbState._studioPedalPos || 0) + delta) % order.length + order.length) % order.length;
+    const pos = Math.max(0, Math.min(order.length - 1, (rbState._studioPedalPos || 0) + delta));
     rbStudioFocusPedal(pos);
 }
 
@@ -3997,10 +4149,34 @@ function rbStudioUpdateSwapCarousel() {
 
 function rbStudioSwapToGear(rsGear) {
     const kind = rbState._swapKind || 'amp';
+    const g = ((rbState.gearCatalog && rbState.gearCatalog[kind]) || []).find(x => x.rs_gear === rsGear);
+    if (!g) return;
+    // Add mode (empty pedalboard): create a new pedal piece, append it to the
+    // chain, persist, then focus the freshly-added pedal.
+    if (kind === 'pedal' && rbState._studioPedalAddMode) {
+        if (rbStudioPedalOrder().length >= RB_MAX_PEDALS) { rbStudioCloseFocus(); return; }
+        const vp = rbGearVstPath(g);
+        if (!vp) return;
+        const newPiece = {
+            type: g.rs_gear, real_name: g.real_name || g.rs_gear,
+            category: 'pedal', rs_category: 'pedal', slot: 'post_pedal',
+            _vst_kind: 'vst', _vst_path: vp, _vst_format: g.vst_format || 'VST3',
+            assigned: { kind: 'vst', vst_path: vp, vst_format: g.vst_format || 'VST3', vst_state: null },
+        };
+        rbState.master.default = rbState.master.default || [];
+        rbState.master.default.push(newPiece);
+        rbState._studioPedalAddMode = false;
+        try { rbPersistMasterChain('default'); } catch (_) {}
+        // Don't re-render the room here — it would wipe the focus layer + rail
+        // (room children). The order already reflects the new piece; the floor
+        // board repaints on close (rbStudioCloseFocus).
+        const order = rbStudioPedalOrder();
+        rbStudioFocusPedal(order.length - 1);
+        return;
+    }
     const idx = rbState._studioFocusIdx;
     const piece = (rbState.master.default || [])[idx];
-    const g = ((rbState.gearCatalog && rbState.gearCatalog[kind]) || []).find(x => x.rs_gear === rsGear);
-    if (!piece || !g) return;
+    if (!piece) return;
     const vstPath = rbGearVstPath(g);
     if (!vstPath) return;
     piece.type = g.rs_gear;
