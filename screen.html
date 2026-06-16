@@ -31,31 +31,92 @@
     /* ── Studio room (premium dark + perspective) — Phase 1 ───────────── */
     #rb-studio-room{
         --rb-accent:#34d3c0;
-        position:relative; border-radius:1.25rem; overflow:hidden; min-height:600px;
-        background:
-            radial-gradient(140% 90% at 50% -20%, rgba(255,255,255,.06), transparent 55%),
-            linear-gradient(180deg,#15171c 0%,#101216 55%,#0a0b0e 100%);
+        position:relative; border-radius:1.25rem; overflow:hidden; min-height:640px;
+        background:#070809;
         border:1px solid rgba(255,255,255,.06);
         box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
-        perspective:1500px; perspective-origin:50% 36%;
     }
-    #rb-studio-room::before{ content:""; position:absolute; inset:0; pointer-events:none;
-        background:radial-gradient(75% 55% at 50% 32%, transparent 45%, rgba(0,0,0,.55) 100%); }
-    .rb-studio-floor{ position:absolute; left:-10%; right:-10%; bottom:0; height:50%;
-        transform:rotateX(60deg); transform-origin:bottom center;
+    /* warm light pools spilling from the ceiling fixtures */
+    #rb-studio-room::before{ content:""; position:absolute; inset:0; pointer-events:none; z-index:3;
         background:
-            repeating-linear-gradient(90deg, rgba(255,255,255,.03) 0 1px, transparent 1px 104px),
-            repeating-linear-gradient(0deg, rgba(255,255,255,.022) 0 1px, transparent 1px 104px),
-            linear-gradient(180deg,#181a1f,#0b0c0f);
-        box-shadow:inset 0 60px 90px -40px rgba(0,0,0,.75);
-        border-top:1px solid rgba(255,255,255,.05); }
-    .rb-studio-stage{ position:absolute; inset:0; pointer-events:none; }
+            radial-gradient(38% 32% at 31% 6%, rgba(255,246,222,.20), transparent 72%),
+            radial-gradient(38% 32% at 69% 6%, rgba(255,246,222,.18), transparent 72%),
+            radial-gradient(70% 50% at 50% -4%, rgba(255,250,236,.12), transparent 78%); }
+    /* soft atmosphere vignette over the whole scene */
+    #rb-studio-room::after{ content:""; position:absolute; inset:0; pointer-events:none; z-index:4;
+        background:radial-gradient(88% 72% at 50% 40%, transparent 56%, rgba(0,0,0,.46) 100%); }
+
+    /* ── 3D control room: three black walls w/ acoustic foam + wood floor ── */
+    .rb-room-3d{ position:absolute; inset:0; transform-style:preserve-3d;
+        transition:transform .55s cubic-bezier(.33,0,.2,1), opacity .5s ease, filter .5s ease; }
+    .rb-wall{ position:absolute; overflow:hidden;
+        background:linear-gradient(180deg, rgba(255,255,255,.015), rgba(0,0,0,.28)), #0b0c0f; }
+    /* acoustic-foam pyramid tiles, mounted inside a black frame */
+    .rb-wall::before{ content:""; position:absolute; inset:14px; border-radius:2px; background-color:#131418;
+        background-image:conic-gradient(from 0deg at 50% 50%,
+            rgba(255,255,255,.055) 0deg 90deg, rgba(0,0,0,.30) 90deg 180deg,
+            rgba(255,255,255,.028) 180deg 270deg, rgba(0,0,0,.20) 270deg 360deg);
+        background-size:34px 34px;
+        box-shadow:inset 0 0 0 1px rgba(255,255,255,.03), inset 0 0 70px rgba(0,0,0,.6); }
+    .rb-wall-back{ inset:0; transform:translateZ(-760px); filter:brightness(1.05); }
+    .rb-wall-left{ top:0; bottom:0; left:0; width:760px; transform-origin:left center;
+        transform:rotateY(90deg); filter:brightness(.82); }
+    .rb-wall-right{ top:0; bottom:0; right:0; width:760px; transform-origin:right center;
+        transform:rotateY(-90deg); filter:brightness(.92); }
+    .rb-floor3d{ position:absolute; left:0; right:0; bottom:0; height:760px;
+        transform-origin:bottom center; transform:rotateX(90deg); background-color:#4a3018;
+        background-image:
+            repeating-linear-gradient(90deg, rgba(0,0,0,.40) 0 2px, rgba(0,0,0,0) 2px 116px),
+            repeating-linear-gradient(90deg, rgba(255,255,255,.03) 0 1px, transparent 1px 9px),
+            repeating-linear-gradient(90deg, rgba(255,255,255,.028) 0 58px, rgba(0,0,0,.04) 58px 116px),
+            linear-gradient(180deg,#33200f 0%,#5c3d20 45%,#74502c 100%);
+        box-shadow:inset 0 70px 120px -55px rgba(0,0,0,.7); }
+    /* ceiling with recessed light panels — lifts the whole room's lighting */
+    .rb-ceil3d{ position:absolute; left:0; right:0; top:0; height:760px;
+        transform-origin:top center; transform:rotateX(-90deg);
+        background:linear-gradient(180deg,#202329,#111316); }
+    .rb-ceil3d::before{ content:""; position:absolute; left:14%; right:14%; top:18%; bottom:16%;
+        border-radius:6px; background:
+            repeating-linear-gradient(90deg, transparent 0 74px,
+                rgba(255,248,228,.9) 74px 150px, transparent 150px 224px);
+        box-shadow:0 0 70px rgba(255,244,214,.5), inset 0 0 0 2px rgba(255,248,228,.25); }
+    /* red carpet centred on the wood floor */
+    .rb-carpet{ position:absolute; left:16%; right:16%; top:24%; bottom:4%; border-radius:8px;
+        background-color:#6e1019;
+        background-image:
+            repeating-linear-gradient(45deg, rgba(0,0,0,.05) 0 2px, transparent 2px 5px),
+            radial-gradient(120% 120% at 50% 0%, rgba(255,255,255,.06), transparent 55%),
+            linear-gradient(180deg,#7c1320,#540c15);
+        box-shadow:0 0 0 5px rgba(38,6,10,.7), inset 0 0 50px rgba(0,0,0,.45);
+        border:2px solid rgba(150,40,52,.5); }
+
+    /* gear layer — preserve-3d so the amp can sit ANGLED in the room corner */
+    .rb-studio-stage{ position:absolute; inset:0; z-index:1; pointer-events:none; transform-style:preserve-3d; }
     .rb-studio-stage > *{ pointer-events:auto; }
 
     /* amp head + cab stack (left) */
-    .rb-amp-stack{ position:absolute; left:6%; bottom:19%; width:236px; cursor:pointer;
-        transition:transform .2s ease, filter .2s ease; }
-    .rb-amp-stack:hover{ transform:translateY(-5px); }
+    /* amp + cab tucked into the back-left corner, ANGLED into the room (3D —
+       not facing the camera flat), with an extruded side panel for real box
+       depth. On focus it straightens out, steps forward + the side disappears. */
+    .rb-amp-stack{ position:absolute; left:24%; top:45%; bottom:auto; width:196px; cursor:pointer;
+        transform-style:preserve-3d; transform:translateX(-50%) rotateY(32deg);
+        transition:left .55s cubic-bezier(.33,0,.2,1), top .55s cubic-bezier(.33,0,.2,1),
+            bottom .55s cubic-bezier(.33,0,.2,1), width .55s cubic-bezier(.33,0,.2,1),
+            transform .55s cubic-bezier(.33,0,.2,1), filter .2s ease; }
+    .rb-amp-stack:hover{ transform:translateX(-50%) rotateY(32deg); filter:brightness(1.12); }
+    /* extruded side panel = box depth for the amp + cab (hidden when flat) */
+    .rb-amp-stack::before{ content:''; position:absolute; top:1%; bottom:0; left:0; width:54px;
+        transform-origin:left center; transform:rotateY(90deg);
+        background:linear-gradient(90deg,#1d2026,#090a0c);
+        box-shadow:inset 0 0 55px rgba(0,0,0,.6); border-radius:2px 0 0 2px;
+        transition:opacity .35s ease; }
+    #rb-studio-room.rb-focus-active .rb-amp-stack::before{ opacity:0; }
+    /* contact shadow on the floor so the amp reads as grounded, not floating */
+    .rb-amp-ground{ position:absolute; left:24%; top:78%; width:210px; height:44px; pointer-events:none;
+        transform:translateX(-50%) rotateX(66deg);
+        background:radial-gradient(ellipse 50% 50% at 50% 50%, rgba(0,0,0,.62), transparent 72%);
+        filter:blur(8px); transition:opacity .4s ease; }
+    #rb-studio-room.rb-focus-active .rb-amp-ground{ opacity:0; }
     .rb-amp-head{ border-radius:11px 11px 5px 5px; padding:11px 13px 13px;
         background:linear-gradient(180deg,#262a31,#171a1f);
         border:1px solid rgba(255,255,255,.09);
@@ -72,7 +133,7 @@
         width:2px; height:9px; background:var(--rb-accent); border-radius:1px;
         transform-origin:50% 9px; transform:rotate(var(--rb-knob-rot,0deg)); }
     .rb-amp-stack:hover .rb-knob{ box-shadow:0 2px 5px rgba(0,0,0,.55), 0 0 10px rgba(52,211,192,.45); }
-    .rb-amp-cab{ height:188px; margin-top:7px; border-radius:7px; position:relative;
+    .rb-amp-cab{ aspect-ratio:1.04; margin-top:-3px; border-radius:7px; position:relative;
         background:linear-gradient(180deg,#1b1d22,#0f1012);
         border:1px solid rgba(255,255,255,.06);
         box-shadow:inset 0 0 50px rgba(0,0,0,.65), 0 12px 26px rgba(0,0,0,.6); }
@@ -81,6 +142,45 @@
             repeating-linear-gradient(45deg, rgba(255,255,255,.03) 0 2px, transparent 2px 5px),
             repeating-linear-gradient(-45deg, rgba(0,0,0,.22) 0 2px, transparent 2px 5px);
         box-shadow:inset 0 0 0 1px rgba(255,255,255,.04); }
+
+    /* camera = perspective viewport. On focus the viewpoint re-aims toward the
+       amp's corner (perspective-origin shifts there) so it reads as the camera
+       travelling to the amp. */
+    .rb-room-camera{ position:absolute; inset:0; perspective:1300px; perspective-origin:50% 41%;
+        transition:perspective-origin .55s cubic-bezier(.33,0,.2,1); }
+
+    /* focus mode — the amp comes to centre at FULL resolution (grown by layout,
+       NOT transform:scale, so the canvas stays crisp + editable). The camera
+       pushes toward the amp's corner and the 3D room scales up + dims behind. */
+    #rb-studio-room.rb-focus-active .rb-room-camera{ perspective-origin:32% 35%; }
+    #rb-studio-room.rb-focus-active .rb-room-3d{ transform:scale(1.55); opacity:.32; filter:blur(2.5px); }
+    #rb-studio-room.rb-focus-active .rb-pedalboard,
+    #rb-studio-room.rb-focus-active .rb-rack-case{ opacity:0; pointer-events:none; transition:opacity .4s ease; }
+    /* straightens out (rotateY → 0) + frames the AMP HEAD only: the head fills
+       the view BIG (knob names read) and the cab runs off the bottom (cut off,
+       not the focus — cab switching comes later). */
+    #rb-studio-room.rb-focus-active .rb-amp-stack{
+        left:50%; top:24%; bottom:auto; width:min(780px,92%); z-index:6; cursor:default;
+        transform:translateX(-50%) rotateY(0deg); }
+    #rb-studio-room.rb-focus-active .rb-amp-stack:hover{ transform:translateX(-50%) rotateY(0deg); filter:none; }
+    .rb-amp-face-canvas{ border-radius:6px; }
+
+    /* floating control bar shown in focus mode */
+    .rb-focus-bar2{ position:absolute; top:0; left:0; right:0; z-index:7; display:flex; align-items:center;
+        justify-content:space-between; gap:10px; padding:14px 18px; opacity:0; pointer-events:none;
+        transition:opacity .25s ease; }
+    .rb-focus-bar2.rb-focus-open{ opacity:1; }
+    .rb-focus-bar2 > *{ pointer-events:auto; }
+    .rb-focus-bar2 .rb-focus-title{ flex:1; text-align:center; }
+    .rb-focus-bar2 button{ font-size:11px; padding:6px 11px; border-radius:8px; color:#cbd2dc; cursor:pointer;
+        background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1); transition:.15s; white-space:nowrap; }
+    .rb-focus-bar2 button:hover{ background:rgba(255,255,255,.12); color:#fff; }
+
+    /* amp face = the VST's own canvas UI render, sitting on the cab */
+    .rb-amp-face{ border-radius:8px 8px 4px 4px; overflow:hidden;
+        border:1px solid rgba(255,255,255,.09); background:#0e0f12;
+        box-shadow:inset 0 1px 0 rgba(255,255,255,.08), 0 10px 22px rgba(0,0,0,.55); }
+    .rb-amp-face img{ width:100%; display:block; }
 
     /* rack case (right) */
     .rb-rack-case{ position:absolute; right:6%; bottom:23%; width:208px;

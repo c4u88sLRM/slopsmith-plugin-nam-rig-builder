@@ -3441,12 +3441,16 @@ function rbRenderStudioRoom() {
     const knobs = RB_STUDIO_KNOB_ANGLES
         .map(deg => `<span class="rb-knob" style="--rb-knob-rot:${deg}deg"></span>`).join('');
 
-    const ampHtml = `
-        <div class="rb-amp-stack" onclick="rbStudioClickAmp(${ampIdx})" title="${rbEsc(ampName)} — click to edit">
-            <div class="rb-amp-head">
+    const ampImg = amp ? rbStudioPedalImg(amp.p) : null;
+    const ampHead = ampImg
+        ? `<div class="rb-amp-face"><img src="${ampImg}" alt="${rbEsc(ampName)}"></div>`
+        : `<div class="rb-amp-head">
                 <div class="rb-amp-name">${rbEsc(ampName)}</div>
                 <div class="rb-amp-knobs">${knobs}</div>
-            </div>
+           </div>`;
+    const ampHtml = `
+        <div class="rb-amp-stack" onclick="rbStudioClickAmp(${ampIdx})" title="${rbEsc(ampName)} — click to zoom in">
+            ${ampHead}
             <div class="rb-amp-cab" title="${rbEsc(cabName)}"></div>
         </div>`;
 
@@ -3488,11 +3492,19 @@ function rbRenderStudioRoom() {
                 Browse gear ▸
             </button>
         </div>
-        <div class="rb-studio-floor"></div>
-        <div class="rb-studio-stage">
-            ${ampHtml}
-            ${rackHtml}
-            ${pedalHtml}
+        <div class="rb-room-camera" id="rb-room-camera">
+            <div class="rb-room-3d">
+                <div class="rb-wall rb-wall-back"></div>
+                <div class="rb-wall rb-wall-left"></div>
+                <div class="rb-wall rb-wall-right"></div>
+                <div class="rb-ceil3d"></div>
+                <div class="rb-floor3d"><div class="rb-carpet"></div></div>
+            </div>
+            <div class="rb-studio-stage">
+                ${amp ? '<div class="rb-amp-ground"></div>' : ''}
+                ${ampHtml}
+                <!-- pedals + racks placement deferred — re-enable: ${'${rackHtml}${pedalHtml}'} -->
+            </div>
         </div>
         ${empty ? `<div class="absolute inset-0 flex items-center justify-center text-gray-500 text-sm z-10">
             No default tone yet —
@@ -3514,7 +3526,11 @@ async function rbLoadStudioRoom() {
 // Phase 1 click handlers bridge to the existing Default-tone editor (full
 // add / swap / bypass / VST-knob editing). Phase 2 replaces these with the
 // in-room zoom-to-knobs interaction.
-function rbStudioClickAmp(idx) { rbStudioFocusAmp(idx); }
+function rbStudioClickAmp(idx) {
+    const room = document.getElementById('rb-studio-room');
+    if (room && room.classList.contains('rb-focus-active')) return;   // already focused — don't re-enter
+    rbStudioFocusAmp(idx);
+}
 function rbStudioClickPiece(_idx) { rbGearFilter('default'); }
 function rbStudioClickAdd(_role) { rbGearFilter('default'); }
 
@@ -3529,46 +3545,37 @@ async function rbStudioFocusAmp(idx) {
     if (!room) return;
     if (idx == null || idx < 0 || !piece) { rbGearFilter('default'); return; }  // no amp → editor to add one
     rbState._studioFocusIdx = idx;
+    const _focusStart = Date.now();   // so the canvas swap waits out the grow animation
     const api = window.slopsmithDesktop && window.slopsmithDesktop.audio;
     const vstPath = rbEffVstPath(piece);
     const name = piece.real_name || piece.type || 'Amp';
 
-    let overlay = document.getElementById('rb-studio-focus');
-    if (!overlay) { overlay = document.createElement('div'); overlay.id = 'rb-studio-focus'; room.appendChild(overlay); }
-    overlay.className = 'rb-studio-focus';
-    overlay.innerHTML = `
-        <div class="rb-focus-panel">
-            <div class="rb-focus-bar">
-                <button class="rb-focus-back" onclick="rbStudioCloseFocus()">← Room</button>
-                <div class="rb-focus-title">${rbEsc(name)}</div>
-                <div class="rb-focus-actions">
-                    <button onclick="rbStudioSwapAmp(${idx})" title="Swap this amp for a different one">⇄ Swap</button>
-                    <button onclick="rbPreviewDefaultTone(this)" title="Hear the default tone">▶ Listen</button>
-                </div>
-            </div>
-            <div id="rb-focus-knobs" class="rb-focus-knobs">
-                <div class="text-xs text-gray-500">loading ${rbEsc((vstPath || '').split('/').pop() || '')}…</div>
-            </div>
-        </div>`;
-    requestAnimationFrame(() => overlay.classList.add('rb-focus-open'));
+    // Enter focus: the amp comes to centre + grows (by layout, so its canvas
+    // stays crisp AND editable — no transform:scale on the canvas), the 3D room
+    // scales back and dims behind it. The amp's own face is the editor.
+    room.classList.add('rb-focus-active');
 
-    const knobsHost = () => document.getElementById('rb-focus-knobs');
-    if (!vstPath) {
-        knobsHost().innerHTML = `<div class="text-sm text-gray-400">No VST assigned to this amp yet —
-            <button class="underline text-gray-200" onclick="rbStudioSwapAmp(${idx})">pick one</button>.</div>`;
-        return;
-    }
-    if (!api) { knobsHost().innerHTML = `<div class="text-sm text-red-400">Native VST hosting not available.</div>`; return; }
+    // Floating control bar (exit / swap / listen), above the dimmed room.
+    let bar = document.getElementById('rb-studio-focus-bar');
+    if (!bar) { bar = document.createElement('div'); bar.id = 'rb-studio-focus-bar'; room.appendChild(bar); }
+    bar.className = 'rb-focus-bar2';
+    bar.innerHTML = `
+        <button class="rb-focus-back" onclick="rbStudioCloseFocus()">← Room</button>
+        <div class="rb-focus-title">${rbEsc(name)}</div>
+        <div class="rb-focus-actions">
+            <button onclick="rbStudioSwapAmp(${idx})" title="Swap this amp">⇄ Swap</button>
+            <button onclick="rbPreviewDefaultTone(this)" title="Hear the default tone">▶ Listen</button>
+        </div>`;
+    requestAnimationFrame(() => bar.classList.add('rb-focus-open'));
+
+    if (!vstPath || !api) return;            // static face stays; nothing to load
     if (rbState._vstEditorBusy) return;
     rbState._vstEditorBusy = true;
     try {
         await rbTeardownVstEditor(api);
         await api.startAudio().catch(() => {});
         const slotId = await rbSafeLoadStandaloneVst(api, vstPath);
-        if (slotId == null || slotId < 0) {
-            knobsHost().innerHTML = `<div class="text-sm text-red-400">${rbEsc(rbVstRefusedMsg())}</div>`;
-            return;
-        }
+        if (slotId == null || slotId < 0) return;
         rbState._vstEditorSlot = slotId;
         piece._vst_slot_id = slotId;
         piece._vst_opaque = piece._vst_opaque
@@ -3584,96 +3591,83 @@ async function rbStudioFocusAmp(idx) {
             const v = p.value ?? p.current;
             if (id != null && typeof v === 'number') piece._vst_params[id] = v;
         }
-        rbStudioRenderAmpKnobs(idx);
-    } catch (e) {
-        const k = knobsHost();
-        if (k) k.innerHTML = `<div class="text-sm text-red-400">load failed: ${rbEsc(rbFriendlyVstLoadError(e))}</div>`;
+        // Let the grow animation finish on the static IMG first, THEN swap in
+        // the interactive canvas at the final size — same trick as the return,
+        // so nothing pops mid-zoom. Guard in case the user already exited.
+        const _wait = Math.max(0, 560 - (Date.now() - _focusStart));
+        setTimeout(() => {
+            if (rbState._studioFocusIdx === idx && room.classList.contains('rb-focus-active')) {
+                rbStudioMakeAmpFaceInteractive(idx);
+            }
+        }, _wait);
+    } catch (_) {
+        /* keep the static face on load failure */
     } finally {
         rbState._vstEditorBusy = false;
     }
 }
 
-function rbStudioRenderAmpKnobs(idx) {
+// Swap the focused amp's static face <img> for an interactive canvas (OUR VST
+// UI recreation), in place on the cab. Dragging a knob drives the live VST
+// param + stages it for persistence.
+function rbStudioMakeAmpFaceInteractive(idx) {
     const piece = (rbState.master.default || [])[idx];
-    const host = document.getElementById('rb-focus-knobs');
-    if (!piece || !host) return;
+    const room = document.getElementById('rb-studio-room');
+    const face = room && room.querySelector('.rb-amp-face');
+    if (!piece || !face) return;
     const api = window.slopsmithDesktop && window.slopsmithDesktop.audio;
-    const params = rbFilterVstParams(piece._vst_param_meta || []);
     const stem = rbCanvasStem(piece);
-
-    // Faithful in-app plugin face: render OUR canvas recreation of this VST
-    // (the same one used in the catalog / Default-tone editor). The canvas also
-    // synthesises a generic knob panel for any VST with params, so every plugin
-    // gets the same canvas UI. Dragging a knob drives the live VST param.
-    if (window.RBPedalCanvas && (window.RBPedalCanvas.has(stem) || params.length > 0)) {
-        host.innerHTML = `
-            <div class="flex justify-center w-full">
-                <canvas id="rb-focus-canvas" style="width:${rbCanvasDisplayWidth(stem)}px;max-width:100%;cursor:ns-resize;touch-action:none"></canvas>
-            </div>
-            <div class="text-[10px] text-gray-500 text-center mt-2 w-full">Drag a knob up/down to adjust</div>`;
-        const canvas = document.getElementById('rb-focus-canvas');
-        const draw = () => {
-            const model = rbCanvasParamModel(piece);
-            window.RBPedalCanvas.attach(canvas, stem, {
-                values: model.values,
-                params: model.logicalParams,
-                interactive: true,
-                onChange: (logicalId, val) => {
-                    const realId = model.idMap[logicalId] ?? logicalId;
-                    if (piece._vst_slot_id != null && api) { try { api.setParameter(piece._vst_slot_id, realId, val); } catch (_) {} }
-                    piece._vst_params = piece._vst_params || {};
-                    piece._vst_params[realId] = val;
-                },
-            });
-        };
-        if (window.RBPedalCanvas.ready) window.RBPedalCanvas.ready().then(draw);
-        draw();
-        return;
-    }
-
-    // Fallback: generic SVG knobs (canvas unavailable / UI-less plugin).
-    if (!params.length) {
-        host.innerHTML = `<div class="text-sm text-gray-400">This amp exposes no adjustable parameters.</div>`;
-        return;
-    }
-    const shown = params.slice(0, 8);
-    host.innerHTML = shown.map((p, i) => {
-        const label = String(p.name ?? p.label ?? `P${i + 1}`);
-        return `<div class="rb-focus-knob">
-            <div id="rb-focus-knob-${i}"></div>
-            <div class="rb-focus-knob-label" title="${rbEsc(label)}">${rbEsc(label)}</div>
-        </div>`;
-    }).join('');
-    shown.forEach((p, i) => {
-        const realId = p.id ?? p.paramId ?? p.index;
-        const cur = (typeof (p.value ?? p.current) === 'number') ? (p.value ?? p.current) : 0.5;
-        rbAttachKnob(`rb-focus-knob-${i}`, {
-            min: 0, max: 1, def: cur, value: cur,
-            onChange: (val) => {
+    if (!(window.RBPedalCanvas && (window.RBPedalCanvas.has(stem) || (piece._vst_param_meta || []).length))) return;
+    face.innerHTML = `<canvas class="rb-amp-face-canvas" style="width:100%;display:block;cursor:ns-resize;touch-action:none"></canvas>`;
+    const canvas = face.querySelector('canvas');
+    const draw = () => {
+        const model = rbCanvasParamModel(piece);
+        window.RBPedalCanvas.attach(canvas, stem, {
+            values: model.values,
+            params: model.logicalParams,
+            interactive: true,
+            onChange: (logicalId, val) => {
+                const realId = model.idMap[logicalId] ?? logicalId;
                 if (piece._vst_slot_id != null && api) { try { api.setParameter(piece._vst_slot_id, realId, val); } catch (_) {} }
                 piece._vst_params = piece._vst_params || {};
                 piece._vst_params[realId] = val;
             },
         });
-    });
+    };
+    if (window.RBPedalCanvas.ready) window.RBPedalCanvas.ready().then(draw);
+    draw();
+    // Redraw once the amp has finished growing to its focused size so the
+    // canvas backing store matches the larger on-screen size (stays crisp).
+    setTimeout(draw, 520);
 }
 
 async function rbStudioCloseFocus() {
-    const overlay = document.getElementById('rb-studio-focus');
+    const room = document.getElementById('rb-studio-room');
     const api = window.slopsmithDesktop && window.slopsmithDesktop.audio;
-    // Persist the edited knobs into the Default tone, then tear the editor down.
-    try { await rbMasterCaptureVstState('default', rbState._studioFocusIdx); } catch (_) {}
-    try { await rbTeardownVstEditor(api); } catch (_) {}
-    if (overlay) {
-        overlay.classList.remove('rb-focus-open');
-        setTimeout(() => { try { overlay.remove(); } catch (_) {} }, 220);
+    const bar = document.getElementById('rb-studio-focus-bar');
+    const idx = rbState._studioFocusIdx;
+    // Swap the interactive canvas back to the static face IMG *first*, at the
+    // current (focus) size — visually identical. This way the dolly-out
+    // animation shrinks a plain image smoothly; the canvas was what popped at
+    // the very end, and rebuilding the whole room is what snapped its size.
+    const piece = (rbState.master.default || [])[idx];
+    const face = document.querySelector('#rb-studio-room .rb-amp-face');
+    if (piece && face) {
+        const img = rbStudioPedalImg(piece);
+        face.innerHTML = img ? `<img src="${img}" alt="${rbEsc(piece.real_name || piece.type || 'Amp')}">` : '';
     }
-    try { rbRenderStudioRoom(); } catch (_) {}
+    // Now play the smooth return: fade the bar + un-focus (the amp animates
+    // back to its corner over ~0.5s — kept, you liked it).
+    if (bar) { bar.classList.remove('rb-focus-open'); setTimeout(() => { try { bar.remove(); } catch (_) {} }, 220); }
+    if (room) room.classList.remove('rb-focus-active');
+    // Persist the edited knobs + tear the editor VST down in the background.
+    try { await rbMasterCaptureVstState('default', idx); } catch (_) {}
+    try { await rbTeardownVstEditor(api); } catch (_) {}
 }
 
 function rbStudioSwapAmp(idx) {
-    // Phase 2: amp swap routes to the existing Default-tone editor (in-room
-    // swap UI is Phase 3). Close the focus cleanly first.
+    // Phase 3: in-room swap rail comes next; for now route to the existing
+    // Default-tone editor. Close the focus cleanly first.
     rbStudioCloseFocus();
     rbGearFilter('default');
 }
