@@ -730,6 +730,11 @@
     .rb-adv-node.rb-adv-sel{ border-color:var(--rb-accent); box-shadow:0 0 0 1px var(--rb-accent), 0 12px 30px rgba(0,0,0,.55); }
     .rb-adv-node:active{ cursor:grabbing; }
     .rb-adv-node-bypassed{ opacity:.5; filter:grayscale(.6); }
+    .rb-adv-node-del{ position:absolute; top:-9px; right:-9px; width:20px; height:20px; border-radius:50%;
+        border:1px solid rgba(255,120,120,.5); background:rgba(40,16,16,.95); color:#ff9a9a; font-size:11px;
+        line-height:1; cursor:pointer; opacity:0; transition:opacity .12s ease; z-index:4; }
+    .rb-adv-node:hover .rb-adv-node-del{ opacity:1; }
+    .rb-adv-node-del:hover{ background:rgba(120,30,30,.95); color:#fff; }
     .rb-adv-node-thumb{ height:56px; border-radius:11px 11px 0 0; overflow:hidden; background:#0b0d12;
         display:flex; align-items:center; justify-content:center; border-bottom:1px solid rgba(255,255,255,.06); }
     .rb-adv-node-thumb img{ width:100%; height:100%; object-fit:contain; }

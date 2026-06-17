@@ -12353,6 +12353,64 @@ function rbAdvState() {
     return rbState._adv;
 }
 
+// The graph (node positions + parallel wiring) is persisted to localStorage,
+// keyed per Studio view, so a parallel rig survives an app restart instead of
+// collapsing back to the serial chain. (Audio is still series on the stock
+// engine — this only preserves the VISUAL graph; true parallel mix = DAG engine.)
+function rbAdvStorageKey() {
+    const v = rbState.studioView || { source: 'default' };
+    if (v.source === 'song') return `rb_adv_g:song:${rbState.currentSongFile || ''}:${v.toneIdx}`;
+    if (v.source === 'saved') return `rb_adv_g:saved:${v.name || ''}`;
+    return 'rb_adv_g:default';
+}
+function rbAdvPersist() {
+    const adv = rbAdvState();
+    try {
+        // Store only the topology + layout; labels/imgs are re-resolved from the
+        // live chain on restore (they can change without invalidating the graph).
+        const nodes = adv.nodes.map(n => ({
+            id: n.id, kind: n.kind, pieceIdx: (typeof n.pieceIdx === 'number' ? n.pieceIdx : -1),
+            kindLabel: n.kindLabel || null, label: n.label || null, x: n.x, y: n.y,
+        }));
+        localStorage.setItem(rbAdvStorageKey(), JSON.stringify({ nodes, edges: adv.edges }));
+    } catch (_) {}
+}
+// Restore a saved graph against the CURRENT chain. Returns false (→ fall back to
+// rbAdvResetToChain) if the chain changed structurally (a gear node's piece is
+// gone, or the chain gained pieces the graph doesn't cover) so we never show a
+// graph that disagrees with what's actually playing.
+function rbAdvRestore() {
+    let saved;
+    try { saved = JSON.parse(localStorage.getItem(rbAdvStorageKey()) || 'null'); } catch (_) { saved = null; }
+    if (!saved || !Array.isArray(saved.nodes) || !saved.nodes.length) return false;
+    const chain = rbStudioCurrentChain();
+    const gearNodes = saved.nodes.filter(n => n.kind === 'gear');
+    if (gearNodes.length !== chain.length) return false;           // structural change → reset
+    const nodes = [];
+    for (const n of saved.nodes) {
+        if (n.kind === 'gear') {
+            const p = chain[n.pieceIdx];
+            if (!p) return false;                                  // piece gone → reset
+            nodes.push({
+                id: n.id, kind: 'gear', pieceIdx: n.pieceIdx, kindLabel: n.kindLabel,
+                label: p.real_name || p.type || 'Gear',
+                img: rbStudioPedalImg(p) || null, bypassed: !!p._bypassed,
+                x: n.x, y: n.y,
+            });
+        } else {
+            nodes.push({ id: n.id, kind: n.kind, label: n.label || (n.kind === 'input' ? 'Guitar' : 'Output'), x: n.x, y: n.y });
+        }
+    }
+    const ids = new Set(nodes.map(n => n.id));
+    const adv = rbAdvState();
+    adv.nodes = nodes;
+    adv.edges = (saved.edges || []).filter(e => ids.has(e.from) && ids.has(e.to))
+        .map(e => ({ from: e.from, to: e.to, gain: (typeof e.gain === 'number' ? e.gain : 1.0) }));
+    adv.seeded = true;
+    rbAdvRenderCanvas();
+    return true;
+}
+
 async function rbLoadAdvanced() {
     if (!rbState.gearCatalog) {
         try { const d = await (await fetch(`${window.RB_API}/gear_catalog`)).json(); rbState.gearCatalog = (d && d.categories) || {}; }
@@ -12364,7 +12422,9 @@ async function rbLoadAdvanced() {
         if (!rbStudioCurrentChain().length && typeof rbLoadDefaultToneEditor === 'function') await rbLoadDefaultToneEditor();
     } catch (_) {}
     const adv = rbAdvState();
-    if (!adv.seeded || !adv.nodes.length) rbAdvResetToChain();
+    // Prefer the saved graph (keeps a parallel rig across restarts); fall back to
+    // a fresh serial graph if there's nothing saved or the chain changed.
+    if (!adv.seeded || !adv.nodes.length) { if (!rbAdvRestore()) rbAdvResetToChain(); }
     rbAdvPaletteRender();
     rbAdvRenderCanvas();
     rbAdvBindCanvasOnce();
@@ -12400,6 +12460,7 @@ function rbAdvResetToChain() {
     for (let k = 1; k < seq.length; k++) adv.edges.push({ from: seq[k - 1].id, to: seq[k].id, gain: 1.0 });
     adv.seeded = true;
     rbAdvAutoLayout();
+    rbAdvPersist();
 }
 
 // Left→right layout: column = longest path from a source; stack within a column.
@@ -12491,6 +12552,7 @@ function rbAdvNodeHtml(n) {
         : `<div class="rb-adv-node-thumb"></div>`;
     return `<div class="rb-adv-node ${n.bypassed ? 'rb-adv-node-bypassed' : ''}" data-adv-node="${n.id}"
                  style="left:${n.x}px;top:${n.y}px">
+                <button class="rb-adv-node-del" data-adv-del="${n.id}" title="Remove from chain">✕</button>
                 ${thumb}
                 <div class="rb-adv-node-label">${rbEsc(n.label)}</div>
                 <div class="rb-adv-node-kind">${rbEsc(n.kindLabel || 'gear')}</div>
@@ -12530,13 +12592,18 @@ function rbAdvRenderCables(tempPath) {
     if (!layer || !svg) return;
     const defs = `<defs><linearGradient id="rb-adv-cablegrad" x1="0" y1="0" x2="1" y2="0">
         <stop offset="0" stop-color="#3a5db0"/><stop offset="1" stop-color="#7fa0e0"/></linearGradient></defs>`;
+    // Fall back to the CSS-known node dimensions when offsetWidth/Height read 0
+    // (the layer hasn't flushed layout yet) — otherwise the cables come out
+    // degenerate and only appear once the user nudges a node.
+    const dimW = n => { const t = (n.kind === 'input' || n.kind === 'output'); return t ? 96 : 128; };
+    const dimH = (n, el) => (el && el.offsetHeight) || ((n.kind === 'input' || n.kind === 'output') ? 44 : 92);
     let paths = '';
     adv.edges.forEach((e, idx) => {
         const fn = adv.nodes.find(n => n.id === e.from), tn = adv.nodes.find(n => n.id === e.to);
         const fEl = layer.querySelector(`[data-adv-node="${e.from}"]`), tEl = layer.querySelector(`[data-adv-node="${e.to}"]`);
-        if (!fn || !tn || !fEl || !tEl) return;
-        const x1 = fn.x + fEl.offsetWidth, y1 = fn.y + fEl.offsetHeight / 2;
-        const x2 = tn.x, y2 = tn.y + tEl.offsetHeight / 2;
+        if (!fn || !tn) return;
+        const x1 = fn.x + ((fEl && fEl.offsetWidth) || dimW(fn)), y1 = fn.y + dimH(fn, fEl) / 2;
+        const x2 = tn.x, y2 = tn.y + dimH(tn, tEl) / 2;
         const dx = Math.max(40, Math.abs(x2 - x1) * 0.5);
         paths += `<path class="rb-adv-cable" data-adv-edge="${idx}" d="M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}"/>`;
     });
@@ -12552,6 +12619,7 @@ function rbAdvDeleteEdge(idx) {
     if (idx < 0 || idx >= adv.edges.length) return;
     adv.edges.splice(idx, 1);
     rbAdvRenderCanvas();
+    rbAdvPersist();
     rbAdvSyncAudio();
 }
 
@@ -12561,11 +12629,56 @@ function rbAdvAttachNodeHandlers() {
     if (!layer || layer._advBound) return;
     layer._advBound = true;
     layer.addEventListener('mousedown', ev => {
+        const del = ev.target.closest('.rb-adv-node-del');
+        if (del) { ev.preventDefault(); ev.stopPropagation(); return; }   // delete is a click, not a drag
         const jack = ev.target.closest('.rb-adv-jack');
         const nodeEl = ev.target.closest('.rb-adv-node');
         if (jack && jack.dataset.advSide === 'out') { rbAdvStartWire(ev, +jack.dataset.advJack); return; }
         if (nodeEl) rbAdvStartNodeDrag(ev, +nodeEl.dataset.advNode);
     });
+    layer.addEventListener('click', ev => {
+        const del = ev.target.closest('.rb-adv-node-del');
+        if (del) { ev.preventDefault(); ev.stopPropagation(); rbAdvDeleteNode(+del.dataset.advDel); }
+    });
+}
+
+// Remove a gear node: delete its piece from the chain (re-indexing other node
+// refs), re-stitch its in→out neighbours so the signal path stays connected,
+// persist + reload the monitor so the gear stops sounding. Terminals can't be
+// deleted.
+async function rbAdvDeleteNode(id) {
+    const adv = rbAdvState();
+    const n = adv.nodes.find(x => x.id === id);
+    if (!n || n.kind !== 'gear') return;
+    if (typeof n.pieceIdx === 'number' && n.pieceIdx >= 0) {
+        const chain = rbStudioCurrentChain();
+        if (chain[n.pieceIdx]) {
+            const removed = n.pieceIdx;
+            chain.splice(removed, 1);
+            adv.nodes.forEach(m => {
+                if (m.kind === 'gear' && typeof m.pieceIdx === 'number' && m.pieceIdx > removed) m.pieceIdx--;
+            });
+        }
+    }
+    // Re-stitch: connect each upstream source to each downstream target so the
+    // chain doesn't fall apart where the node was.
+    const ins = adv.edges.filter(e => e.to === id).map(e => e.from);
+    const outs = adv.edges.filter(e => e.from === id).map(e => e.to);
+    adv.edges = adv.edges.filter(e => e.from !== id && e.to !== id);
+    ins.forEach(s => outs.forEach(t => {
+        if (s !== t && !adv.edges.some(e => e.from === s && e.to === t)) adv.edges.push({ from: s, to: t, gain: 1.0 });
+    }));
+    adv.nodes = adv.nodes.filter(x => x.id !== id);
+    rbAdvRenderCanvas();
+    rbAdvPersist();
+    try { await rbStudioPersist(); } catch (_) {}
+    try { if (rbState._studioPersistPromise) await rbState._studioPersistPromise; } catch (_) {}
+    try { rbRenderStudioRoom(); } catch (_) {}
+    try {
+        const v = rbState.studioView || { source: 'default' };
+        if (v.source === 'default') { if (rbState._defaultToneActive) await rbReloadDefaultTone(); }
+        else if (typeof rbStudioLoadMonitor === 'function') await rbStudioLoadMonitor();
+    } catch (_) {}
 }
 
 function rbAdvLayerPoint(ev) {
@@ -12587,7 +12700,7 @@ function rbAdvStartNodeDrag(ev, nodeId) {
         if (el) { el.style.left = n.x + 'px'; el.style.top = n.y + 'px'; }
         rbAdvRenderCables();
     };
-    const up = () => { document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up); };
+    const up = () => { document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up); rbAdvPersist(); };
     document.addEventListener('mousemove', move);
     document.addEventListener('mouseup', up);
 }
@@ -12636,6 +12749,7 @@ function rbAdvConnect(fromId, toId) {
     if (rbAdvReaches(toId, fromId)) { rbAdvRenderCables(); return; }      // would cycle
     adv.edges.push({ from: fromId, to: toId, gain: 1.0 });
     rbAdvRenderCanvas();
+    rbAdvPersist();
     rbAdvSyncAudio();
 }
 
@@ -12699,6 +12813,7 @@ async function rbAdvMaterializeGear(node) {
     chain.push(piece);
     node.pieceIdx = chain.length - 1;     // link the node to its now-real piece
     rbAdvRenderCanvas();
+    rbAdvPersist();
     try { await rbStudioPersist(); } catch (_) {}
     try { if (rbState._studioPersistPromise) await rbState._studioPersistPromise; } catch (_) {}
     try { rbRenderStudioRoom(); } catch (_) {}
@@ -12724,4 +12839,5 @@ window.rbLoadAdvanced = rbLoadAdvanced;
 window.rbAdvPaletteFilter = rbAdvPaletteFilter;
 window.rbAdvPaletteRender = rbAdvPaletteRender;
 window.rbAdvAutoLayout = rbAdvAutoLayout;
-window.rbAdvResetToChain = rbAdvResetToChain;   // already auto-layouts + renders
+window.rbAdvResetToChain = rbAdvResetToChain;   // already auto-layouts + renders (+ persists)
+window.rbAdvDeleteNode = rbAdvDeleteNode;
