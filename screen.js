@@ -4167,13 +4167,10 @@ async function rbStudioLoadFocusVst(idx, faceEl, growMs) {
     try {
         // Edit the gear IN-CHAIN: it's almost always already loaded in the live
         // monitor, so this is a pure param read — NO clear/reload/mute (robust;
-        // focusing existing gear never silences the rig). Only reload when the
-        // gear isn't in the chain yet (just added/swapped), then retry.
+        // focusing existing gear never silences the rig). If it isn't loaded
+        // (e.g. just added), fall back to the isolated single-VST load. We do NOT
+        // reload the monitor here — that interfered with song playback.
         let slotId = await rbStudioChainSlotIdForPiece(api, idx);
-        if (slotId == null) {
-            try { await rbStudioLoadMonitor(); } catch (_) {}
-            slotId = await rbStudioChainSlotIdForPiece(api, idx);
-        }
         if (slotId != null) {
             rbState._vstEditorSlot = slotId;
             rbState._vstEditorInChain = true;
@@ -4528,19 +4525,16 @@ window.rbStudioShowDefault = function rbStudioShowDefault() {
     rbState.studioView = { source: 'default' };
     rbShowTab('studio');
     try { rbRenderStudioRoom(); rbStudioRenderToneChips(); } catch (_) {}
-    rbStudioLoadMonitor();
 };
 window.rbStudioShowSongTone = function rbStudioShowSongTone(i) {
     rbState.studioView = { source: 'song', toneIdx: i };
     rbShowTab('studio');
     try { rbRenderStudioRoom(); rbStudioRenderToneChips(); } catch (_) {}
-    rbStudioLoadMonitor();
 };
 window.rbStudioShowSavedTone = function rbStudioShowSavedTone(name) {
     rbState.studioView = { source: 'saved', name };
     rbShowTab('studio');
     try { rbRenderStudioRoom(); rbStudioRenderToneChips(); } catch (_) {}
-    rbStudioLoadMonitor();
 };
 
 // Load the CURRENTLY-SELECTED studio tone into the live monitor so switching
