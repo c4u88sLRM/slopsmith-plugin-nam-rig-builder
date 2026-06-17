@@ -3562,10 +3562,14 @@ function rbRenderStudioRoom() {
     // shrinks them AND they render BEHIND the racks (racks now sit near the
     // camera). rotateY is mirrored for the right-side amps. Tuned vs the primary.
     const amps = g.amp.slice(0, 4);
+    // ry is mirrored NEGATIVE for the right-side amps so they face inward (toward
+    // the primary) — paired with the right-edge depth panel (.rb-amp-extra::before
+    // in CSS) so the turned amp shows a solid 3D side, not a flat photo. tz pushes
+    // them behind the racks. Live-tuned via CDP against the primary amp.
     const RB_AMP_EXTRA_SLOTS = {
-        2: [{ left: '70%', bottom: '14%', w: 156, ry: -32, tz: -340 }],
-        3: [{ left: '70%', bottom: '14%', w: 156, ry: -32, tz: -340 }, { left: '49%', bottom: '14%', w: 148, ry: 0, tz: -430 }],
-        4: [{ left: '69%', bottom: '14%', w: 152, ry: -30, tz: -340 }, { left: '43%', bottom: '14%', w: 142, ry: 10, tz: -430 }, { left: '57%', bottom: '14%', w: 142, ry: -10, tz: -430 }],
+        2: [{ left: '70%', bottom: '15%', w: 160, ry: -38, tz: -300 }],
+        3: [{ left: '70%', bottom: '15%', w: 160, ry: -38, tz: -300 }, { left: '50%', bottom: '18%', w: 150, ry: -8, tz: -420 }],
+        4: [{ left: '69%', bottom: '15%', w: 158, ry: -36, tz: -300 }, { left: '44%', bottom: '18%', w: 146, ry: 8, tz: -420 }, { left: '57%', bottom: '18%', w: 146, ry: -12, tz: -420 }],
     };
     const extraSlots = RB_AMP_EXTRA_SLOTS[amps.length] || [];
     const ampStack = (entry, i) => {
@@ -3593,7 +3597,7 @@ function rbRenderStudioRoom() {
         const s = extraSlots[i];
         if (!s) return '';
         return `<div class="rb-amp-ground rb-amp-ground-extra"
-                     style="left:${s.left};width:${Math.round(s.w * 1.06)}px;transform:translateX(-50%) rotateX(66deg) translateZ(${s.tz}px)"></div>`;
+                     style="left:${s.left};width:${Math.round(s.w * 1.1)}px;transform:translateX(-50%) rotateX(66deg) translateZ(${s.tz}px)"></div>`;
     }).join('');
 
     // Rack tower on a table (right side), angled to point left + slightly frontal.
