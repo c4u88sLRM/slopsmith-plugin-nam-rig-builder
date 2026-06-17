@@ -1528,6 +1528,12 @@ async function rbLoadNativePresetPayload(api, payload, options) {
     if (!result || result.success === false) {
         throw new Error((result && result.error) || (audioEffectsError && audioEffectsError.message) || 'loadPreset failed');
     }
+    // The chain is loaded NOW — un-mute immediately instead of waiting out the
+    // worst-case rbPreLoadMute timer (~250 + 120·stages ms). This legacy/monitor
+    // path (Studio tone switch, default tone) has NO post-load param re-apply —
+    // that's the song fetch-interceptor's reapplyDelay — so the load peaks are
+    // already past and the long hold was pure dead time between changes.
+    try { await rbSignalChainLoaded(); } catch (_) {}
     return { result, viaAudioEffects: false };
 }
 
