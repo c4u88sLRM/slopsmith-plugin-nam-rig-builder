@@ -4527,6 +4527,7 @@ window.rbStudioShowSongTone = function rbStudioShowSongTone(i) {
     rbState.studioView = { source: 'song', toneIdx: i };
     rbShowTab('studio');
     try { rbRenderStudioRoom(); rbStudioRenderToneChips(); } catch (_) {}
+    rbStudioLoadMonitor();   // audition the song tone (gear AND sound change together)
 };
 window.rbStudioShowSavedTone = function rbStudioShowSavedTone(name) {
     rbState.studioView = { source: 'saved', name };
@@ -4568,8 +4569,29 @@ async function rbStudioLoadMonitor() {
             if (api.setMonitorMute) await api.setMonitorMute(false).catch(() => {});
             if (api.startAudio) await api.startAudio().catch(() => {});
             rbState._defaultToneActive = true;    // a studio tone IS the active idle monitor (mirrors rbLoadDefaultTone)
+            return;
         }
-        // 'song' view → auditioned via the song path; no-op here.
+        if (view.source === 'song') {
+            // A song tone selected in the Studio menu — audition it like the song
+            // editor's Listen (resolve tone → preset_id, load its full native
+            // preset) but as the idle monitor (no listeningTone toggle), so the
+            // gear AND the sound change together.
+            const filename = rbState.currentSongFile;
+            if (!filename || typeof rbPersistTone !== 'function') return;
+            const presetId = await rbPersistTone(view.toneIdx, filename);
+            if (presetId == null) return;
+            const r = await fetch(`${window.RB_API}/native_preset_full/${presetId}`);
+            if (!r.ok) return;
+            const payload = await r.json();
+            const chain = payload && payload.native_preset && payload.native_preset.chain;
+            if (!Array.isArray(chain) || !chain.length) return;   // no assigned files yet → leave audio as-is
+            await rbCloseActiveVstEditor();
+            delete payload.id;                    // force the legacy monitor path (executor is silent at idle)
+            await rbLoadNativePresetPayload(api, payload, { mode: 'preview', authorization: 'user-action' });
+            if (api.setMonitorMute) await api.setMonitorMute(false).catch(() => {});
+            if (api.startAudio) await api.startAudio().catch(() => {});
+            rbState._defaultToneActive = true;
+        }
     } catch (e) {
         console.warn('[rig_builder] studio monitor load failed:', e);
     } finally {
