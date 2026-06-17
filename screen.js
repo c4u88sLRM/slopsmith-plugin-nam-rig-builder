@@ -3556,11 +3556,16 @@ function rbRenderStudioRoom() {
     //   2 amps → 2nd in the opposite (right-back) corner
     //   3 amps → +3rd centre-back
     //   4 amps → 3rd & 4th flank centre-back ("two middle")
+    // Extra amps mirror the PRIMARY amp's grounding (same bottom:14% floor line +
+    // near-full width so they read full-size and sit on the floor, not float) but
+    // are pushed deep into the room via a big negative translateZ, so perspective
+    // shrinks them AND they render BEHIND the racks (racks now sit near the
+    // camera). rotateY is mirrored for the right-side amps. Tuned vs the primary.
     const amps = g.amp.slice(0, 4);
     const RB_AMP_EXTRA_SLOTS = {
-        2: [{ left: '74%', bottom: '31%', w: 116, ry: -28 }],
-        3: [{ left: '74%', bottom: '31%', w: 116, ry: -28 }, { left: '50%', bottom: '41%', w: 102, ry: 0 }],
-        4: [{ left: '74%', bottom: '31%', w: 116, ry: -28 }, { left: '43%', bottom: '42%', w: 96, ry: 8 }, { left: '57%', bottom: '42%', w: 96, ry: -8 }],
+        2: [{ left: '70%', bottom: '14%', w: 156, ry: -32, tz: -340 }],
+        3: [{ left: '70%', bottom: '14%', w: 156, ry: -32, tz: -340 }, { left: '49%', bottom: '14%', w: 148, ry: 0, tz: -430 }],
+        4: [{ left: '69%', bottom: '14%', w: 152, ry: -30, tz: -340 }, { left: '43%', bottom: '14%', w: 142, ry: 10, tz: -430 }, { left: '57%', bottom: '14%', w: 142, ry: -10, tz: -430 }],
     };
     const extraSlots = RB_AMP_EXTRA_SLOTS[amps.length] || [];
     const ampStack = (entry, i) => {
@@ -3573,7 +3578,7 @@ function rbRenderStudioRoom() {
         if (i > 0) {
             const s = extraSlots[i - 1];
             cls += ' rb-amp-extra';
-            if (s) style = ` style="left:${s.left};bottom:${s.bottom};width:${s.w}px;transform:translateX(-50%) rotateY(${s.ry}deg) translateZ(-140px)"`;
+            if (s) style = ` style="left:${s.left};bottom:${s.bottom};width:${s.w}px;transform:translateX(-50%) rotateY(${s.ry}deg) translateZ(${s.tz}px)"`;
         }
         return `<div class="${cls}" data-amp-idx="${entry.idx}"${style}
                      onclick="rbStudioClickAmp(${entry.idx})" title="${rbEsc(nm)} — click to zoom in">
@@ -3582,6 +3587,14 @@ function rbRenderStudioRoom() {
                 </div>`;
     };
     const ampHtml = amps.map(ampStack).join('');
+    // Per-extra contact shadow so the back amps read as grounded (the primary has
+    // its own CSS .rb-amp-ground). Matches each amp's left + depth.
+    const extraGroundHtml = amps.slice(1).map((entry, i) => {
+        const s = extraSlots[i];
+        if (!s) return '';
+        return `<div class="rb-amp-ground rb-amp-ground-extra"
+                     style="left:${s.left};width:${Math.round(s.w * 1.06)}px;transform:translateX(-50%) rotateX(66deg) translateZ(${s.tz}px)"></div>`;
+    }).join('');
 
     // Rack tower on a table (right side), angled to point left + slightly frontal.
     // Units stack one on top of another, capped at RB_MAX_RACKS.
@@ -3645,6 +3658,7 @@ function rbRenderStudioRoom() {
             </div>
             <div class="rb-studio-stage">
                 ${amp ? '<div class="rb-amp-ground"></div>' : ''}
+                ${extraGroundHtml}
                 ${ampHtml}
                 ${pedalHtml}
                 ${rackHtml}
@@ -12777,13 +12791,29 @@ function rbAdvStartNodeDrag(ev, nodeId) {
     if (!n) return;
     const p0 = rbAdvLayerPoint(ev), ox = p0.x - n.x, oy = p0.y - n.y;
     const el = document.querySelector(`#rb-adv-nodes [data-adv-node="${nodeId}"]`);
+    const canvas = document.getElementById('rb-adv-canvas');
+    // Drag a node OFF the canvas (into the void) to delete it — terminals can't
+    // be deleted, so they never arm. A margin avoids accidental deletes right at
+    // the edge.
+    const canDelete = n.kind === 'gear';
+    const outside = e => {
+        if (!canvas) return false;
+        const r = canvas.getBoundingClientRect(), m = 24;
+        return e.clientX < r.left - m || e.clientX > r.right + m || e.clientY < r.top - m || e.clientY > r.bottom + m;
+    };
     const move = e => {
         const p = rbAdvLayerPoint(e);
         n.x = Math.max(0, p.x - ox); n.y = Math.max(0, p.y - oy);
         if (el) { el.style.left = n.x + 'px'; el.style.top = n.y + 'px'; }
+        if (canDelete && el) el.classList.toggle('rb-adv-node-trashing', outside(e));
         rbAdvRenderCables();
     };
-    const up = () => { document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up); rbAdvPersist(); };
+    const up = e => {
+        document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up);
+        if (canDelete && outside(e)) { rbAdvDeleteNode(nodeId); return; }   // dropped in the void → delete
+        if (el) el.classList.remove('rb-adv-node-trashing');
+        rbAdvPersist();
+    };
     document.addEventListener('mousemove', move);
     document.addEventListener('mouseup', up);
 }
