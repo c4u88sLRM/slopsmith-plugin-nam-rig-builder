@@ -1528,12 +1528,13 @@ async function rbLoadNativePresetPayload(api, payload, options) {
     if (!result || result.success === false) {
         throw new Error((result && result.error) || (audioEffectsError && audioEffectsError.message) || 'loadPreset failed');
     }
-    // The chain is loaded NOW — un-mute immediately instead of waiting out the
-    // worst-case rbPreLoadMute timer (~250 + 120·stages ms). This legacy/monitor
-    // path (Studio tone switch, default tone) has NO post-load param re-apply —
-    // that's the song fetch-interceptor's reapplyDelay — so the load peaks are
-    // already past and the long hold was pure dead time between changes.
-    try { await rbSignalChainLoaded(); } catch (_) {}
+    // Optional fast un-mute: callers that have NO post-load param re-apply
+    // (default tone) opt in via `unmuteOnLoad` to lift the mute the instant
+    // loadPreset resolves, instead of waiting out the worst-case rbPreLoadMute
+    // timer (~250 + 120·stages ms). Callers that re-apply params after this
+    // (Studio saved/song, song Listen) must NOT use it — they un-mute themselves
+    // AFTER the re-apply so its setParameter transients stay under the mute.
+    if (options && options.unmuteOnLoad) { try { await rbSignalChainLoaded(); } catch (_) {} }
     return { result, viaAudioEffects: false };
 }
 
@@ -4536,6 +4537,22 @@ window.rbStudioShowSavedTone = function rbStudioShowSavedTone(name) {
     rbStudioLoadMonitor();   // reload the live monitor so the switch is heard
 };
 
+// After loading a tone's native preset into the monitor: RE-APPLY the saved VST
+// params (loadPreset's `state` restore is unreliable on the stock engine, so
+// without this the gear plays AND the focus editor displays at DEFAULTS — "los
+// params de la canción no se mapean"), plus bypasses + input drive + the final
+// leveler, THEN un-mute. The re-apply's setParameter transients stay under the
+// rbPreLoadMute mute; we lift it fast afterwards (event-driven, not the timer).
+async function rbStudioFinishMonitorLoad(api, chain) {
+    if (!Array.isArray(chain)) chain = [];
+    try { await rbReapplyBypassToChain(api, chain); } catch (_) {}
+    try { await rbReapplyVstParamsToChain(api, chain); } catch (_) {}
+    try { await rbApplyChainInputDrive({ chain }); } catch (_) {}
+    try { await rbStartFinalChainNormalizer(chain); } catch (_) {}
+    if (api.startAudio) await api.startAudio().catch(() => {});
+    try { await rbSignalChainLoaded(); } catch (_) {}   // un-mute AFTER the re-apply
+}
+
 // Load the CURRENTLY-SELECTED studio tone into the live monitor so switching
 // tones is actually heard (previously the switch only updated the UI, so the
 // old tone kept playing). Mirrors the default-tone idle loader: fetch the
@@ -4566,8 +4583,7 @@ async function rbStudioLoadMonitor() {
             await rbCloseActiveVstEditor();
             delete payload.id;                    // force the legacy monitor path (executor is silent at idle)
             await rbLoadNativePresetPayload(api, payload, { mode: 'preview', authorization: 'user-action' });
-            if (api.setMonitorMute) await api.setMonitorMute(false).catch(() => {});
-            if (api.startAudio) await api.startAudio().catch(() => {});
+            await rbStudioFinishMonitorLoad(api, payload.native_preset.chain);
             rbState._defaultToneActive = true;    // a studio tone IS the active idle monitor (mirrors rbLoadDefaultTone)
             return;
         }
@@ -4588,8 +4604,7 @@ async function rbStudioLoadMonitor() {
             await rbCloseActiveVstEditor();
             delete payload.id;                    // force the legacy monitor path (executor is silent at idle)
             await rbLoadNativePresetPayload(api, payload, { mode: 'preview', authorization: 'user-action' });
-            if (api.setMonitorMute) await api.setMonitorMute(false).catch(() => {});
-            if (api.startAudio) await api.startAudio().catch(() => {});
+            await rbStudioFinishMonitorLoad(api, chain);
             rbState._defaultToneActive = true;
         }
     } catch (e) {
@@ -7016,6 +7031,7 @@ async function rbLoadDefaultTone(options) {
     delete payload.id;
     await rbLoadNativePresetPayload(api, payload, Object.assign({
         mode: 'preview', authorization: 'user-action',
+        unmuteOnLoad: true,   // default tone has no post-load param re-apply → lift the mute fast
     }, options || {}));
     // A prior Listen/song may have left the monitor muted — unmute it.
     if (api.setMonitorMute) await api.setMonitorMute(false).catch(() => {});
