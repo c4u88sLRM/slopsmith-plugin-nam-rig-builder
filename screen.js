@@ -3568,9 +3568,9 @@ function rbRenderStudioRoom() {
     // right-edge .rb-amp-extra::before (and CRITICALLY no `filter` on the stack,
     // which would flatten it). 3rd/4th amps go deeper centre-back. CDP-tuned.
     const RB_AMP_EXTRA_SLOTS = {
-        2: [{ left: '72%', bottom: 'calc(14% - 3px)', w: 168, ry: -32, tz: -140 }],
-        3: [{ left: '72%', bottom: 'calc(14% - 3px)', w: 168, ry: -32, tz: -140 }, { left: '50%', bottom: 'calc(17% - 3px)', w: 150, ry: -8, tz: -280 }],
-        4: [{ left: '72%', bottom: 'calc(14% - 3px)', w: 168, ry: -32, tz: -140 }, { left: '40%', bottom: 'calc(17% - 3px)', w: 148, ry: 10, tz: -280 }, { left: '60%', bottom: 'calc(17% - 3px)', w: 148, ry: -12, tz: -280 }],
+        2: [{ left: '72%', bottom: 'calc(14% - 7px)', w: 168, ry: -32, tz: -140 }],
+        3: [{ left: '72%', bottom: 'calc(14% - 7px)', w: 168, ry: -32, tz: -140 }, { left: '50%', bottom: 'calc(17% - 7px)', w: 150, ry: -8, tz: -280 }],
+        4: [{ left: '72%', bottom: 'calc(14% - 7px)', w: 168, ry: -32, tz: -140 }, { left: '40%', bottom: 'calc(17% - 7px)', w: 148, ry: 10, tz: -280 }, { left: '60%', bottom: 'calc(17% - 7px)', w: 148, ry: -12, tz: -280 }],
     };
     const extraSlots = RB_AMP_EXTRA_SLOTS[amps.length] || [];
     const ampStack = (entry, i) => {
