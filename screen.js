@@ -12349,8 +12349,30 @@ async function rbExportDefaults() {
 // ════════════════════════════════════════════════════════════════════════
 
 function rbAdvState() {
-    if (!rbState._adv) rbState._adv = { nodes: [], edges: [], palette: 'amp', seeded: false };
+    if (!rbState._adv) rbState._adv = { nodes: [], edges: [], palette: 'amp', seeded: false, zoom: 1 };
+    if (typeof rbState._adv.zoom !== 'number') rbState._adv.zoom = 1;
     return rbState._adv;
+}
+
+// Zoom the node canvas (a sizer wrapper holds the scroll size; the two content
+// layers are transform:scale'd inside it so scroll works at any zoom).
+function rbAdvZoom(delta) {
+    const adv = rbAdvState();
+    adv.zoom = Math.min(1.6, Math.max(0.4, Math.round(((adv.zoom || 1) + delta) * 100) / 100));
+    rbAdvApplyZoom();
+}
+function rbAdvApplyZoom() {
+    const adv = rbAdvState();
+    const z = adv.zoom || 1;
+    const zoomEl = document.getElementById('rb-adv-zoom');
+    const layer = document.getElementById('rb-adv-nodes');
+    const svg = document.getElementById('rb-adv-cables');
+    if (!layer || !svg) return;
+    const w = parseFloat(layer.style.width) || 0, h = parseFloat(layer.style.height) || 0;
+    [layer, svg].forEach(el => { el.style.transformOrigin = '0 0'; el.style.transform = z === 1 ? '' : `scale(${z})`; });
+    if (zoomEl) { zoomEl.style.width = (w * z) + 'px'; zoomEl.style.height = (h * z) + 'px'; }
+    const lbl = document.getElementById('rb-adv-zoom-label');
+    if (lbl) lbl.textContent = Math.round(z * 100) + '%';
 }
 
 // The graph (node positions + parallel wiring) is persisted to localStorage,
@@ -12553,6 +12575,7 @@ function rbAdvNodeHtml(n) {
     return `<div class="rb-adv-node ${n.bypassed ? 'rb-adv-node-bypassed' : ''}" data-adv-node="${n.id}"
                  style="left:${n.x}px;top:${n.y}px">
                 <button class="rb-adv-node-del" data-adv-del="${n.id}" title="Remove from chain">✕</button>
+                <button class="rb-adv-node-edit" data-adv-edit="${n.id}" title="Edit knobs">🎛</button>
                 ${thumb}
                 <div class="rb-adv-node-label">${rbEsc(n.label)}</div>
                 <div class="rb-adv-node-kind">${rbEsc(n.kindLabel || 'gear')}</div>
@@ -12574,6 +12597,7 @@ function rbAdvRenderCanvas() {
     const w = Math.max(maxX + 40, canvas.clientWidth), h = Math.max(maxY + 40, canvas.clientHeight);
     layer.style.width = svg.style.width = w + 'px';
     layer.style.height = svg.style.height = h + 'px';
+    rbAdvApplyZoom();   // keep the current zoom after a re-render
     rbAdvRenderCables();
     // The first render can read node sizes before layout flushes (cables come
     // out degenerate until the user nudges a node); recompute next frame, and
@@ -12627,8 +12651,8 @@ function rbAdvAttachNodeHandlers() {
     if (!layer || layer._advBound) return;
     layer._advBound = true;
     layer.addEventListener('mousedown', ev => {
-        const del = ev.target.closest('.rb-adv-node-del');
-        if (del) { ev.preventDefault(); ev.stopPropagation(); return; }   // delete is a click, not a drag
+        const btn = ev.target.closest('.rb-adv-node-del, .rb-adv-node-edit');
+        if (btn) { ev.preventDefault(); ev.stopPropagation(); return; }   // buttons are clicks, not drags
         const jack = ev.target.closest('.rb-adv-jack');
         const nodeEl = ev.target.closest('.rb-adv-node');
         if (jack && jack.dataset.advSide === 'out') { rbAdvStartWire(ev, +jack.dataset.advJack); return; }
@@ -12636,8 +12660,68 @@ function rbAdvAttachNodeHandlers() {
     });
     layer.addEventListener('click', ev => {
         const del = ev.target.closest('.rb-adv-node-del');
-        if (del) { ev.preventDefault(); ev.stopPropagation(); rbAdvDeleteNode(+del.dataset.advDel); }
+        if (del) { ev.preventDefault(); ev.stopPropagation(); rbAdvDeleteNode(+del.dataset.advDel); return; }
+        const edit = ev.target.closest('.rb-adv-node-edit');
+        if (edit) { ev.preventDefault(); ev.stopPropagation(); rbAdvEditNode(+edit.dataset.advEdit); }
     });
+}
+
+// Edit a node's VST knobs IN PLACE in Advanced: open a floating card with the
+// gear's interactive canvas (same RBPedalCanvas + setParameter path the Studio
+// focus uses), mapped to its LIVE engine slot so knob moves are heard. Closing
+// persists the staged params. The chain stays loaded — no teardown.
+async function rbAdvEditNode(id) {
+    const adv = rbAdvState();
+    const n = adv.nodes.find(x => x.id === id);
+    if (!n || n.kind !== 'gear' || typeof n.pieceIdx !== 'number' || n.pieceIdx < 0) return;
+    const piece = rbStudioCurrentChain()[n.pieceIdx];
+    if (!piece) return;
+    const stem = rbCanvasStem(piece);
+    const host = document.querySelector('#rb-tab-advanced .rb-adv-main') || document.getElementById('rb-tab-advanced');
+    let panel = document.getElementById('rb-adv-editor');
+    if (panel) panel.remove();
+    panel = document.createElement('div');
+    panel.id = 'rb-adv-editor';
+    panel.className = 'rb-adv-editor';
+    if (!(window.RBPedalCanvas && (window.RBPedalCanvas.has(stem) || (piece._vst_param_meta || []).length))) {
+        panel.innerHTML = `<div class="rb-adv-editor-bar">
+                <span class="rb-adv-editor-name">${rbEsc(piece.real_name || piece.type || 'Gear')}</span>
+                <button class="rb-adv-editor-close" onclick="rbAdvCloseEditor()">✕</button>
+            </div>
+            <div class="rb-adv-editor-empty">No editable knob UI for this gear.</div>`;
+        host.appendChild(panel);
+        return;
+    }
+    // Map the piece to its loaded engine slot so knob drags change live audio.
+    const api = window.slopsmithDesktop && window.slopsmithDesktop.audio;
+    try { piece._vst_slot_id = await rbStudioChainSlotIdForPiece(api, n.pieceIdx); } catch (_) { piece._vst_slot_id = null; }
+    panel.innerHTML = `<div class="rb-adv-editor-bar">
+            <span class="rb-adv-editor-name">${rbEsc(piece.real_name || piece.type || 'Gear')}</span>
+            <button class="rb-adv-editor-close" onclick="rbAdvCloseEditor()">✕</button>
+        </div>
+        <div class="rb-adv-editor-face rb-amp-face"></div>`;
+    host.appendChild(panel);
+    rbState._advEditPieceIdx = n.pieceIdx;
+    rbStudioMakeFaceInteractive(n.pieceIdx, panel.querySelector('.rb-adv-editor-face'));
+}
+function rbAdvCloseEditor() {
+    const panel = document.getElementById('rb-adv-editor');
+    if (panel) panel.remove();
+    // Persist the moved knobs the same way the Studio focus does (captures the
+    // tracked per-drag values + re-stamps vst_state, then saves).
+    const idx = rbState._advEditPieceIdx;
+    rbState._advEditPieceIdx = null;
+    if (typeof idx === 'number') {
+        try { rbStudioQuickSavePiece(idx); } catch (_) {}
+        // Refresh the node thumbnail to the new knob positions.
+        try {
+            const adv = rbAdvState();
+            const node = adv.nodes.find(x => x.kind === 'gear' && x.pieceIdx === idx);
+            const p = rbStudioCurrentChain()[idx];
+            if (node && p) node.img = rbStudioPedalImg(p) || node.img;
+        } catch (_) {}
+    }
+    try { rbAdvRenderCanvas(); } catch (_) {}
 }
 
 // Remove a gear node: delete its piece from the chain (re-indexing other node
@@ -12682,7 +12766,8 @@ async function rbAdvDeleteNode(id) {
 function rbAdvLayerPoint(ev) {
     const layer = document.getElementById('rb-adv-nodes');
     const r = layer.getBoundingClientRect();
-    return { x: ev.clientX - r.left, y: ev.clientY - r.top };
+    const z = rbAdvState().zoom || 1;   // rect is the scaled box → back out the zoom
+    return { x: (ev.clientX - r.left) / z, y: (ev.clientY - r.top) / z };
 }
 
 function rbAdvStartNodeDrag(ev, nodeId) {
@@ -12852,3 +12937,6 @@ window.rbAdvPaletteRender = rbAdvPaletteRender;
 window.rbAdvAutoLayout = rbAdvAutoLayout;
 window.rbAdvResetToChain = rbAdvResetToChain;   // already auto-layouts + renders (+ persists)
 window.rbAdvDeleteNode = rbAdvDeleteNode;
+window.rbAdvEditNode = rbAdvEditNode;
+window.rbAdvCloseEditor = rbAdvCloseEditor;
+window.rbAdvZoom = rbAdvZoom;
