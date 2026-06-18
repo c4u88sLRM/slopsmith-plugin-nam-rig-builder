@@ -3575,7 +3575,7 @@ function rbRenderStudioRoom() {
     const RB_AMP_EXTRA_SLOTS = {
         2: [{ left: '72%', bottom: '14%', w: 168, ry: -32, tz: -140 }],
         3: [{ left: '72%', bottom: '14%', w: 168, ry: -32, tz: -140 }, { left: '50%', bottom: '14%', w: 168, ry: 0, tz: -140 }],
-        4: [{ left: '72%', bottom: '14%', w: 168, ry: -32, tz: -140 }, { left: '43%', bottom: '14%', w: 168, ry: 0, tz: -140 }, { left: '57%', bottom: '14%', w: 168, ry: 0, tz: -140 }],
+        4: [{ left: '72%', bottom: '14%', w: 168, ry: -32, tz: -140 }, { left: '39%', bottom: '14%', w: 168, ry: 0, tz: -140 }, { left: '61%', bottom: '14%', w: 168, ry: 0, tz: -140 }],
     };
     const extraSlots = RB_AMP_EXTRA_SLOTS[amps.length] || [];
     const ampStack = (entry, i) => {
