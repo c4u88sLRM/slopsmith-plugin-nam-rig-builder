@@ -136,8 +136,15 @@ public:
         // below) until the detector is trustworthy, then fade in over ~20 ms at
         // the already-correct level. Net: a brief soft attack on the very first
         // note instead of a blast. (Per fresh plugin instance = per song load.)
-        const int kWarmupHold  = int(0.018 * sr);            // engage sooner after a load (was 45 ms)
-        const int kWarmupFade  = std::max(1, int(0.010 * sr)); // (was 20 ms)
+        // Hold MUTED long enough for the 15 ms loudness detector to actually
+        // settle (~3-4 taus) before the AGC snaps — otherwise it engages on an
+        // unsettled (too-low) reading and BLASTS then drops on song/tone load.
+        // 18 ms (1.2 taus) was too short and reintroduced the blast; 55 ms lands
+        // on an accurate first reading → clean soft attack, the whole load muted.
+        // NB: this is the LOAD warm-up only; the mid-song AGC speed (attack/
+        // release/urgency below) is unchanged — switching tones stays snappy.
+        const int kWarmupHold  = int(0.055 * sr);
+        const int kWarmupFade  = std::max(1, int(0.022 * sr));
         const int kWarmupTotal = kWarmupHold + kWarmupFade;
         if (hasSignal && warmupSamples < kWarmupTotal)
             warmupSamples += numSamples;
