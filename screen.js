@@ -12655,14 +12655,25 @@ function rbAdvRenderCables(tempPath) {
         const x2 = tn.x, y2 = tn.y + dimH(tn, tEl) / 2;
         const dx = Math.max(40, Math.abs(x2 - x1) * 0.5);
         const d = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
-        // wide transparent hit path (easy to click to disconnect) + the visible cable
-        paths += `<path class="rb-adv-cable-hit" data-adv-edge="${idx}" d="${d}"/>`;
-        paths += `<path class="rb-adv-cable" d="${d}"/>`;
+        const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;   // ~cable midpoint for the cut button
+        // Each edge: a wide invisible hit area (for hover) + the visible cable +
+        // a red ✕ "disconnect" button at the midpoint that appears on hover.
+        paths += `<g class="rb-adv-edge-g" data-adv-edge="${idx}">
+            <path class="rb-adv-cable-hit" d="${d}"/>
+            <path class="rb-adv-cable" d="${d}"/>
+            <g class="rb-adv-cut" transform="translate(${mx},${my})">
+                <circle class="rb-adv-cut-bg" r="9"/>
+                <text class="rb-adv-cut-x" x="0" y="3.4" text-anchor="middle">✕</text>
+            </g>
+        </g>`;
     });
     if (tempPath) paths += `<path class="rb-adv-cable rb-adv-cable-temp" d="${tempPath}"/>`;
     svg.innerHTML = paths;
-    svg.querySelectorAll('.rb-adv-cable-hit[data-adv-edge]').forEach(p => {
-        p.addEventListener('click', () => rbAdvDeleteEdge(+p.dataset.advEdge));
+    // Click anywhere on the cable (hit path) OR its ✕ to disconnect.
+    svg.querySelectorAll('.rb-adv-edge-g[data-adv-edge]').forEach(g => {
+        const idx = +g.dataset.advEdge;
+        g.querySelector('.rb-adv-cable-hit').addEventListener('click', () => rbAdvDeleteEdge(idx));
+        g.querySelector('.rb-adv-cut').addEventListener('click', (ev) => { ev.stopPropagation(); rbAdvDeleteEdge(idx); });
     });
 }
 
