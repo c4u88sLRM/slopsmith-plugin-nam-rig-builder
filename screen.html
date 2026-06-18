@@ -762,7 +762,8 @@
     .rb-adv-node:hover{ border-color:rgba(140,180,250,.6); box-shadow:0 12px 30px rgba(40,80,160,.4); }
     .rb-adv-node.rb-adv-sel{ border-color:var(--rb-accent); box-shadow:0 0 0 1px var(--rb-accent), 0 12px 30px rgba(0,0,0,.55); }
     .rb-adv-node:active{ cursor:grabbing; }
-    .rb-adv-node-bypassed{ opacity:.5; filter:grayscale(.6); }
+    /* bypassed gear = passthrough; greyed out (saturation 0) */
+    .rb-adv-node-bypassed{ filter:saturate(0) brightness(.88); opacity:.78; }
     /* armed for delete while dragged off the canvas */
     .rb-adv-node-trashing{ opacity:.45; filter:grayscale(.7) brightness(.8);
         border-color:rgba(220,80,80,.8) !important; box-shadow:0 0 0 2px rgba(220,80,80,.45), 0 12px 30px rgba(0,0,0,.5) !important; }

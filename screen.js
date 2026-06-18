@@ -12455,6 +12455,23 @@ function rbAdvRestore() {
     adv.nodes = nodes;
     adv.edges = (saved.edges || []).filter(e => ids.has(e.from) && ids.has(e.to))
         .map(e => ({ from: e.from, to: e.to, gain: (typeof e.gain === 'number' ? e.gain : 1.0) }));
+    // If a pedal's saved wiring (pre/post the amp) disagrees with its CURRENT
+    // chain slot — e.g. the user flipped it pre↔post in the main UI — the cached
+    // graph is stale; bail so rbLoadAdvanced reseeds the graph from the chain and
+    // the editor reflects the real routing.
+    const ampNodes = nodes.filter(n => n.kind === 'gear' && (n.kindLabel || '').toLowerCase() === 'amp');
+    if (ampNodes.length) {
+        for (const n of nodes) {
+            if (n.kind !== 'gear' || (n.kindLabel || '').toLowerCase() !== 'pedal') continue;
+            const p = chain[n.pieceIdx]; if (!p) continue;
+            const slot = (p.slot || '').toLowerCase();
+            const isPre = ampNodes.some(a => rbAdvReaches(n.id, a.id));
+            const isPost = ampNodes.some(a => rbAdvReaches(a.id, n.id));
+            if ((slot === 'pre_pedal' && isPost && !isPre) || (slot === 'post_pedal' && isPre && !isPost)) {
+                adv.nodes = []; adv.edges = []; return false;
+            }
+        }
+    }
     adv.seeded = true;
     rbAdvRenderCanvas();
     return true;
@@ -12679,6 +12696,7 @@ function rbAdvDeleteEdge(idx) {
     adv.edges.splice(idx, 1);
     rbAdvRenderCanvas();
     rbAdvPersist();
+    rbAdvApplyTopologyToChain();
     rbAdvSyncAudio();
 }
 
@@ -12701,6 +12719,38 @@ function rbAdvAttachNodeHandlers() {
         const edit = ev.target.closest('.rb-adv-node-edit');
         if (edit) { ev.preventDefault(); ev.stopPropagation(); rbAdvEditNode(+edit.dataset.advEdit); }
     });
+    // Double-click a gear node → bypass it (acts as a passthrough wire; goes grey).
+    layer.addEventListener('dblclick', ev => {
+        if (ev.target.closest('.rb-adv-node-del, .rb-adv-node-edit, .rb-adv-jack')) return;
+        const nodeEl = ev.target.closest('.rb-adv-node');
+        if (nodeEl) rbAdvToggleBypass(+nodeEl.dataset.advNode);
+    });
+}
+
+// Toggle a gear node's bypass: the piece is skipped (signal passes through like a
+// cable) and the node greys out (saturation 0). Persists + greys it in the room.
+async function rbAdvToggleBypass(id) {
+    const adv = rbAdvState();
+    const n = adv.nodes.find(x => x.id === id);
+    if (!n || n.kind !== 'gear') return;
+    n.bypassed = !n.bypassed;
+    let piece = null;
+    if (typeof n.pieceIdx === 'number' && n.pieceIdx >= 0) {
+        piece = rbStudioCurrentChain()[n.pieceIdx];
+        if (piece) piece._bypassed = n.bypassed;
+    }
+    rbAdvRenderCanvas();
+    rbAdvPersist();
+    // Live bypass on the engine slot (best effort — only if the monitor is loaded).
+    try {
+        const api = window.slopsmithDesktop && window.slopsmithDesktop.audio;
+        if (api && piece && typeof api.setBypass === 'function') {
+            const slotId = await rbStudioChainSlotIdForPiece(api, n.pieceIdx);
+            if (slotId != null) await api.setBypass(slotId, n.bypassed);
+        }
+    } catch (_) {}
+    try { await rbStudioPersist(); } catch (_) {}
+    try { rbRenderStudioRoom(); } catch (_) {}
 }
 
 // Edit a node's VST knobs IN PLACE in Advanced: open a floating card with the
@@ -12876,6 +12926,40 @@ function rbAdvReaches(fromId, toId) {
     return false;
 }
 
+// Derive each pedal's pre/post-amp slot from the GRAPH topology (the node editor
+// is the routing source of truth) and write it back onto the chain piece, so a
+// pedal wired BEFORE the amp shows as pre-amp in the room — not always post-amp,
+// which is what rbAdvMaterializeGear defaults a fresh drop to. Returns true if a
+// slot changed. A pedal that reaches an amp = pre; an amp that reaches it = post.
+function rbAdvSyncPedalSlots() {
+    const adv = rbAdvState();
+    const ampNodes = adv.nodes.filter(n => n.kind === 'gear' && (n.kindLabel || '').toLowerCase() === 'amp');
+    if (!ampNodes.length) return false;
+    const chain = rbStudioCurrentChain();
+    let changed = false;
+    adv.nodes.forEach(n => {
+        if (n.kind !== 'gear' || (n.kindLabel || '').toLowerCase() !== 'pedal') return;
+        if (typeof n.pieceIdx !== 'number' || n.pieceIdx < 0) return;
+        const piece = chain[n.pieceIdx];
+        if (!piece) return;
+        const isPre = ampNodes.some(a => rbAdvReaches(n.id, a.id));
+        const isPost = ampNodes.some(a => rbAdvReaches(a.id, n.id));
+        let slot = piece.slot;
+        if (isPre && !isPost) slot = 'pre_pedal';
+        else if (isPost && !isPre) slot = 'post_pedal';   // ambiguous/parallel → leave as-is
+        if (slot !== piece.slot) { piece.slot = slot; changed = true; }
+    });
+    return changed;
+}
+// Push graph-derived routing (pedal pre/post slots) into the chain + persist +
+// repaint the room. Call after any edge change.
+function rbAdvApplyTopologyToChain() {
+    if (rbAdvSyncPedalSlots()) {
+        try { rbStudioPersist(); } catch (_) {}
+        try { rbRenderStudioRoom(); } catch (_) {}
+    }
+}
+
 function rbAdvConnect(fromId, toId) {
     const adv = rbAdvState();
     if (fromId === toId) return;
@@ -12886,6 +12970,7 @@ function rbAdvConnect(fromId, toId) {
     adv.edges.push({ from: fromId, to: toId, gain: 1.0 });
     rbAdvRenderCanvas();
     rbAdvPersist();
+    rbAdvApplyTopologyToChain();
     rbAdvSyncAudio();
 }
 
@@ -12998,6 +13083,7 @@ window.rbAdvPaletteRender = rbAdvPaletteRender;
 window.rbAdvAutoLayout = rbAdvAutoLayout;
 window.rbAdvResetToChain = rbAdvResetToChain;   // already auto-layouts + renders (+ persists)
 window.rbAdvDeleteNode = rbAdvDeleteNode;
+window.rbAdvToggleBypass = rbAdvToggleBypass;
 window.rbAdvEditNode = rbAdvEditNode;
 window.rbAdvCloseEditor = rbAdvCloseEditor;
 window.rbAdvZoom = rbAdvZoom;
