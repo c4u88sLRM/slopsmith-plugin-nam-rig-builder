@@ -283,7 +283,7 @@
     /* top face = the box's roof; lies back from the top edge (rotateX -90) so the
        slightly-elevated camera sees the amp's top. Opaque (no transparent stop)
        or it looks see-through. Hidden when an amp is focused/flat. */
-    .rb-amp-stack::after{ content:''; position:absolute; top:2px; left:0; width:100%; height:60px;
+    .rb-amp-stack::after{ content:''; position:absolute; top:1.5px; left:0; width:100%; height:60px;
         transform-origin:top center; transform:rotateX(-90deg);
         background:linear-gradient(180deg,#363b44,#23272e); border-radius:3px 3px 0 0;
         box-shadow:inset 0 0 30px rgba(0,0,0,.45); transition:opacity .35s ease; }
