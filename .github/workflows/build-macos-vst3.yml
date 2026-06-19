@@ -30,6 +30,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install dependencies
+        run: |
+          brew install pkgconf
+
       - name: Clone DPF (with submodules — pugl is needed for the DGL UI)
         run: |
           git clone --depth 1 --branch "${{ github.event.inputs.dpf_ref }}" \
@@ -43,6 +47,8 @@ jobs:
           ARCHS="-arch x86_64 -arch arm64"
           # Seven effect Makefiles hardcode `include ../../DPF/...` (ignoring
           # DPF_PATH), so expose DPF at the relative path they expect: vst/DPF.
+          # Without this, ampeq/basseq8/eq5/eq8/studiocomp/studioeq/studiographiceq
+          # can't find DPF and fail to build.
           ln -sfn "$DPF" "$GITHUB_WORKSPACE/vst/DPF"
           cd "$GITHUB_WORKSPACE/vst/src"
           # Post-reorg the effects moved to <cat>/<name>/ and 110+ of them include
@@ -57,13 +63,18 @@ jobs:
           fail=""
           build() {
             ( cd "$1" && rm -rf build bin \
-                && make -j3 DPF_PATH="$DPF" DPF_BUILD_DIR="$PWD/build" DPF_TARGET_DIR="$PWD/bin" \
+                && make -j$(sysctl -n hw.ncpu) DPF_PATH="$DPF" DPF_BUILD_DIR="$PWD/build" DPF_TARGET_DIR="$PWD/bin" \
                         CFLAGS="$ARCHS" CXXFLAGS="$ARCHS" LDFLAGS="$ARCHS" vst3 ) \
               || fail="$fail $1"
           }
           # root Makefile builds AutoSweep (the QTron envelope filter)
-          [ -f Makefile ] && build .
-          for mk in */Makefile; do
+          if [ -f Makefile ]; then
+            echo "==== building root (AutoSweep) ===="
+            build .
+          fi
+          # Effects are now TWO levels deep: <cat>/<name>/Makefile (was */Makefile,
+          # which matched nothing post-reorg -> "FAILED DIRS: *").
+          for mk in */*/Makefile; do
             d=$(dirname "$mk")
             case "$d" in DPF/*|*/DPF|*/_shared|*/mark_shared|RBFinalLeveler/*|*/build) continue;; esac
             echo "==== building $d ===="
@@ -174,23 +185,39 @@ jobs:
             built=$(basename "$(dirname "$(dirname "$macbin")")")   # <Name>.vst3
             name="${built%.vst3}"
             bundle=$(alias_of "$built")
-            if [ -d "vst/$bundle" ]; then
-              cp -f "$macbin/$name" "vst/$bundle/Contents/MacOS/$name"
-              codesign --force --sign - "vst/$bundle" || true
+            # Committed bundles moved into vst/{amps,pedals,racks}/ (the reorg),
+            # so search those subdirs, not the old flat vst/<bundle>.
+            dst=""
+            for cat in amps pedals racks; do
+              [ -d "vst/$cat/$bundle" ] && dst="vst/$cat/$bundle" && break
+            done
+            if [ -n "$dst" ]; then
+              cp -f "$macbin/$name" "$dst/Contents/MacOS/$name"
+              codesign --force --sign - "$dst" || true
               echo "injected: $built -> $bundle"
               count=$((count+1))
             else
-              echo "WARNING: built $built but no committed bundle vst/$bundle"
+              echo "WARNING: built $bundle but no committed bundle vst/{amps,pedals,racks}/$bundle"
             fi
           done < <(find vst/src -type d -path '*/bin/*.vst3/Contents/MacOS')
           echo "injected $count bundles"
+
+      - name: Verify universal binaries
+        run: |
+          echo "Verifying universal binary architectures:"
+          find vst -type f -path '*/Contents/MacOS/*' ! -name '*.dylib' | while read -r binary; do
+            if file "$binary" | grep -q "Mach-O"; then
+              archs=$(file "$binary" | grep -oE '(x86_64|arm64)' | sort -u | tr '\n' '/' | sed 's/\/$//')
+              echo "$binary: $archs"
+            fi
+          done
 
       - name: Commit the macOS binaries
         run: |
           cd "$GITHUB_WORKSPACE"
           git config user.name  "macos-vst-bot"
           git config user.email "macos-vst-bot@users.noreply.github.com"
-          git add 'vst/*/Contents/MacOS/*' 'vst/*/Contents/_CodeSignature/*' || true
+          git add 'vst/*/*/Contents/MacOS/*' 'vst/*/*/Contents/_CodeSignature/*' || true
           if git diff --cached --quiet; then
             echo "No macOS binaries to commit (check the build log for failures)."
           else
