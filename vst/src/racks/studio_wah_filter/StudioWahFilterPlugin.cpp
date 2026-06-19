@@ -6,7 +6,7 @@
 #include "DistrhoPlugin.hpp"
 #include "StudioWahFilterParams.h"
 #include <cmath>
-#include "../_shared/automakeup.hpp"
+#include "../../_shared/automakeup.hpp"
 START_NAMESPACE_DISTRHO
 class WahCh {
     float fs=48000.f; float ic1=0.f,ic2=0.f,env=0.f,atk=0.f,rel=0.f;

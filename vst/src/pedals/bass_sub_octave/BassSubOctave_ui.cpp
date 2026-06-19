@@ -1,7 +1,7 @@
 /* BassSubOctave UI — copyright-free recreation of the classic brown analog
  * octaver compact it models: Chief-style enclosure, 2 knobs (the RS count). No name. */
 #include "BassSubOctaveParams.h"
-#include "../_shared/pedalkit.hpp"
+#include "../../_shared/pedalkit.hpp"
 START_NAMESPACE_DISTRHO
 class BassSubOctaveUI : public PedalKitUI {
 public:

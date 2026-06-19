@@ -13,7 +13,7 @@
  */
 #include "DistrhoPlugin.hpp"
 #include "BassOverdriveParams.h"
-#include "../_shared/automakeup.hpp"
+#include "../../_shared/automakeup.hpp"
 #include <cmath>
 
 START_NAMESPACE_DISTRHO

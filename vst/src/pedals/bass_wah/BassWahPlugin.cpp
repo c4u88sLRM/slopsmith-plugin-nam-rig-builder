@@ -13,7 +13,7 @@
 #include "DistrhoPlugin.hpp"
 #include "BassWahParams.h"
 #include <cmath>
-#include "../_shared/automakeup.hpp"
+#include "../../_shared/automakeup.hpp"
 
 START_NAMESPACE_DISTRHO
 

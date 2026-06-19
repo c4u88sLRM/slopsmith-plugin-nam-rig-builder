@@ -1,7 +1,7 @@
 /* BassPhase UI — copyright-free analog phaser look: copper box, 4 knobs in a row
  * (RS count: Rate/Depth/Mix/Filter), condensed wordmark. */
 #include "BassPhaseParams.h"
-#include "../_shared/pedalkit.hpp"
+#include "../../_shared/pedalkit.hpp"
 START_NAMESPACE_DISTRHO
 class BassPhaseUI : public PedalKitUI {
 public:

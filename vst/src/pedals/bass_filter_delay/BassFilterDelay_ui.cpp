@@ -1,7 +1,7 @@
 /* BassFilterDelay UI — copyright-free recreation of the classic analog BBD delay
  * compact it models: Chief-style enclosure, 4 knobs (RS count). No name. */
 #include "BassFilterDelayParams.h"
-#include "../_shared/pedalkit.hpp"
+#include "../../_shared/pedalkit.hpp"
 START_NAMESPACE_DISTRHO
 class BassFilterDelayUI : public PedalKitUI {
 public:
