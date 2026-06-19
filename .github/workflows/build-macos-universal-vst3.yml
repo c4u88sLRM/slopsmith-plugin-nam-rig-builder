@@ -66,6 +66,7 @@ jobs:
                 && make -j$(sysctl -n hw.ncpu) \
                   CFLAGS="-arch $target_arch" \
                   CXXFLAGS="-arch $target_arch" \
+                  LDFLAGS="-arch $target_arch" \
                   DPF_PATH="$DPF" \
                   DPF_BUILD_DIR="$PWD/build-$target_arch" \
                   DPF_TARGET_DIR="$PWD/bin-$target_arch" \
