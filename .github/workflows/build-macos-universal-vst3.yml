@@ -62,6 +62,8 @@ jobs:
           build() {
             local target_arch="$1"
             local plugin_dir="$2"
+            # Clean DPF build for this architecture to ensure fresh rebuild of DGL
+            rm -rf "$DPF/build-$target_arch"
             ( cd "$plugin_dir" && rm -rf "build-$target_arch" "bin-$target_arch" \
                 && make -j$(sysctl -n hw.ncpu) \
                   CFLAGS="-arch $target_arch" \
