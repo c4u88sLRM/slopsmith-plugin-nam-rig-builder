@@ -18,6 +18,20 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
+		<key>x86_64-linux/StudioChorus.so</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			p8SLyg9nVplcKNlJ7u4xBU12dv7dlzsOzLTPGgkxK2s=
+			</data>
+		</dict>
+		<key>x86_64-win/StudioChorus.vst3</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			6uNqcoD5b4fbVLpNSGW5Rp4nvDouVrORKCttWhu9vXQ=
+			</data>
+		</dict>
 	</dict>
 	<key>rules</key>
 	<dict>

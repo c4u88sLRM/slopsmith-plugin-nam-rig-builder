@@ -18,6 +18,20 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
+		<key>x86_64-linux/RotaVibe.so</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			UI0tDLVJ+0Q9ME+Av/mwHjFhThsVHDbebfvlXgYqZWg=
+			</data>
+		</dict>
+		<key>x86_64-win/RotaVibe.vst3</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			9R9DUxrYc3gDkwSuN15wWvcPFsI9iaJyxFXQ1BHHHpk=
+			</data>
+		</dict>
 	</dict>
 	<key>rules</key>
 	<dict>

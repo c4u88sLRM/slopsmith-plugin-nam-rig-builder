@@ -18,6 +18,20 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
+		<key>x86_64-linux/SharkeHB3500.so</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			CSBRmrl+9LSLKbzR+Pb/ctXhakNk1IdXv8XLcJvA6y4=
+			</data>
+		</dict>
+		<key>x86_64-win/SharkeHB3500.vst3</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			eoV6h8Ffui04ipBuVYW+NttRNKR5cW10rtQQ1iptis8=
+			</data>
+		</dict>
 	</dict>
 	<key>rules</key>
 	<dict>

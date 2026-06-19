@@ -18,6 +18,20 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
+		<key>x86_64-linux/StudioVerb.so</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			5ZjNwHvsf/XlPQGVQowj/DxbDWa0mnRT4bAgVG3IofA=
+			</data>
+		</dict>
+		<key>x86_64-win/StudioVerb.vst3</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			xgZqigjPAPW+fB3Cls9Le9AINa8DtngBrLW+jPXIw6E=
+			</data>
+		</dict>
 	</dict>
 	<key>rules</key>
 	<dict>

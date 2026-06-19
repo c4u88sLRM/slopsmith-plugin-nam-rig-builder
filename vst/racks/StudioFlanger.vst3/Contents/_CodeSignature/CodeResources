@@ -18,6 +18,20 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
+		<key>x86_64-linux/StudioFlanger.so</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			65xPm+qntjuSUNPD0I4dtuIx1BZVAMNkJL+F9ILabBc=
+			</data>
+		</dict>
+		<key>x86_64-win/StudioFlanger.vst3</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			NtSOEV53TUHcNpkU3H0jT5MG7t1HjDnJqfoNDcKU4tI=
+			</data>
+		</dict>
 	</dict>
 	<key>rules</key>
 	<dict>
