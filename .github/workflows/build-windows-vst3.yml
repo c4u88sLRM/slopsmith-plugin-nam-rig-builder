@@ -58,7 +58,10 @@ jobs:
           # "../_shared/...". After the split that must resolve to <cat>/_shared,
           # so symlink _shared into each category dir.
           for cat in amps pedals racks; do
-            [ -d "$cat" ] && [ -d _shared ] && ln -sfn ../_shared "$cat/_shared"
+            if [ -d "$cat" ] && [ -d _shared ]; then
+              rm -f "$cat/_shared"
+              ln -sfn ../_shared "$cat/_shared" || echo "Warning: could not link $cat/_shared"
+            fi
           done
           fail=""
           # Set DPF_BUILD_DIR/DPF_TARGET_DIR explicitly: with an absolute
