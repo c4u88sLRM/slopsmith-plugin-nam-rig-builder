@@ -44,7 +44,8 @@ class GraphicEqChannel {
     float g[kEqBands];          // band contribution = 10^(dB/20) - 1
     float fs;
 public:
-    GraphicEqChannel() { fs = 48000.f; for (int i = 0; i < kEqBands; ++i) { g[i] = 0.f; bp[i].reset(); } recalc(); }
+    GraphicEqChannel() { fs = 48000.f; for (int i = 0; i < kEqBands; ++i) { g[i] = 0.f; bp[i].reset(); }
+    recalc(); }
     void setSampleRate(float s) { fs = (s > 0.f) ? s : 48000.f; recalc(); }
     void setGainDb(int i, float db) { g[i] = powf(10.0f, db / 20.0f) - 1.0f; }
     void recalc() { for (int i = 0; i < kEqBands; ++i) bp[i].set(kEqFreqs[i], EQ_Q, fs); }

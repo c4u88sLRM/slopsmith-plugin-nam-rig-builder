@@ -16,7 +16,8 @@
  *
  * the game (Amp_AT120): the lead channel (B) is the iconic voice, so RS Gain ->
  * CHANNEL B Gain, Bass/Mid/Treble -> Channel B Low/Mid/High. Channel pinned to B
- * + reverb/chorus OFF for songs (RS adds those) via _static; all editable by hand.
+ * + reverb/chorus OFF for
+ songs (RS adds those) via _static; all editable by hand.
  */
 enum Vh140ParamId
 {

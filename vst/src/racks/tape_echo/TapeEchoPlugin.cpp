@@ -41,7 +41,8 @@ public:
         wowPh+=wowInc; if(wowPh>6.2831853f)wowPh-=6.2831853f;
         flutPh+=flutInc; if(flutPh>6.2831853f)flutPh-=6.2831853f;
         const float mod = wowD*std::sin(wowPh) + flutD*std::sin(flutPh);
-        float rp=(float)w - smooth - mod; while(rp<0.f)rp+=(float)kMaxDelay; while(rp>=(float)kMaxDelay)rp-=(float)kMaxDelay;
+        float rp=(float)w - smooth - mod; while(rp<0.f)rp+=(float)kMaxDelay;
+        while(rp>=(float)kMaxDelay)rp-=(float)kMaxDelay;
         int i0=(int)rp; float fr=rp-(float)i0; int i1=i0+1; if(i1>=kMaxDelay)i1-=kMaxDelay;
         float wet = buf[i0] + fr*(buf[i1]-buf[i0]);
         lpZ += cLP*(wet-lpZ); wet=lpZ;

@@ -16,8 +16,10 @@ class RotorTap {
 public:
     void setSR(float s){ fs=s; std::memset(buf,0,sizeof(buf)); w=0; }
     inline float proc(float x, float delaySamp){
-        buf[w]=x; float rp=(float)w-delaySamp; while(rp<0)rp+=kRBuf; int i0=(int)rp; float fr=rp-i0; int i1=(i0+1)%kRBuf;
-        float y=buf[i0]+fr*(buf[i1]-buf[i0]); if(++w>=kRBuf)w=0; return y; }
+        buf[w]=x; float rp=(float)w-delaySamp; while(rp<0)rp+=kRBuf;
+        int i0=(int)rp; float fr=rp-i0; int i1=(i0+1)%kRBuf;
+        float y=buf[i0]+fr*(buf[i1]-buf[i0]); if(++w>=kRBuf)w=0;
+        return y; }
 };
 class RotaVibePlugin : public Plugin {
     float fs=48000.f; float xoLP=0.f, cXo=0.1f;          // crossover state

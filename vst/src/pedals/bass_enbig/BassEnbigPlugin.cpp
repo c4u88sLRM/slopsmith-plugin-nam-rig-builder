@@ -34,7 +34,8 @@ public:
         lfoPhase += lfoInc; if (lfoPhase > 6.2831853f) lfoPhase -= 6.2831853f;
         const float lfo = std::sin(lfoPhase);                   // -1 .. 1
         float fc = baseFc * std::pow(2.0f, lfo * depthOct);
-        if (fc < 40.f) fc = 40.f; const float nyq = fs * 0.45f; if (fc > nyq) fc = nyq;
+        if (fc < 40.f) fc = 40.f;
+        const float nyq = fs * 0.45f; if (fc > nyq) fc = nyq;
 
         const float g = std::tan(3.14159265f * fc / fs);
         const float k = 1.0f / Q;

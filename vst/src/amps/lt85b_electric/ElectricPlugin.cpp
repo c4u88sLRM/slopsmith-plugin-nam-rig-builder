@@ -18,7 +18,8 @@
 START_NAMESPACE_DISTRHO
 
 static inline float rbAmpLvl(float x){ const float t=0.90f,c=0.99f,a=(x<0.f?-x:x);
-    if(a<=t) return x; return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
+    if(a<=t) return x;
+    return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
 static inline float softClip(float x) { return std::tanh(x); }
 
 // ── RBJ biquad — 6-band EQ peaks + sweepable notch ───────────────────────────
@@ -65,7 +66,8 @@ public:
         gain = (0.5f + p[kGain] * 3.5f) * pad;
         notchOn = p[kNotchOn] > 0.5f;
         const float nfc = 50.f * std::pow(60.0f, p[kNotchFreq]);     // 50 Hz .. 3 kHz
-        if (notchOn) notch.setNotch(nfc, 3.0f, fs); else notch.setBypass();
+        if (notchOn) notch.setNotch(nfc, 3.0f, fs);
+        else notch.setBypass();
         for (int i=0;i<kNumEq;++i)
             eq[i].setPeak(kEqFreqs[i], (p[kFirstEq+i]-0.5f)*30.f, 0.9f, fs);   // +/-15 dB
         volume = p[kVolume] / 0.7f;

@@ -610,7 +610,8 @@ public:
         const float s = (sr > 1000.0f ? sr : 48000.0f) / 48000.0f;
         n0 = (int)(225 * s); n1 = (int)(341 * s); n2 = (int)(441 * s);
         nc0 = (int)(1617 * s); nc1 = (int)(1991 * s);
-        if (nc0 > 3599) nc0 = 3599; if (nc1 > 3599) nc1 = 3599;
+        if (nc0 > 3599) nc0 = 3599;
+        if (nc1 > 3599) nc1 = 3599;
         inHp.setHighPass(sr, 220.0f, 0.7f);     // springs roll off the lows
         inLp.setLowPass(sr, 5000.0f, 0.7f);     // and the highs ("boing"); headroom
                                                 // for the bright Reverb Tone tap

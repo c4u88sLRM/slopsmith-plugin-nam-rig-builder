@@ -29,7 +29,8 @@ START_NAMESPACE_DISTRHO
 // amp to the common multitone loudness; the soft knee is transparent below
 // +/-0.90 and saturates to a +/-0.99 ceiling so EQ boosts never hard-clip.
 static inline float rbAmpLvl(float x){ const float t=0.90f,c=0.99f,a=(x<0.f?-x:x);
-    if(a<=t) return x; return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
+    if(a<=t) return x;
+    return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
 
 namespace {
 

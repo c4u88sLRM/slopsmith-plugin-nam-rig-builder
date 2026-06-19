@@ -37,7 +37,8 @@ class QTronUI : public UI
         const float v = fValues[i];
         if (i == kMode) {
             const char* nm[3] = { "LOW PASS", "BAND PASS", "HIGH PASS" };
-            int m = (int)(v + 0.5f); if (m < 0) m = 0; if (m > 2) m = 2;
+            int m = (int)(v + 0.5f); if (m < 0) m = 0;
+            if (m > 2) m = 2;
             std::snprintf(buf, n, "%s", nm[m]);
         } else if (i == kRange) {
             std::snprintf(buf, n, "%s", v < 0.10f ? "LOW" : v < 0.80f ? "MID" : "HIGH");

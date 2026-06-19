@@ -36,7 +36,8 @@ struct RackKnob { float cx, cy, r; };
 static const RackKnob kRackKnobs[RACK_COUNT] = RACK_KNOBS;
 
 #ifdef RACK_NO_DEFS
-struct RackDefFill { float v[RACK_COUNT]; RackDefFill(){ for (int i=0;i<RACK_COUNT;++i) v[i]=0.5f; } };
+struct RackDefFill { float v[RACK_COUNT]; RackDefFill(){ for (int i=0;i<RACK_COUNT;++i) v[i]=0.5f;
+} };
 static const RackDefFill kRackDefFill;
 #define RACK_DEFS kRackDefFill.v
 #endif
@@ -143,7 +144,8 @@ protected:
         if (fDrag >= 0) {
             const double dy = fLastY - ev.pos.getY(); fLastY = ev.pos.getY();
             fDragVal += (float)dy / (170.0f * scale());
-            if (fDragVal < 0.f) fDragVal = 0.f; if (fDragVal > 1.f) fDragVal = 1.f;
+            if (fDragVal < 0.f) fDragVal = 0.f;
+            if (fDragVal > 1.f) fDragVal = 1.f;
             fValues[fDrag] = fDragVal; setParameterValue(fDrag, fDragVal); repaint();
             return true;
         }

@@ -70,7 +70,8 @@ public:
 class Biquad {
     float b0 = 1.0f, b1 = 0.0f, b2 = 0.0f, a1 = 0.0f, a2 = 0.0f, z1 = 0.0f, z2 = 0.0f;
     void set(float nb0, float nb1, float nb2, float na0, float na1, float na2) {
-        if (std::fabs(na0) < 1.0e-12f) na0 = 1.0f; const float k = 1.0f / na0;
+        if (std::fabs(na0) < 1.0e-12f) na0 = 1.0f;
+        const float k = 1.0f / na0;
         b0 = nb0 * k; b1 = nb1 * k; b2 = nb2 * k; a1 = na1 * k; a2 = na2 * k;
     }
 public:

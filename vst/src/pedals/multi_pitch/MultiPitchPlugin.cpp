@@ -4,7 +4,8 @@
  *
  * Local reference: pedals/multipitch.pdf. The schematic shows an MF-102 style
  * preamp, carrier oscillator, LFO and LM13600 balanced modulator. the game
- * exposes Pitch1, Tone and Mix; Pitch1 drives the carrier pitch while Tone
+ * exposes Pitch1, Tone and Mix; Pitch1 drives the carrier pitch while
+ Tone
  * voices carrier shape and LFO amount.
  */
 #include "DistrhoPlugin.hpp"

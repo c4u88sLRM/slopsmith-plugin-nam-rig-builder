@@ -2,7 +2,8 @@
  * strip with the CITRUS logo + RUMBLEVERB 50, a black control panel with the
  * Clean (Vol/Bass/Treble) + Dirty (Gain/Bass/Mid/Treble/Vol) channels, Reverb,
  * Output and the channel switch. (The in-app face is the canvas spec in
- * pedal_canvas.js; this native UI is only for standalone/host use.) Knobs
+ * pedal_canvas.js; this native UI is only for
+ standalone/host use.) Knobs
  * vertical-drag; Channel toggles on click. */
 #include "DistrhoUI.hpp"
 #include "RumbleverbParams.h"
@@ -77,7 +78,8 @@ class RumbleverbUI : public UI {
     bool onMotion(const MotionEvent& ev) override {
         if (fDrag<0) return false;
         const float dy=(float)(fLastY-ev.pos.getY());
-        float v=fDragVal+dy/200.0f; if(v<0)v=0; if(v>1)v=1;
+        float v=fDragVal+dy/200.0f; if(v<0)v=0;
+        if(v>1)v=1;
         fValues[fDrag]=v; setParameterValue((uint32_t)fDrag,v); repaint(); return true;
     }
 
