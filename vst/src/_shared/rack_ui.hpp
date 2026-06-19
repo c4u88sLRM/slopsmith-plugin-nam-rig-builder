@@ -44,10 +44,10 @@ static const RackDefFill kRackDefFill;
 
 class RackUI : public UI
 {
-    float  fValues[RACK_COUNT];
     int    fDrag;
     double fLastY;
     float  fDragVal;
+    float  fValues[RACK_COUNT];
 
     float scale() const { return getWidth() / (float)RACK_W; }
     float kx(int i) const { return getWidth()  * kRackKnobs[i].cx; }
