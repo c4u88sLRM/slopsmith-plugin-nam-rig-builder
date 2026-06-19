@@ -29,8 +29,8 @@ protected:
     int  nctl = 0;
     const char* const* names_ = nullptr;
     float fValues[kMaxCtl];
-    int  nParams_ = 0;
     int  baseW_, baseH_;
+    int  nParams_ = 0;
     int  fDrag = -1;
     double fLastY = 0;
     float fDragVal = 0.f;
