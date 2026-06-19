@@ -18,6 +18,20 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
+		<key>x86_64-linux/StudioWahFilter.so</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			mM749krt4oRkiPFoEQRGGRQaY6DHf00K6eEXy4QttYs=
+			</data>
+		</dict>
+		<key>x86_64-win/StudioWahFilter.vst3</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			sMlfDc6wo1z428LMwth0i8TwL5TQqmtYQE5DV7hotz8=
+			</data>
+		</dict>
 	</dict>
 	<key>rules</key>
 	<dict>

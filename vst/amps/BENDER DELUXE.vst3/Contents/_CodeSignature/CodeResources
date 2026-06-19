@@ -18,6 +18,20 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
+		<key>x86_64-linux/BENDER DELUXE.so</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			HYJZ1oEL63i3rZEesLda5ihjad6SsP8rCu7k0vZZCr4=
+			</data>
+		</dict>
+		<key>x86_64-win/BENDER DELUXE.vst3</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			h4bUu2378V4+ZKQ0N7mN49y4A//a3wmKSJROo66L1Qc=
+			</data>
+		</dict>
 	</dict>
 	<key>rules</key>
 	<dict>

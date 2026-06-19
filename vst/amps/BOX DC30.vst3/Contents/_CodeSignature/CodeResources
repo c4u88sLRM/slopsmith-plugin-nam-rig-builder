@@ -18,6 +18,20 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
+		<key>x86_64-linux/BOX DC30.so</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			LOC+kfbumE5s5918KiecPw/hAwfFputFsMQ5sLBUX94=
+			</data>
+		</dict>
+		<key>x86_64-win/BOX DC30.vst3</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			Nqr/5cwkZQjadrae6BtIl5fIdMVaxBROJ6ODY30bR4k=
+			</data>
+		</dict>
 	</dict>
 	<key>rules</key>
 	<dict>
