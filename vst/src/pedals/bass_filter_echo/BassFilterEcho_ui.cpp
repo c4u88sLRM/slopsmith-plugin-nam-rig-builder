@@ -1,7 +1,7 @@
 /* BassFilterEcho UI — copyright-free vintage tape-echo look: dark maroon box,
  * 4 knobs in a row (Time/Feedback/Mix/Filter), gold wordmark. */
 #include "BassFilterEchoParams.h"
-#include "../_shared/pedalkit.hpp"
+#include "../../_shared/pedalkit.hpp"
 START_NAMESPACE_DISTRHO
 class BassFilterEchoUI : public PedalKitUI {
     static const int GR=212,GG=176,GB=104;       // gold

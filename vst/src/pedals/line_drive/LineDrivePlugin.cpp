@@ -8,7 +8,7 @@
  */
 #include "DistrhoPlugin.hpp"
 #include "LineDriveParams.h"
-#include "../_shared/automakeup.hpp"
+#include "../../_shared/automakeup.hpp"
 #include <cmath>
 
 START_NAMESPACE_DISTRHO

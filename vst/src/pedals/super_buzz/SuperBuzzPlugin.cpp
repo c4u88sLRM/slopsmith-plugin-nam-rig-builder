@@ -6,7 +6,7 @@
  */
 #include "DistrhoPlugin.hpp"
 #include "SuperBuzzParams.h"
-#include "../_shared/automakeup.hpp"
+#include "../../_shared/automakeup.hpp"
 #include <cmath>
 
 START_NAMESPACE_DISTRHO

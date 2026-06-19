@@ -13,4 +13,4 @@
 #define RACK_KNOBS { \
     {0.160f,0.40f,0.023f}, {0.265f,0.40f,0.023f}, {0.370f,0.40f,0.023f}, {0.475f,0.40f,0.023f}, \
     {0.215f,0.72f,0.023f}, {0.320f,0.72f,0.023f}, {0.425f,0.72f,0.023f} }
-#include "../_shared/rack_ui.hpp"
+#include "../../_shared/rack_ui.hpp"

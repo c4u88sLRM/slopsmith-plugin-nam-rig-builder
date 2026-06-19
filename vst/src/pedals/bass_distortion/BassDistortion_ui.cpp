@@ -4,7 +4,7 @@
  * black knobs with a white tick fan + white pointer, and a big boxed wordmark in
  * the centre. Heavy display font for the wordmark. No brand/model name. */
 #include "BassDistortionParams.h"
-#include "../_shared/pedalkit.hpp"
+#include "../../_shared/pedalkit.hpp"
 
 START_NAMESPACE_DISTRHO
 

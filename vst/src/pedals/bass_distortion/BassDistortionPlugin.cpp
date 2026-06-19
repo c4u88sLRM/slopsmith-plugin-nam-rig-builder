@@ -11,7 +11,7 @@
  */
 #include "DistrhoPlugin.hpp"
 #include "BassDistortionParams.h"
-#include "../_shared/automakeup.hpp"
+#include "../../_shared/automakeup.hpp"
 #include <cmath>
 
 START_NAMESPACE_DISTRHO

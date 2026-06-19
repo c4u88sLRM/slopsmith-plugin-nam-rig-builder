@@ -1,7 +1,7 @@
 /* BassFlanger UI — copyright-free recreation of the bass-flanger compact it
  * models: Chief-style enclosure, 4 knobs (RS count). No name. */
 #include "BassFlangerParams.h"
-#include "../_shared/pedalkit.hpp"
+#include "../../_shared/pedalkit.hpp"
 START_NAMESPACE_DISTRHO
 class BassFlangerUI : public PedalKitUI {
 public:
