@@ -63,10 +63,11 @@ jobs:
             local target_arch="$1"
             local plugin_dir="$2"
             ( cd "$plugin_dir" && rm -rf "build-$target_arch" "bin-$target_arch" \
-                && make -j$(sysctl -n hw.ncpu) DPF_PATH="$DPF" \
+                && make -j$(sysctl -n hw.ncpu) MACOS_ARCHITECTURES="$target_arch" \
+                  DPF_PATH="$DPF" \
                   DPF_BUILD_DIR="$PWD/build-$target_arch" \
                   DPF_TARGET_DIR="$PWD/bin-$target_arch" \
-                  MACOS_ARCHITECTURES="$target_arch" vst3 ) \
+                  vst3 ) \
               || fail="$fail $plugin_dir ($target_arch)"
           }
           build_universal() {
