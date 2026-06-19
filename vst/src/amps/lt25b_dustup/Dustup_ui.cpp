@@ -78,9 +78,12 @@ class DustupUI : public UI {
         beginPath(); moveTo(x+w*0.5f,y+hh*0.9f); lineTo(x+w*0.72f,y+hh*0.35f); stroke();
         strokeColor(Color(176,32,30)); beginPath(); moveTo(x+w*0.72f,y+hh*0.35f); lineTo(x+w*0.88f,y+hh*0.30f); stroke();
         textAlign(ALIGN_CENTER|ALIGN_BOTTOM); fontSize(7*f); fillColor(Color(40,40,44)); text(x+w*0.5f,y+hh-2*f,"VU",NULL); }
-    int knobAt(double px,double py) const { for(int i=0;i<kNumKnobs;++i){ float dx=px-W()*kKnobs[i].cx,dy=py-H()*kKnobs[i].cy,R=W()*kKnobs[i].r+6; if(dx*dx+dy*dy<=R*R) return i; } return -1; }
-    int faderAt(double px,double py) const { for(int i=0;i<kNumEq;++i){ if(std::fabs(px-eqX(i))<=10 && py>=eqY0()-10 && py<=eqY1()+10) return i; } return -1; }
-    int switchAt(double px,double py) const { for(int i=0;i<kNumSw;++i){ float hs=W()*0.009f+5; if(std::fabs(px-W()*kSwitches[i].cx)<=hs && std::fabs(py-H()*kSwitches[i].cy)<=hs) return i; } return -1; }
+    int knobAt(double px,double py) const { for(int i=0;i<kNumKnobs;++i){ float dx=px-W()*kKnobs[i].cx,dy=py-H()*kKnobs[i].cy,R=W()*kKnobs[i].r+6; if(dx*dx+dy*dy<=R*R) return i; }
+    return -1; }
+    int faderAt(double px,double py) const { for(int i=0;i<kNumEq;++i){ if(std::fabs(px-eqX(i))<=10 && py>=eqY0()-10 && py<=eqY1()+10) return i; }
+    return -1; }
+    int switchAt(double px,double py) const { for(int i=0;i<kNumSw;++i){ float hs=W()*0.009f+5; if(std::fabs(px-W()*kSwitches[i].cx)<=hs && std::fabs(py-H()*kSwitches[i].cy)<=hs) return i; }
+    return -1; }
 public:
     DustupUI() : UI(DISTRHO_UI_DEFAULT_WIDTH,DISTRHO_UI_DEFAULT_HEIGHT), fDrag(-1), fFader(-1), fLastY(0), fDragVal(0.5f) {
         loadSharedResources();

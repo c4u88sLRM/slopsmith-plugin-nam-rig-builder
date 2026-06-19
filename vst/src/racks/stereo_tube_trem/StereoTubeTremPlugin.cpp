@@ -14,7 +14,8 @@ class StereoTubeTremPlugin : public Plugin {
     static inline float shape(float ph,float w){ float s=std::sin(ph); float sq=(s>=0.f)?1.f:-1.f;
         return 0.5f+0.5f*(s*(1.0f-w)+sq*w); }
 public:
-    StereoTubeTremPlugin():Plugin(kParamCount,0,0){ for(int i=0;i<kParamCount;++i)fParams[i]=kStereoTubeTremDef[i]; recalc(); }
+    StereoTubeTremPlugin():Plugin(kParamCount,0,0){ for(int i=0;i<kParamCount;++i)fParams[i]=kStereoTubeTremDef[i];
+    recalc(); }
 protected:
     const char* getLabel() const override { return "StereoTubeTrem"; }
     const char* getDescription() const override { return "Tube tremolo"; }

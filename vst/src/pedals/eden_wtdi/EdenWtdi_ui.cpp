@@ -157,7 +157,8 @@ protected:
         if (fDrag >= 0) {
             const double dy = fLastY - ev.pos.getY(); fLastY = ev.pos.getY();
             fDragVal += (float)dy / (170.0f * scale());
-            if (fDragVal < 0.f) fDragVal = 0.f; if (fDragVal > 1.f) fDragVal = 1.f;
+            if (fDragVal < 0.f) fDragVal = 0.f;
+            if (fDragVal > 1.f) fDragVal = 1.f;
             const int id = kKnobs[fDrag].id;
             fValues[id] = fDragVal; setParameterValue(id, fDragVal); repaint();
             return true;

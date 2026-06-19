@@ -61,8 +61,10 @@ class HartkeUI : public UI {
         beginPath(); roundedRect(x-hs*0.58f,ny-hs*0.34f,hs*1.16f,hs*0.68f,2*f); fillColor(Color(150,152,156)); fill();
         textAlign(ALIGN_CENTER|ALIGN_TOP); fontSize(8*f); fillColor(Color(30,30,34)); text(x,y+hs+4*f,lbl,NULL);
     }
-    int knobAt(double px,double py) const { for(int i=0;i<kNumKnobs;++i){ float dx=px-W()*kKnobs[i].cx,dy=py-H()*kKnobs[i].cy,R=W()*kKnobs[i].r+6; if(dx*dx+dy*dy<=R*R) return i; } return -1; }
-    int faderAt(double px,double py) const { for(int i=0;i<kNumEq;++i){ if(std::fabs(px-eqX(i))<=12 && py>=eqY0()-12 && py<=eqY1()+12) return i; } return -1; }
+    int knobAt(double px,double py) const { for(int i=0;i<kNumKnobs;++i){ float dx=px-W()*kKnobs[i].cx,dy=py-H()*kKnobs[i].cy,R=W()*kKnobs[i].r+6; if(dx*dx+dy*dy<=R*R) return i; }
+    return -1; }
+    int faderAt(double px,double py) const { for(int i=0;i<kNumEq;++i){ if(std::fabs(px-eqX(i))<=12 && py>=eqY0()-12 && py<=eqY1()+12) return i; }
+    return -1; }
 public:
     HartkeUI() : UI(DISTRHO_UI_DEFAULT_WIDTH,DISTRHO_UI_DEFAULT_HEIGHT), fDrag(-1), fFader(-1), fLastY(0), fDragVal(0.5f) {
         loadSharedResources();

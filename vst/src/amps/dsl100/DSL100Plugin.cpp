@@ -28,7 +28,8 @@ START_NAMESPACE_DISTRHO
 // amp to the common multitone loudness; the soft knee is transparent below
 // +/-0.90 and saturates to a +/-0.99 ceiling so EQ boosts never hard-clip.
 static inline float rbAmpLvl(float x){ const float t=0.90f,c=0.99f,a=(x<0.f?-x:x);
-    if(a<=t) return x; return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
+    if(a<=t) return x;
+    return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
 
 namespace {
 
@@ -220,7 +221,8 @@ public:
         const float s = (sr > 1000.0f ? sr : 48000.0f) / 48000.0f;
         n0 = (int)(281 * s); n1 = (int)(401 * s); n2 = (int)(487 * s);
         nc0 = (int)(1801 * s); nc1 = (int)(2143 * s);
-        if (nc0 > 3599) nc0 = 3599; if (nc1 > 3599) nc1 = 3599;
+        if (nc0 > 3599) nc0 = 3599;
+        if (nc1 > 3599) nc1 = 3599;
         inHp.setHighPass(sr, 180.0f, 0.7f);
         inLp.setLowPass(sr, 5200.0f, 0.7f);
         clear();

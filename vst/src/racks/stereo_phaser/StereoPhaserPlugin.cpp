@@ -15,7 +15,8 @@ public:
     void setParams(float depth, float mixP){ depthOct=0.3f+depth*2.3f; mix=mixP*0.5f; baseFc=300.f; }
     inline float process(float x, float lfo){
         float fc = baseFc * std::pow(2.0f, lfo*depthOct);
-        if(fc<40.f)fc=40.f; const float nyq=fs*0.45f; if(fc>nyq)fc=nyq;
+        if(fc<40.f)fc=40.f;
+        const float nyq=fs*0.45f; if(fc>nyq)fc=nyq;
         const float t=std::tan(3.14159265f*fc/fs); const float a=(t-1.0f)/(t+1.0f);
         float s=x;
         for(int i=0;i<kStages;++i){ float in=s; s=a*in+xz[i]-a*yz[i]; xz[i]=in; yz[i]=s; }

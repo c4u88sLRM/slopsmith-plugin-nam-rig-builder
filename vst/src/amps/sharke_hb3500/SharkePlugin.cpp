@@ -23,7 +23,8 @@ START_NAMESPACE_DISTRHO
 // knee is transparent below +/-0.80 and saturates to a +/-0.98 ceiling so EQ
 // boosts never hard-clip. See AMP_LOUDNESS.md.
 static inline float rbAmpLvl(float x){ const float t=0.90f,c=0.99f,a=(x<0.f?-x:x);
-    if(a<=t) return x; return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
+    if(a<=t) return x;
+    return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
 
 class Biquad {
     float b0=1, b1=0, b2=0, a1=0, a2=0, z1=0, z2=0;
@@ -72,16 +73,22 @@ struct Mna {
     int sz, nn;
     double A[MAXN*MAXN], b[MAXN], x[MAXN];
     void init(int nN, int nX) { nn = nN; sz = nN + nX;
-        for (int i = 0; i < sz*sz; ++i) A[i] = 0.0; for (int i = 0; i < sz; ++i) b[i] = 0.0; }
+        for (int i = 0; i < sz*sz; ++i) A[i] = 0.0;
+        for (int i = 0; i < sz; ++i) b[i] = 0.0; }
     inline void stampG(int a, int bb, double g) {
         if (a>0)  { A[(a-1)*sz+(a-1)]  += g; if (bb>0) A[(a-1)*sz+(bb-1)] -= g; }
         if (bb>0) { A[(bb-1)*sz+(bb-1)]+= g; if (a>0)  A[(bb-1)*sz+(a-1)] -= g; } }
-    inline void R(int a, int bb, double r) { if (r < 1e-9) r = 1e-9; stampG(a, bb, 1.0/r); }
-    inline void Isrc(int a, int bb, double I) { if (a>0) b[a-1] -= I; if (bb>0) b[bb-1] += I; }
+    inline void R(int a, int bb, double r) { if (r < 1e-9) r = 1e-9;
+    stampG(a, bb, 1.0/r); }
+    inline void Isrc(int a, int bb, double I) { if (a>0) b[a-1] -= I;
+    if (bb>0) b[bb-1] += I; }
     inline void Vsrc(int a, double V, int k) { int r = nn+k;
-        if (a>0) { A[(a-1)*sz+r] += 1; A[r*sz+(a-1)] += 1; } b[r] = V; }
+        if (a>0) { A[(a-1)*sz+r] += 1; A[r*sz+(a-1)] += 1; }
+        b[r] = V; }
     inline void OpAmp(int np, int nnode, int no, int k) { int r = nn+k;
-        if (no>0) A[(no-1)*sz+r] += 1; if (np>0) A[r*sz+(np-1)] += 1; if (nnode>0) A[r*sz+(nnode-1)] -= 1; }
+        if (no>0) A[(no-1)*sz+r] += 1;
+        if (np>0) A[r*sz+(np-1)] += 1;
+        if (nnode>0) A[r*sz+(nnode-1)] -= 1; }
     inline void gm(int oa, int ob, int ca, int cb, double g) {
         if (oa>0) { if (ca>0) A[(oa-1)*sz+(ca-1)] += g; if (cb>0) A[(oa-1)*sz+(cb-1)] -= g; }
         if (ob>0) { if (ca>0) A[(ob-1)*sz+(ca-1)] -= g; if (cb>0) A[(ob-1)*sz+(cb-1)] += g; } }
@@ -94,7 +101,8 @@ struct Mna {
                 double t = b[col]; b[col] = b[piv]; b[piv] = t; }
             const double d = A[col*n+col];
             for (int r = 0; r < n; ++r) { if (r == col) continue; const double f = A[r*n+col]/d; if (f == 0) continue;
-                for (int c = col; c < n; ++c) A[r*n+c] -= f*A[col*n+c]; b[r] -= f*b[col]; } }
+                for (int c = col; c < n; ++c) A[r*n+c] -= f*A[col*n+c];
+                b[r] -= f*b[col]; } }
         for (int i = 0; i < n; ++i) x[i] = b[i] / A[i*n+i];
         return true; } };
 
@@ -112,7 +120,8 @@ struct Tube {
         const double MU=100, EX=1.4, KG1=1060, KP=600, KVB=300;
         if (vpk < 0) vpk = 0;
         double e1 = (vpk/KP)*std::log(1.0 + std::exp(KP*(1.0/MU + vgk/std::sqrt(KVB + vpk*vpk))));
-        if (e1 < 0) e1 = 0; return std::pow(e1, EX)/KG1*2.0; }
+        if (e1 < 0) e1 = 0;
+        return std::pow(e1, EX)/KG1*2.0; }
     inline double process(double vin) {        // vin = grid drive; returns AC plate swing
         const double Bp=300, Rp=100000, Rk=1500, h=1e-4;
         double G=vG, P=vP, K=vK;
@@ -206,7 +215,8 @@ public:
     void setSampleRate(float s){ fs=(s>0)?s:48000.f; atk=msC(4.f,fs); rel=msC(120.f,fs);
         tube.setT(s); hpf.setT(s); lpf.setT(s); hpf.set(30.0,true); lpf.set(8000.0,false);
         for (int i=0;i<kNumEq;++i){ eq[i].setT(s); eq[i].set(kEqFreqs[i], 1.4, 1e-8); eqG[i]=1.f; } }
-    void reset(){ tube.reset(); for (int i=0;i<kNumEq;++i) eq[i].reset(); hpf.reset(); lpf.reset(); env=0; }
+    void reset(){ tube.reset(); for (int i=0;i<kNumEq;++i) eq[i].reset();
+    hpf.reset(); lpf.reset(); env=0; }
 
     void setParams(const float* p) {
         const float padActive = (p[kActive] > 0.5f) ? 0.20f : 1.0f;   // Active jack ~ -14 dB
@@ -245,7 +255,8 @@ public:
             const double ctl  = over * compAmt * 5.0;       // FET drive
             double gain = 1.0;
             if (ctl > 1e-6) { const double Ron=400.0, Rs=4700.0; double rds = Ron*3.0/ctl;
-                if (rds < Ron) rds = Ron; gain = rds/(Rs+rds); }   // JFET+Rs divider
+                if (rds < Ron) rds = Ron;
+                gain = rds/(Rs+rds); }   // JFET+Rs divider
             s = s * gain * compMk;
         }
 
@@ -253,7 +264,8 @@ public:
         //    The MFB band-pass is inverting (peak ~ -dry), so subtract to get a
         //    proper boost when the fader is up and a cut when it's down.
         if (eqIn) { const double dry=s; double sum=dry;
-            for (int i=0;i<kNumEq;++i) sum -= (eqG[i]-1.0) * eq[i].proc(dry); s = sum; }
+            for (int i=0;i<kNumEq;++i) sum -= (eqG[i]-1.0) * eq[i].proc(dry);
+            s = sum; }
 
         // 6. LOW / HIGH-PASS tone filters (nodal RC)
         if (hpfOn) s = hpf.proc(s);

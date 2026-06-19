@@ -83,7 +83,8 @@ protected:
     }
     float getParameterValue(uint32_t i) const override { return (i < (uint32_t)cNumParams) ? fParams[i] : 0.5f; }
     void  setParameterValue(uint32_t i, float v) override { if (i < (uint32_t)cNumParams) { fParams[i] = v; recalc(); } }
-    void  sampleRateChanged(double r) override { fs = (float)r; if (fs <= 0.f) fs = 48000.f; recalc(); }
+    void  sampleRateChanged(double r) override { fs = (float)r; if (fs <= 0.f) fs = 48000.f;
+    recalc(); }
 
     void run(const float** in, float** out, uint32_t frames) override {
         const float* iL = in[0]; const float* iR = in[1];

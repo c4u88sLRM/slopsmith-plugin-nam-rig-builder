@@ -97,7 +97,8 @@ public:
         const float sr = fs / 44100.0f * sizeScale;
         const float feedback = 0.70f + time * 0.275f;                 // 0.70 .. 0.975
         float damp = (1.0f - tone) * 0.45f + dampBias;                // brighter tone → less damping
-        if (damp < 0.f) damp = 0.f; if (damp > 0.95f) damp = 0.95f;
+        if (damp < 0.f) damp = 0.f;
+        if (damp > 0.95f) damp = 0.95f;
         for (int i = 0; i < 8; ++i) {
             combL[i].set((int)(kCombTune[i] * sr), feedback, damp);
             combR[i].set((int)((kCombTune[i] + kStereoSpread) * sr), feedback, damp);

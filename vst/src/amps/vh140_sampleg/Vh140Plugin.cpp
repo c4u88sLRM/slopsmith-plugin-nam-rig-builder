@@ -26,7 +26,8 @@ START_NAMESPACE_DISTRHO
 
 // RB loudness/headroom output stage (shared across all amps).
 static inline float rbAmpLvl(float x){ const float t=0.90f,c=0.99f,a=(x<0.f?-x:x);
-    if(a<=t) return x; return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
+    if(a<=t) return x;
+    return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
 
 namespace {
 
@@ -50,7 +51,8 @@ class Biquad
 {
     float b0=1.0f,b1=0.0f,b2=0.0f,a1=0.0f,a2=0.0f,z1=0.0f,z2=0.0f;
     void set(float nb0,float nb1,float nb2,float na0,float na1,float na2)
-    { if(std::fabs(na0)<1.0e-12f) na0=1.0f; const float i=1.0f/na0;
+    { if(std::fabs(na0)<1.0e-12f) na0=1.0f;
+    const float i=1.0f/na0;
       b0=nb0*i; b1=nb1*i; b2=nb2*i; a1=na1*i; a2=na2*i; }
 public:
     void reset(){ z1=z2=0.0f; }
@@ -84,12 +86,16 @@ class SpringReverb
     int p0=0,p1=0,p2=0,c0=0,c1=0, n0=225,n1=341,n2=441,nc0=1617,nc1=1991;
     float damp0=0.0f, damp1=0.0f; Biquad inHp, inLp;
     static inline float apStep(float* buf,int& p,int n,float in,float g)
-    { const float bo=buf[p]; const float v=in+bo*g; buf[p]=v; if(++p>=n)p=0; return bo-v*g; }
+    { const float bo=buf[p]; const float v=in+bo*g; buf[p]=v; if(++p>=n)p=0;
+    return bo-v*g; }
 public:
     void setSampleRate(float sr){ const float s=(sr>1000.0f?sr:48000.0f)/48000.0f;
         n0=(int)(225*s); n1=(int)(341*s); n2=(int)(441*s); nc0=(int)(1617*s); nc1=(int)(1991*s);
-        if(nc0>3599)nc0=3599; if(nc1>3599)nc1=3599; inHp.setHighPass(sr,240.0f,0.7f); inLp.setLowPass(sr,3800.0f,0.7f); clear(); }
-    void clear(){ for(int i=0;i<1024;++i) ap0[i]=ap1[i]=ap2[i]=0.0f; for(int i=0;i<3600;++i) cb0[i]=cb1[i]=0.0f;
+        if(nc0>3599)nc0=3599;
+        if(nc1>3599)nc1=3599;
+        inHp.setHighPass(sr,240.0f,0.7f); inLp.setLowPass(sr,3800.0f,0.7f); clear(); }
+    void clear(){ for(int i=0;i<1024;++i) ap0[i]=ap1[i]=ap2[i]=0.0f;
+    for(int i=0;i<3600;++i) cb0[i]=cb1[i]=0.0f;
         p0=p1=p2=c0=c1=0; damp0=damp1=0.0f; }
     float process(float x){ x=inLp.process(inHp.process(x));
         x=apStep(ap0,p0,n0,x,0.6f); x=apStep(ap1,p1,n1,x,0.6f); x=apStep(ap2,p2,n2,x,0.6f);
@@ -113,7 +119,8 @@ public:
         const float base=0.0080f*fs, mod=depthMs*0.001f*fs, s=std::sin(lfo);
         wetL=wetLp.process(readFrac(base+mod*(0.5f+0.5f*s)));
         wetR=readFrac(base+mod*(0.5f-0.5f*s));
-        lfo+=inc; if(lfo>2.0f*kPi)lfo-=2.0f*kPi; if(++w>=8192)w=0; }
+        lfo+=inc; if(lfo>2.0f*kPi)lfo-=2.0f*kPi;
+        if(++w>=8192)w=0; }
 };
 
 } // namespace
