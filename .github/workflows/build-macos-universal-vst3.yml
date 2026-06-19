@@ -63,8 +63,9 @@ jobs:
             local target_arch="$1"
             local plugin_dir="$2"
             ( cd "$plugin_dir" && rm -rf "build-$target_arch" "bin-$target_arch" \
-                && export MACOS_ARCHITECTURES="$target_arch" \
                 && make -j$(sysctl -n hw.ncpu) \
+                  CFLAGS="-arch $target_arch" \
+                  CXXFLAGS="-arch $target_arch" \
                   DPF_PATH="$DPF" \
                   DPF_BUILD_DIR="$PWD/build-$target_arch" \
                   DPF_TARGET_DIR="$PWD/bin-$target_arch" \
