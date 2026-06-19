@@ -20,7 +20,9 @@ permissions:
 
 jobs:
   macos-universal:
-    runs-on: macos-latest
+    # macos-14 is an Apple-Silicon runner; clang cross-compiles the x86_64 slice
+    # too, so a single host produces the universal binary.
+    runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
 
@@ -38,6 +40,7 @@ jobs:
         run: |
           set +e
           DPF="$GITHUB_WORKSPACE/dpf"
+          ARCHS="-arch x86_64 -arch arm64"
           # Seven effect Makefiles hardcode `include ../../DPF/...` (ignoring
           # DPF_PATH), so expose DPF at the relative path they expect: vst/DPF.
           # Without this, ampeq/basseq8/eq5/eq8/studiocomp/studioeq/studiographiceq
@@ -54,50 +57,16 @@ jobs:
             fi
           done
           fail=""
-          # Set DPF_BUILD_DIR/DPF_TARGET_DIR explicitly: with an absolute
-          # DPF_PATH, DPF's BASE_PATH heuristic mis-resolves the default output
-          # dir, so the built bundle never lands at bin/<Name>.vst3/Contents/
-          # MacOS and the lipo step finds nothing. Pin both to a writable
-          # per-effect location (bin/<Name>.vst3), matching the other workflows.
           build() {
-            local target_arch="$1"
-            local plugin_dir="$2"
-            # Clean DPF build for this architecture to ensure fresh rebuild of DGL
-            rm -rf "$DPF/build-$target_arch"
-            ( cd "$plugin_dir" && rm -rf "build-$target_arch" "bin-$target_arch" \
-                && make -j$(sysctl -n hw.ncpu) \
-                  CFLAGS="-arch $target_arch" \
-                  CXXFLAGS="-arch $target_arch" \
-                  LDFLAGS="-arch $target_arch" \
-                  DPF_PATH="$DPF" \
-                  DPF_BUILD_DIR="$PWD/build-$target_arch" \
-                  DPF_TARGET_DIR="$PWD/bin-$target_arch" \
-                  vst3 ) \
-              || fail="$fail $plugin_dir ($target_arch)"
-          }
-          build_universal() {
-            local plugin_dir="$1"
-            local plugin_name=$(basename "$plugin_dir")
-            # Build for both architectures
-            build "x86_64" "$plugin_dir"
-            build "arm64" "$plugin_dir"
-            
-            # Combine with lipo
-            ( cd "$plugin_dir" && \
-              x86_64_binary="bin-x86_64/$plugin_name.vst3/Contents/MacOS/$plugin_name" && \
-              arm64_binary="bin-arm64/$plugin_name.vst3/Contents/MacOS/$plugin_name" && \
-              if [ -f "$x86_64_binary" ] && [ -f "$arm64_binary" ]; then
-                rm -rf "bin" && mkdir -p "bin" && \
-                cp -R "bin-x86_64/$plugin_name.vst3" "bin/" && \
-                universal_binary="bin/$plugin_name.vst3/Contents/MacOS/$plugin_name" && \
-                lipo -create "$x86_64_binary" "$arm64_binary" -output "$universal_binary" && \
-                rm -rf "build-x86_64" "build-arm64" "bin-x86_64" "bin-arm64"
-              fi )
+            ( cd "$1" && rm -rf build bin \
+                && make -j$(sysctl -n hw.ncpu) DPF_PATH="$DPF" DPF_BUILD_DIR="$PWD/build" DPF_TARGET_DIR="$PWD/bin" \
+                        CFLAGS="$ARCHS" CXXFLAGS="$ARCHS" LDFLAGS="$ARCHS" vst3 ) \
+              || fail="$fail $1"
           }
           # root Makefile builds AutoSweep (the QTron envelope filter)
           if [ -f Makefile ]; then
             echo "==== building root (AutoSweep) ===="
-            build_universal .
+            build .
           fi
           # Effects are now TWO levels deep: <cat>/<name>/Makefile (was */Makefile,
           # which matched nothing post-reorg -> "FAILED DIRS: *").
@@ -105,7 +74,7 @@ jobs:
             d=$(dirname "$mk")
             case "$d" in DPF/*|*/DPF|*/_shared|*/mark_shared|RBFinalLeveler/*|*/build) continue;; esac
             echo "==== building $d ===="
-            build_universal "$d"
+            build "$d"
           done
           for cat in amps pedals racks; do rm -f "$cat/_shared"; done
           rm -f "$GITHUB_WORKSPACE/vst/DPF"
@@ -208,8 +177,9 @@ jobs:
           }
           count=0
           # DPF writes the built bundle under each plugin dir (bin/<Name>.vst3).
-          find vst/src -type d -path '*/Contents/MacOS' | while read -r macos; do
-            built=$(basename "$(dirname "$(dirname "$macos")")")   # <Name>.vst3
+          while IFS= read -r macbin; do
+            built=$(basename "$(dirname "$(dirname "$macbin")")")   # <Name>.vst3
+            name="${built%.vst3}"
             bundle=$(alias_of "$built")
             # Committed bundles moved into vst/{amps,pedals,racks}/ (the reorg),
             # so search those subdirs, not the old flat vst/<bundle>.
@@ -218,21 +188,20 @@ jobs:
               [ -d "vst/$cat/$bundle" ] && dst="vst/$cat/$bundle" && break
             done
             if [ -n "$dst" ]; then
-              dest="$dst/Contents/MacOS"
-              rm -rf "$dest"; mkdir -p "$dest"
-              cp -R "$macos/." "$dest/"
-              echo "injected: $dst"
+              cp -f "$macbin/$name" "$dst/Contents/MacOS/$name"
+              codesign --force --sign - "$dst" || true
+              echo "injected: $built -> $bundle"
               count=$((count+1))
             else
               echo "WARNING: built $bundle but no committed bundle vst/{amps,pedals,racks}/$bundle"
             fi
-          done
+          done < <(find vst/src -type d -path '*/bin/*.vst3/Contents/MacOS')
           echo "injected $count bundles"
 
       - name: Verify universal binaries
         run: |
           echo "Verifying universal binary architectures:"
-          find vst/src -type f -path '*/Contents/MacOS/*' ! -name '*.dylib' | while read -r binary; do
+          find vst -type f -path '*/Contents/MacOS/*' ! -name '*.dylib' | while read -r binary; do
             if file "$binary" | grep -q "Mach-O"; then
               archs=$(file "$binary" | grep -oE '(x86_64|arm64)' | sort -u | tr '\n' '/' | sed 's/\/$//')
               echo "$binary: $archs"
@@ -244,7 +213,7 @@ jobs:
           cd "$GITHUB_WORKSPACE"
           git config user.name  "macos-universal-vst-bot"
           git config user.email "macos-universal-vst-bot@users.noreply.github.com"
-          git add vst/*/*/Contents/MacOS || true
+          git add 'vst/*/Contents/MacOS/*' 'vst/*/Contents/_CodeSignature/*' || true
           if git diff --cached --quiet; then
             echo "No universal binaries to commit (check the build log for failures)."
           else
@@ -264,5 +233,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: macos-universal-vst3
-          path: vst/src/**/Contents/MacOS/**
+          path: vst/src/**/bin/*.vst3/**
           if-no-files-found: warn
