@@ -65,7 +65,7 @@ jobs:
           [ -f Makefile ] && build .
           for mk in */Makefile; do
             d=$(dirname "$mk")
-            case "$d" in DPF|_shared) continue;; esac
+            case "$d" in DPF/*|*/DPF|*/_shared|*/mark_shared|RBFinalLeveler/*|*/build) continue;; esac
             echo "==== building $d ===="
             build "$d"
           done
