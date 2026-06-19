@@ -18,20 +18,6 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
-		<key>x86_64-linux/EN30.so</key>
-		<dict>
-			<key>hash2</key>
-			<data>
-			khe/EfwxihaTRh+3J77lLAilKrcsTkPR3CiIX/+c9Y8=
-			</data>
-		</dict>
-		<key>x86_64-win/EN30.vst3</key>
-		<dict>
-			<key>hash2</key>
-			<data>
-			28vcRs9uRMG4wa/LXBzQWFSj3P0Yc7GvOidTqZLz10U=
-			</data>
-		</dict>
 	</dict>
 	<key>rules</key>
 	<dict>

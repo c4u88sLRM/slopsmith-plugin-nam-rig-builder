@@ -18,20 +18,6 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
-		<key>x86_64-linux/SillaBoogieBass400.so</key>
-		<dict>
-			<key>hash2</key>
-			<data>
-			cBXlaw+Vb51txUyf0YB62b9bhBCbGmMMtEqZE1zPkrU=
-			</data>
-		</dict>
-		<key>x86_64-win/SillaBoogieBass400.vst3</key>
-		<dict>
-			<key>hash2</key>
-			<data>
-			S3aV5QzOyAXoW6jSEQDuu6ho9zGBZMEnxoEdwnc8UDs=
-			</data>
-		</dict>
 	</dict>
 	<key>rules</key>
 	<dict>

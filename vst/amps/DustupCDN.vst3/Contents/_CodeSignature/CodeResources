@@ -18,20 +18,6 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
-		<key>x86_64-linux/DustupCDN.so</key>
-		<dict>
-			<key>hash2</key>
-			<data>
-			8HGJFijFYtlIL0lsf3TZeJt3F9fJgwNGUu1pWQdmaWM=
-			</data>
-		</dict>
-		<key>x86_64-win/DustupCDN.vst3</key>
-		<dict>
-			<key>hash2</key>
-			<data>
-			clPy6EgsNifqiOE0SkQrieP6kcNEgQQZbUUs4CYR7oc=
-			</data>
-		</dict>
 	</dict>
 	<key>rules</key>
 	<dict>

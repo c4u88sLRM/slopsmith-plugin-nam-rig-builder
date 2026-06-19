@@ -18,20 +18,6 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
-		<key>x86_64-linux/AidenGT550.so</key>
-		<dict>
-			<key>hash2</key>
-			<data>
-			gJ4ecCLRzFUQtlF1ED50HO6DRIf607TIq3pRiEehcZA=
-			</data>
-		</dict>
-		<key>x86_64-win/AidenGT550.vst3</key>
-		<dict>
-			<key>hash2</key>
-			<data>
-			P6fFzQ7a/9g9x+V1AdmnD6Jk/IDVRR21OHM6I9LwIQ0=
-			</data>
-		</dict>
 	</dict>
 	<key>rules</key>
 	<dict>
