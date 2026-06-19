@@ -54,10 +54,10 @@ static const PedalKnob kPedalKnobs[kParamCount] = PEDAL_KNOBS;
 
 class PedalUI : public UI
 {
-    float  fValues[kParamCount];
     int    fDrag;
     double fLastY;
     float  fDragVal;
+    float  fValues[kParamCount];
 
     float scale() const { return getWidth() / (float)PEDAL_W; }
     float kx(int i) const { return getWidth()  * kPedalKnobs[i].cx; }
