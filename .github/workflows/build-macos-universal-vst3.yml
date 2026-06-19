@@ -71,6 +71,7 @@ jobs:
           }
           build_universal() {
             local plugin_dir="$1"
+            local plugin_name=$(basename "$plugin_dir")
             # Build for both architectures
             build "x86_64" "$plugin_dir"
             build "arm64" "$plugin_dir"
