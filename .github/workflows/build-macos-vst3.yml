@@ -45,6 +45,15 @@ jobs:
           # DPF_PATH), so expose DPF at the relative path they expect: vst/DPF.
           ln -sfn "$DPF" "$GITHUB_WORKSPACE/vst/DPF"
           cd "$GITHUB_WORKSPACE/vst/src"
+          # Post-reorg the effects moved to <cat>/<name>/ and 110+ of them include
+          # "../_shared/...". After the split that must resolve to <cat>/_shared,
+          # so symlink _shared into each category dir.
+          for cat in amps pedals racks; do
+            if [ -d "$cat" ] && [ -d _shared ]; then
+              rm -f "$cat/_shared"
+              ln -sfn ../_shared "$cat/_shared" || echo "Warning: could not link $cat/_shared"
+            fi
+          done
           fail=""
           build() {
             ( cd "$1" && rm -rf build bin \
@@ -60,6 +69,7 @@ jobs:
             echo "==== building $d ===="
             build "$d"
           done
+          for cat in amps pedals racks; do rm -f "$cat/_shared"; done
           rm -f "$GITHUB_WORKSPACE/vst/DPF"
           echo "FAILED DIRS:$fail"
 
