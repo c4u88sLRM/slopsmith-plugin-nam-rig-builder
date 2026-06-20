@@ -53,7 +53,7 @@ jobs:
               rm -f "$cat/_shared"
               ln -sfn ../_shared "$cat/_shared" || echo "Warning: could not link $cat/_shared"
             fi
-            done
+          done
           fail=""
 
           build() {
@@ -65,14 +65,16 @@ jobs:
 
           [ -f Makefile ] && build .
 
-          while IFS= read -r mk; do
-            d="${mk#./}"
-            d=$(dirname "$d")
-            case "$d" in .|DPF|_shared) continue;; esac
+          # Effects are now TWO levels deep: <cat>/<name>/Makefile (was */Makefile,
+          # which matched nothing post-reorg -> "FAILED DIRS: *").
+          for mk in */*/Makefile; do
+            d=$(dirname "$mk")
+            case "$d" in DPF/*|*/DPF|*/_shared|*/mark_shared|RBFinalLeveler/*|*/build) continue;; esac
             echo "==== building $d ===="
             build "$d"
-          done < <(find . -type f -name Makefile | sort)
+          done
 
+          for cat in amps pedals racks; do rm -f "$cat/_shared"; done
           rm -f "$GITHUB_WORKSPACE/vst/DPF"
           echo "FAILED DIRS:$fail"
 
