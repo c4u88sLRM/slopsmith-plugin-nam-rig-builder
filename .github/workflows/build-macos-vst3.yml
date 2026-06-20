@@ -169,7 +169,7 @@ jobs:
               EN30.vst3)               echo "BOX DC30.vst3";;
               TW22.vst3)               echo "BENDER SUPERNOVA 22.vst3";;
               TW26.vst3)               echo "BENDER DELUXE.vst3";;
-              *)              echo "$1";;
+              *)                       echo "$1";;
             esac
           }
 
@@ -177,25 +177,14 @@ jobs:
           missing=0
           failed_binaries=""
 
-          # Use flexible search like Windows workflow: find any Contents/MacOS directory
-          # (not strict path matching) and extract binaries from it.
           find vst/src -type d -path '*/Contents/MacOS' | while read -r macbin; do
-            # Extract plugin name from built path: vst/src/<cat>/<plugin>/bin/<Name>.vst3/Contents/MacOS
-            # Get the .vst3 bundle name (two dirs up from Contents)
             built=$(basename "$(dirname "$(dirname "$macbin")")")
-            name="${built%.vst3}"
             mapped="$(alias_of "$built")"
 
-            # Determine destination category from source path
             case "$macbin" in
-              vst/src/amps/*)   dest_root="vst/amps";;
-              vst/src/pedals/*) dest_root="vst/pedals";;
-              vst/src/racks/*)  dest_root="vst/racks";;
-              vst/src/bin/*)    dest_root="vst/pedals"; mapped="Qtrix.vst3";;
-              *) continue;;
+              vst/src/bin/*) mapped="Qtrix.vst3" ;;
             esac
 
-            # Search for the committed bundle in {amps,pedals,racks}
             bundle=""
             for cat in amps pedals racks; do
               if [ -d "vst/$cat/$mapped" ]; then
@@ -205,17 +194,18 @@ jobs:
             done
 
             if [ -n "$bundle" ]; then
-              # Check if the binary file exists in the Contents/MacOS directory
-              if [ -f "$macbin/$name" ]; then
-                out="$bundle/Contents/MacOS/$name"
+              srcbin="$(find "$macbin" -maxdepth 1 -type f | head -n 1)"
+              if [ -n "$srcbin" ] && [ -f "$srcbin" ]; then
+                binname="$(basename "$srcbin")"
+                out="$bundle/Contents/MacOS/$binname"
                 mkdir -p "$(dirname "$out")"
-                cp -f "$macbin/$name" "$out"
+                cp -f "$srcbin" "$out"
                 chmod +x "$out" || true
                 codesign --force --sign - "$bundle" || true
-                echo "✓ injected: $built -> $bundle"
+                echo "✓ injected: $built -> $bundle ($binname)"
                 injected=$((injected+1))
               else
-                echo "✗ WARNING: binary not found at $macbin/$name (build may have failed)"
+                echo "✗ WARNING: no binary found in $macbin (build may have failed)"
                 failed_binaries="$failed_binaries $built"
                 missing=$((missing+1))
               fi
