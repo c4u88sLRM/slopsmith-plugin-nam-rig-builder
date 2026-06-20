@@ -48,6 +48,12 @@ jobs:
               ln -sfn ../../DPF "$cat/DPF" || echo "Warning: could not link $cat/DPF"
             fi
           done
+          for cat in amps pedals racks; do
+            if [ -d "$cat" ] && [ -d _shared ]; then
+              rm -f "$cat/_shared"
+              ln -sfn ../_shared "$cat/_shared" || echo "Warning: could not link $cat/_shared"
+            fi
+            done
           fail=""
 
           build() {
