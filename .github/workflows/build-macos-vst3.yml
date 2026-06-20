@@ -177,43 +177,36 @@ jobs:
           missing=0
           failed_binaries=""
 
-          find vst/src -type d -path '*/Contents/MacOS' | while read -r macbin; do
+          echo "Searching for built macOS bundle directories..."
+          find vst/src -type d -path '*/bin/*.vst3/Contents/MacOS' -print
+
+          while read -r macbin; do
             built=$(basename "$(dirname "$(dirname "$macbin")")")
-            mapped="$(alias_of "$built")"
+            bundle=$(alias_of "$built")
 
             case "$macbin" in
-              vst/src/bin/*) mapped="Qtrix.vst3" ;;
+              vst/src/bin/*) bundle="Qtrix.vst3" ;;
             esac
 
-            bundle=""
+            dst=""
             for cat in amps pedals racks; do
-              if [ -d "vst/$cat/$mapped" ]; then
-                bundle="vst/$cat/$mapped"
-                break
-              fi
+              [ -d "vst/$cat/$bundle" ] && dst="vst/$cat/$bundle" && break
             done
 
-            if [ -n "$bundle" ]; then
-              srcbin="$(find "$macbin" -maxdepth 1 -type f | head -n 1)"
-              if [ -n "$srcbin" ] && [ -f "$srcbin" ]; then
-                binname="$(basename "$srcbin")"
-                out="$bundle/Contents/MacOS/$binname"
-                mkdir -p "$(dirname "$out")"
-                cp -f "$srcbin" "$out"
-                chmod +x "$out" || true
-                codesign --force --sign - "$bundle" || true
-                echo "✓ injected: $built -> $bundle ($binname)"
-                injected=$((injected+1))
-              else
-                echo "✗ WARNING: no binary found in $macbin (build may have failed)"
-                failed_binaries="$failed_binaries $built"
-                missing=$((missing+1))
-              fi
+            if [ -n "$dst" ]; then
+              dest="$dst/Contents/MacOS"
+              rm -rf "$dest"
+              mkdir -p "$dest"
+              cp -R "$macbin/." "$dest/"
+              chmod +x "$dest"/* || true
+              codesign --force --sign - "$dst" || true
+              echo "injected: $dst"
+              injected=$((injected+1))
             else
-              echo "✗ WARNING: missing target bundle for $mapped (skipped)"
+              echo "WARNING: built $bundle but no committed bundle vst/{amps,pedals,racks}/$bundle"
               missing=$((missing+1))
             fi
-          done
+          done < <(find vst/src -type d -path '*/bin/*.vst3/Contents/MacOS')
 
           echo ""
           echo "======================================================================"
