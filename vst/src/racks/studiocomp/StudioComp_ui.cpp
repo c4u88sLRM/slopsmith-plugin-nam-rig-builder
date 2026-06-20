@@ -8,4 +8,4 @@
 #define RACK_ACG 150
 #define RACK_ACB 28
 #define RACK_KNOBS { {0.155f,0.50f,0.034f}, {0.235f,0.50f,0.034f}, {0.315f,0.50f,0.034f}, {0.395f,0.50f,0.034f}, {0.475f,0.50f,0.034f} }
-#include "../../_shared/rack_ui.hpp"
+#include "../_shared/rack_ui.hpp"

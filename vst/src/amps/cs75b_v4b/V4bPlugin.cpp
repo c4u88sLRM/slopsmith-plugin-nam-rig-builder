@@ -33,8 +33,7 @@ START_NAMESPACE_DISTRHO
 // knee is transparent below +/-0.80 and saturates to a +/-0.98 ceiling so EQ
 // boosts never hard-clip. See AMP_LOUDNESS.md.
 static inline float rbAmpLvl(float x){ const float t=0.90f,c=0.99f,a=(x<0.f?-x:x);
-    if(a<=t) return x;
-    return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
+    if(a<=t) return x; return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
 
 // Loudness standardization (shared amp convention): a per-amp output `makeup`
 // tuned so the multitone (110 Hz–1.8 kHz) RMS matches the Box DC30 reference
@@ -112,18 +111,14 @@ struct Mna {
     int sz, nn;
     double A[MAXN*MAXN], b[MAXN], x[MAXN];
     void init(int nN, int nX) { nn = nN; sz = nN + nX;
-        for (int i = 0; i < sz*sz; ++i) A[i] = 0.0;
-        for (int i = 0; i < sz; ++i) b[i] = 0.0; }
+        for (int i = 0; i < sz*sz; ++i) A[i] = 0.0; for (int i = 0; i < sz; ++i) b[i] = 0.0; }
     inline void stampG(int a, int bb, double g) {
         if (a>0)  { A[(a-1)*sz+(a-1)]  += g; if (bb>0) A[(a-1)*sz+(bb-1)] -= g; }
         if (bb>0) { A[(bb-1)*sz+(bb-1)]+= g; if (a>0)  A[(bb-1)*sz+(a-1)] -= g; } }
-    inline void R(int a, int bb, double r) { if (r < 1e-9) r = 1e-9;
-    stampG(a, bb, 1.0/r); }
-    inline void Isrc(int a, int bb, double I) { if (a>0) b[a-1] -= I;
-    if (bb>0) b[bb-1] += I; }
+    inline void R(int a, int bb, double r) { if (r < 1e-9) r = 1e-9; stampG(a, bb, 1.0/r); }
+    inline void Isrc(int a, int bb, double I) { if (a>0) b[a-1] -= I; if (bb>0) b[bb-1] += I; }
     inline void Vsrc(int a, double V, int k) { int r = nn+k;
-        if (a>0) { A[(a-1)*sz+r] += 1; A[r*sz+(a-1)] += 1; }
-        b[r] = V; }
+        if (a>0) { A[(a-1)*sz+r] += 1; A[r*sz+(a-1)] += 1; } b[r] = V; }
     inline void gm(int oa, int ob, int ca, int cb, double g) {
         if (oa>0) { if (ca>0) A[(oa-1)*sz+(ca-1)] += g; if (cb>0) A[(oa-1)*sz+(cb-1)] -= g; }
         if (ob>0) { if (ca>0) A[(ob-1)*sz+(ca-1)] -= g; if (cb>0) A[(ob-1)*sz+(cb-1)] += g; } }
@@ -136,8 +131,7 @@ struct Mna {
                 double t = b[col]; b[col] = b[piv]; b[piv] = t; }
             const double d = A[col*n+col];
             for (int r = 0; r < n; ++r) { if (r == col) continue; const double f = A[r*n+col]/d; if (f == 0) continue;
-                for (int c = col; c < n; ++c) A[r*n+c] -= f*A[col*n+c];
-                b[r] -= f*b[col]; } }
+                for (int c = col; c < n; ++c) A[r*n+c] -= f*A[col*n+c]; b[r] -= f*b[col]; } }
         for (int i = 0; i < n; ++i) x[i] = b[i] / A[i*n+i];
         return true; } };
 
@@ -156,8 +150,7 @@ struct Triode {
         const double MU=100, EX=1.4, KG1=1060, KP=600, KVB=300;
         if (vpk < 0) vpk = 0;
         double e1 = (vpk/KP)*std::log(1.0 + std::exp(KP*(1.0/MU + vgk/std::sqrt(KVB + vpk*vpk))));
-        if (e1 < 0) e1 = 0;
-        return std::pow(e1, EX)/KG1*2.0; }
+        if (e1 < 0) e1 = 0; return std::pow(e1, EX)/KG1*2.0; }
     inline double process(double vin) {        // vin = grid drive (V); returns AC plate swing
         const double Bp=230, Rp=100000, Rk=1500, h=1e-4;
         double G=vG, P=vP, K=vK;
@@ -230,8 +223,7 @@ public:
 
         // ── Ultra Hi (S4A): presence/bite. R37 270k / R38 18k + C13 .033µF /
         //    C15 220pF inject a high-shelf boost ≈ 4 kHz (the SVT clank). ──
-        if (ultraHi) uhShelf.setHighShelf(4000.f, 6.0f, fs);
-        else uhShelf.setBypass();
+        if (ultraHi) uhShelf.setHighShelf(4000.f, 6.0f, fs); else uhShelf.setBypass();
 
         // ── Passive tone stack (±15 dB, 0.5 = flat) ──────────────────────────
         //  Bass    : P3 1MA + C20 .001µF / C21 .01µF  → low shelf ~70 Hz.
@@ -241,8 +233,7 @@ public:
         //  ~300 / 900 / 2500 Hz. An LC tank resonates with a HIGHER Q than the
         //  SVT's broad RC mid, so the boost/cut is tighter/peakier (Q≈1.3). The
         //  50k mid pot sets the depth.
-        int sel = (int)(freq * 3.0f); if (sel > 2) sel = 2;
-        if (sel < 0) sel = 0;
+        int sel = (int)(freq * 3.0f); if (sel > 2) sel = 2; if (sel < 0) sel = 0;
         bqMid.setPeak(kV4bMidFreqs[sel], (midrange - 0.5f) * 28.f, 1.3f, fs);
         //  Treble  : P5 1MA + C26 15pF / C27 100pF     → high shelf ~5 kHz.
         bqTreble.setHighShelf(5000.f, (treble - 0.5f) * 30.f, fs);

@@ -6,7 +6,7 @@
 #include "DistrhoPlugin.hpp"
 #include "StudioWahFilterParams.h"
 #include <cmath>
-#include "../../_shared/automakeup.hpp"
+#include "../_shared/automakeup.hpp"
 START_NAMESPACE_DISTRHO
 class WahCh {
     float fs=48000.f; float ic1=0.f,ic2=0.f,env=0.f,atk=0.f,rel=0.f;
@@ -23,8 +23,7 @@ public:
         const float a=std::fabs(x); const float c=(a>env)?atk:rel; env=c*env+(1.0f-c)*a;
         float e=env*3.0f; if(e>1.f)e=1.f;
         float pos = autoOn ? (0.12f+0.75f*sens*e+0.10f) : (pedal*0.7f+0.3f*sens*e);
-        if(pos<0.f)pos=0.f;
-        if(pos>1.f)pos=1.f;
+        if(pos<0.f)pos=0.f; if(pos>1.f)pos=1.f;
         float fc=120.0f*std::pow(14.0f,pos);   // 120 .. ~1700 Hz
         const float nyq=fs*0.45f; if(fc>nyq)fc=nyq;
         const float g=std::tan(3.14159265f*fc/fs); const float k=1.0f/Q;

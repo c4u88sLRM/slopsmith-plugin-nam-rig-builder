@@ -1,5 +1,5 @@
 /*
- * MARSTEN VS100 - Marshall Valvestate VS100RH for the game's Amp_HG180. Parody
+ * MARSTEN VS100 - Marshall Valvestate VS100RH for Rocksmith's Amp_HG180. Parody
  * brand "Marsten"; the in-app face must never read "Marshall".
  *
  * Local reference (modelled component-by-component):
@@ -13,7 +13,7 @@
  *             Bass/Middle/Treble (the Valvestate diode-clip lead).
  * Plus FX MIX + Clean/OD reverb.
  *
- * the game: RS Gain -> OD2 Gain; Bass/Mid/Treble -> OD2 Bass/Middle/Treble. See
+ * Rocksmith: RS Gain -> OD2 Gain; Bass/Mid/Treble -> OD2 Bass/Middle/Treble. See
  * rs_knob_to_vst_param.json (Channel pinned OD2 + reverb/FX off via _static).
  */
 #include "DistrhoPlugin.hpp"
@@ -23,8 +23,7 @@
 START_NAMESPACE_DISTRHO
 
 static inline float rbAmpLvl(float x){ const float t=0.90f,c=0.99f,a=(x<0.f?-x:x);
-    if(a<=t) return x;
-    return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
+    if(a<=t) return x; return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
 
 namespace {
 
@@ -36,16 +35,13 @@ static inline float smoothstepRange(float e0, float e1, float x) { return smooth
 static inline float softClip(float x) { return std::tanh(x); }
 static inline float eqDb(float v, float r) { return (clamp01(v) - 0.5f) * 2.0f * r; }
 static inline float diodeClip(float x){ const float d=0.66f;
-    if(x> d) return  d+std::tanh((x-d)*0.7f)*0.12f;
-    if(x<-d) return -d+std::tanh((x+d)*0.7f)*0.12f;
-    return x; }
+    if(x> d) return  d+std::tanh((x-d)*0.7f)*0.12f; if(x<-d) return -d+std::tanh((x+d)*0.7f)*0.12f; return x; }
 
 class Biquad
 {
     float b0=1.0f,b1=0.0f,b2=0.0f,a1=0.0f,a2=0.0f,z1=0.0f,z2=0.0f;
     void set(float nb0,float nb1,float nb2,float na0,float na1,float na2)
-    { if(std::fabs(na0)<1.0e-12f) na0=1.0f;
-    const float i=1.0f/na0;
+    { if(std::fabs(na0)<1.0e-12f) na0=1.0f; const float i=1.0f/na0;
       b0=nb0*i; b1=nb1*i; b2=nb2*i; a1=na1*i; a2=na2*i; }
 public:
     void reset(){ z1=z2=0.0f; }
@@ -79,16 +75,12 @@ class SpringReverb
     int p0=0,p1=0,p2=0,c0=0,c1=0, n0=225,n1=341,n2=441,nc0=1617,nc1=1991;
     float damp0=0.0f, damp1=0.0f; Biquad inHp, inLp;
     static inline float apStep(float* buf,int& p,int n,float in,float g)
-    { const float bo=buf[p]; const float v=in+bo*g; buf[p]=v; if(++p>=n)p=0;
-    return bo-v*g; }
+    { const float bo=buf[p]; const float v=in+bo*g; buf[p]=v; if(++p>=n)p=0; return bo-v*g; }
 public:
     void setSampleRate(float sr){ const float s=(sr>1000.0f?sr:48000.0f)/48000.0f;
         n0=(int)(225*s); n1=(int)(341*s); n2=(int)(441*s); nc0=(int)(1617*s); nc1=(int)(1991*s);
-        if(nc0>3599)nc0=3599;
-        if(nc1>3599)nc1=3599;
-        inHp.setHighPass(sr,260.0f,0.7f); inLp.setLowPass(sr,3800.0f,0.7f); clear(); }
-    void clear(){ for(int i=0;i<1024;++i) ap0[i]=ap1[i]=ap2[i]=0.0f;
-    for(int i=0;i<3600;++i) cb0[i]=cb1[i]=0.0f;
+        if(nc0>3599)nc0=3599; if(nc1>3599)nc1=3599; inHp.setHighPass(sr,260.0f,0.7f); inLp.setLowPass(sr,3800.0f,0.7f); clear(); }
+    void clear(){ for(int i=0;i<1024;++i) ap0[i]=ap1[i]=ap2[i]=0.0f; for(int i=0;i<3600;++i) cb0[i]=cb1[i]=0.0f;
         p0=p1=p2=c0=c1=0; damp0=damp1=0.0f; }
     float process(float x){ x=inLp.process(inHp.process(x));
         x=apStep(ap0,p0,n0,x,0.6f); x=apStep(ap1,p1,n1,x,0.6f); x=apStep(ap2,p2,n2,x,0.6f);

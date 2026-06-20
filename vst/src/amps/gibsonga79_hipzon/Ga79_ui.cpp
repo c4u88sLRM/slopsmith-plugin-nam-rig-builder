@@ -1,6 +1,5 @@
 /* Hipzon GA-79 RVT UI — placeholder native panel (the in-app face is the canvas
- * spec in pedal_canvas.js; this native UI is only for
- standalone/host use). */
+ * spec in pedal_canvas.js; this native UI is only for standalone/host use). */
 #include "DistrhoUI.hpp"
 #include "Ga79Params.h"
 #include <cmath>
@@ -57,8 +56,7 @@ class Ga79UI : public UI {
     bool onMotion(const MotionEvent& ev) override {
         if (fDrag<0) return false;
         const float dy=(float)(fLastY-ev.pos.getY());
-        float v=fDragVal+dy/200.0f; if(v<0)v=0;
-        if(v>1)v=1;
+        float v=fDragVal+dy/200.0f; if(v<0)v=0; if(v>1)v=1;
         fValues[fDrag]=v; setParameterValue((uint32_t)fDrag,v); repaint(); return true;
     }
 public:

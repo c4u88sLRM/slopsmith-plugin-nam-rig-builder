@@ -62,11 +62,9 @@ class SvtUI : public UI {
         for (const char* p=l;;++p){ if(*p=='\n'||*p=='\0'){line[li]='\0';text(cx,ty,line,NULL);ty+=9*f;li=0;if(*p=='\0')break;} else if(li<15) line[li++]=*p; }
     }
     int knobAt(double px, double py) const {
-        for (int i=0;i<kNumKnobs;++i){ float dx=px-W()*kKnobs[i].cx, dy=py-H()*kKnobs[i].cy, R=W()*kKnobs[i].r+6; if(dx*dx+dy*dy<=R*R) return i; }
-        return -1; }
+        for (int i=0;i<kNumKnobs;++i){ float dx=px-W()*kKnobs[i].cx, dy=py-H()*kKnobs[i].cy, R=W()*kKnobs[i].r+6; if(dx*dx+dy*dy<=R*R) return i; } return -1; }
     int switchAt(double px, double py) const {
-        for (int i=0;i<kNumSw;++i){ float hs=W()*kSwitches[i].h+5; if(std::fabs(px-W()*kSwitches[i].cx)<=hs && std::fabs(py-H()*kSwitches[i].cy)<=hs) return i; }
-        return -1; }
+        for (int i=0;i<kNumSw;++i){ float hs=W()*kSwitches[i].h+5; if(std::fabs(px-W()*kSwitches[i].cx)<=hs && std::fabs(py-H()*kSwitches[i].cy)<=hs) return i; } return -1; }
 public:
     SvtUI() : UI(DISTRHO_UI_DEFAULT_WIDTH, DISTRHO_UI_DEFAULT_HEIGHT), fDrag(-1), fLastY(0), fDragVal(0.5f) {
         loadSharedResources();
@@ -121,8 +119,7 @@ protected:
     }
     bool onMotion(const MotionEvent& ev) override {
         if(fDrag>=0){ double dy=fLastY-ev.pos.getY(); fLastY=ev.pos.getY(); fDragVal+=(float)dy/(170.0f*scale());
-            if(fDragVal<0.f)fDragVal=0.f;
-            if(fDragVal>1.f)fDragVal=1.f;
+            if(fDragVal<0.f)fDragVal=0.f; if(fDragVal>1.f)fDragVal=1.f;
             int id=kKnobs[fDrag].id; fValues[id]=fDragVal; setParameterValue(id,fDragVal); repaint(); return true; }
         return false;
     }

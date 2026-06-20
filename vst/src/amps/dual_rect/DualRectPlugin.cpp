@@ -1,10 +1,10 @@
 /*
- * DualRect - Mesa/Boogie 3-Channel Dual Rectifier Solo Head for the game's
+ * DualRect - Mesa/Boogie 3-Channel Dual Rectifier Solo Head for Rocksmith's
  * Amp_CA100. DPF/VST3 wrapper; all DSP is in DualRectCore.h (offline-testable).
  *
  * Reference: amps/Dual Rectifier (Cali_100)/Boogie_3ch_dual_rectifier.pdf
  * Full 3-channel panel (Green/Orange/Red, each Gain/Treble/Mid/Bass/Presence/
- * Master + mode) + Channel select / Output / Rectifier. the game maps 1:1 onto
+ * Master + mode) + Channel select / Output / Rectifier. Rocksmith maps 1:1 onto
  * the Red channel (Modern, Bold) via data/rs_knob_to_vst_param.json.
  */
 #include "DistrhoPlugin.hpp"
@@ -18,8 +18,7 @@ START_NAMESPACE_DISTRHO
 // amp to the common multitone loudness; the soft knee is transparent below
 // +/-0.90 and saturates to a +/-0.99 ceiling so EQ boosts never hard-clip.
 static inline float rbAmpLvl(float x){ const float t=0.90f,c=0.99f,a=(x<0.f?-x:x);
-    if(a<=t) return x;
-    return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
+    if(a<=t) return x; return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
 
 class DualRectPlugin : public Plugin
 {

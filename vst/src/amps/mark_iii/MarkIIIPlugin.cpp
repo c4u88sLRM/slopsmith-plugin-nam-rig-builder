@@ -1,5 +1,5 @@
 /*
- * SILLA BOOGIE MARK III - Mesa/Boogie Mark III for the game's Amp_CA85
+ * SILLA BOOGIE MARK III - Mesa/Boogie Mark III for Rocksmith's Amp_CA85
  * ("Mesa Boogie Mark III Crunch"). Parody brand "Silla"; the in-app face must
  * never read "Mesa" or "Boogie".
  *
@@ -13,7 +13,7 @@
  * LEAD (Lead Drive cascade -> Lead Master), picked by the LEAD switch. 6L6/EL34
  * Simul-Class power amp (~75W) with a fixed presence NFB.
  *
- * the game: RS Gain -> LEAD DRIVE; Bass/Mid/Treble -> tone stack. See
+ * Rocksmith: RS Gain -> LEAD DRIVE; Bass/Mid/Treble -> tone stack. See
  * rs_knob_to_vst_param.json (Channel pinned LEAD + the GEQ "V" via _static).
  */
 #include "DistrhoPlugin.hpp"
@@ -26,8 +26,7 @@ START_NAMESPACE_DISTRHO
 // amp to the common multitone loudness; the soft knee is transparent below
 // +/-0.90 and saturates to a +/-0.99 ceiling so EQ boosts never hard-clip.
 static inline float rbAmpLvl(float x){ const float t=0.90f,c=0.99f,a=(x<0.f?-x:x);
-    if(a<=t) return x;
-    return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
+    if(a<=t) return x; return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
 
 namespace {
 
@@ -51,8 +50,7 @@ class Biquad
 {
     float b0=1.0f,b1=0.0f,b2=0.0f,a1=0.0f,a2=0.0f,z1=0.0f,z2=0.0f;
     void set(float nb0,float nb1,float nb2,float na0,float na1,float na2)
-    { if(std::fabs(na0)<1.0e-12f) na0=1.0f;
-    const float i=1.0f/na0;
+    { if(std::fabs(na0)<1.0e-12f) na0=1.0f; const float i=1.0f/na0;
       b0=nb0*i; b1=nb1*i; b2=nb2*i; a1=na1*i; a2=na2*i; }
 public:
     void reset(){ z1=z2=0.0f; }

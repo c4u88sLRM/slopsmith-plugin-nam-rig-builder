@@ -1,7 +1,7 @@
 /* BassEnbig UI — copyright-free 'Enbiggenator' (fictional RS pedal): dark
  * blue-grey box, cyan accents, 4 knobs (Rate/Depth/Mix/Filter), sci-fi wordmark. */
 #include "BassEnbigParams.h"
-#include "../../_shared/pedalkit.hpp"
+#include "../_shared/pedalkit.hpp"
 START_NAMESPACE_DISTRHO
 class BassEnbigUI : public PedalKitUI {
     static const int CR=110,CG=210,CB=224;       // cyan

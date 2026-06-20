@@ -2,7 +2,7 @@
  * models: silver frame + green face, 3 black knobs, a 3-way mode toggle, and a
  * white-with-black-outline wordmark. Faithful layout; no brand/model name. */
 #include "BassFuzzParams.h"
-#include "../../_shared/pedalkit.hpp"
+#include "../_shared/pedalkit.hpp"
 START_NAMESPACE_DISTRHO
 class BassFuzzUI : public PedalKitUI {
     static const int FR=92, FG=174, FB=50;   // green face

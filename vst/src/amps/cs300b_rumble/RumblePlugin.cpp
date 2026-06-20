@@ -22,8 +22,7 @@
 START_NAMESPACE_DISTRHO
 
 static inline float rbAmpLvl(float x){ const float t=0.90f,c=0.99f,a=(x<0.f?-x:x);
-    if(a<=t) return x;
-    return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
+    if(a<=t) return x; return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
 static inline float softClip(float x) { return std::tanh(x); }
 // asymmetric soft clip — the overdrive grinds harder on one polarity (bass grit)
 static inline float asymClip(float x){ return (x<0.f) ? std::tanh(x*0.85f) : std::tanh(x*1.20f)*0.9f; }

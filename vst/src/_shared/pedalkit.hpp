@@ -29,8 +29,8 @@ protected:
     int  nctl = 0;
     const char* const* names_ = nullptr;
     float fValues[kMaxCtl];
-    int  baseW_, baseH_;
     int  nParams_ = 0;
+    int  baseW_, baseH_;
     int  fDrag = -1;
     double fLastY = 0;
     float fDragVal = 0.f;
@@ -43,8 +43,7 @@ protected:
     int fBebas = -1, fBarlow = -1, fAnton = -1, fSerif = -1;
     int labelFont_ = -1;   // font used for knob labels (defaults to modern sans)
     bool knobLabels_ = true; // when false, metalKnob skips its auto label (subclass draws its own)
-    void face(int id) { if (id >= 0) fontFaceId(id);
-    else fontFace(NANOVG_DEJAVU_SANS_TTF); }
+    void face(int id) { if (id >= 0) fontFaceId(id); else fontFace(NANOVG_DEJAVU_SANS_TTF); }
 
     // ── pre-generated wear (scratches + grime), stable across repaints ────
     struct Scr { float x0, y0, x1, y1; bool light; int a; };
@@ -385,8 +384,7 @@ protected:
         if (fDrag >= 0) {
             const double dy = fLastY - ev.pos.getY(); fLastY = ev.pos.getY();
             fDragVal += (float)dy / (170.f * sc());
-            if (fDragVal < 0.f) fDragVal = 0.f;
-            if (fDragVal > 1.f) fDragVal = 1.f;
+            if (fDragVal < 0.f) fDragVal = 0.f; if (fDragVal > 1.f) fDragVal = 1.f;
             fValues[ctl[fDrag].id] = fDragVal; setParameterValue(ctl[fDrag].id, fDragVal); repaint();
             return true;
         }

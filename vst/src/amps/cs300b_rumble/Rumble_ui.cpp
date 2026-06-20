@@ -56,10 +56,8 @@ class RumbleUI : public UI {
         beginPath(); circle(cx,cy,4.2f*f); strokeColor(Color(30,28,26)); strokeWidth(1.0f*f); stroke();
         textAlign(ALIGN_LEFT|ALIGN_MIDDLE); fontSize(8.5f*f); fillColor(Color(228,229,232)); text(cx+9*f,cy,b.lbl,NULL);
     }
-    int knobAt(double px,double py) const { for(int i=0;i<kNumKnobs;++i){ float dx=px-W()*kKnobs[i].cx,dy=py-H()*kKnobs[i].cy,R=W()*kKnobs[i].r+6; if(dx*dx+dy*dy<=R*R) return i; }
-    return -1; }
-    int btnAt(double px,double py) const { for(int i=0;i<kNumBtn;++i){ float dx=px-W()*kBtns[i].cx,dy=py-H()*kBtns[i].cy; if(dx*dx+dy*dy<=144) return i; }
-    return -1; }
+    int knobAt(double px,double py) const { for(int i=0;i<kNumKnobs;++i){ float dx=px-W()*kKnobs[i].cx,dy=py-H()*kKnobs[i].cy,R=W()*kKnobs[i].r+6; if(dx*dx+dy*dy<=R*R) return i; } return -1; }
+    int btnAt(double px,double py) const { for(int i=0;i<kNumBtn;++i){ float dx=px-W()*kBtns[i].cx,dy=py-H()*kBtns[i].cy; if(dx*dx+dy*dy<=144) return i; } return -1; }
 public:
     RumbleUI() : UI(DISTRHO_UI_DEFAULT_WIDTH,DISTRHO_UI_DEFAULT_HEIGHT), fDrag(-1), fLastY(0), fDragVal(0.5f) {
         loadSharedResources();

@@ -1,6 +1,6 @@
 /*
  * MR. Y JCM800 - Dr. Z JCM800 (a Marshall JCM800/JTM50-style master-volume head) for
- * the game's Amp_GB50. Parody brand "Marsten"; the in-app face must never read
+ * Rocksmith's Amp_GB50. Parody brand "Marsten"; the in-app face must never read
  * "Dr. Z". Reference: the JCM800 is a JCM800 2204 circuit + a HI/LO gain switch.
  *
  * Cascaded 12AX7 preamp (GAIN pot between the two stages, the JCM800 drive) ->
@@ -18,8 +18,7 @@
 START_NAMESPACE_DISTRHO
 
 static inline float rbAmpLvl(float x){ const float t=0.90f,c=0.99f,a=(x<0.f?-x:x);
-    if(a<=t) return x;
-    return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
+    if(a<=t) return x; return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
 
 namespace {
 
@@ -42,8 +41,7 @@ class Biquad
 {
     float b0=1.0f,b1=0.0f,b2=0.0f,a1=0.0f,a2=0.0f,z1=0.0f,z2=0.0f;
     void set(float nb0,float nb1,float nb2,float na0,float na1,float na2)
-    { if(std::fabs(na0)<1.0e-12f) na0=1.0f;
-    const float i=1.0f/na0;
+    { if(std::fabs(na0)<1.0e-12f) na0=1.0f; const float i=1.0f/na0;
       b0=nb0*i; b1=nb1*i; b2=nb2*i; a1=na1*i; a2=na2*i; }
 public:
     void reset(){ z1=z2=0.0f; }
@@ -264,8 +262,7 @@ protected:
     }
     float getParameterValue(uint32_t index) const override { return index < (uint32_t)kParamCount ? params[index] : 0.0f; }
     void setParameterValue(uint32_t index, float value) override
-    { if (index >= (uint32_t)kParamCount) return;
-    params[index] = clamp01(value); left.setParam((int)index, params[index]); right.setParam((int)index, params[index]); }
+    { if (index >= (uint32_t)kParamCount) return; params[index] = clamp01(value); left.setParam((int)index, params[index]); right.setParam((int)index, params[index]); }
     void sampleRateChanged(double newSampleRate) override
     { left.setSampleRate((float)newSampleRate); right.setSampleRate((float)newSampleRate); applyAll(); }
     void run(const float** inputs, float** outputs, uint32_t frames) override

@@ -56,8 +56,7 @@ class RubyUI : public UI {
     bool onMotion(const MotionEvent& ev) override {
         if (fDrag<0) return false;
         const float dy=(float)(fLastY-ev.pos.getY());
-        float v=fDragVal+dy/200.0f; if(v<0)v=0;
-        if(v>1)v=1;
+        float v=fDragVal+dy/200.0f; if(v<0)v=0; if(v>1)v=1;
         fValues[fDrag]=v; setParameterValue((uint32_t)fDrag,v); repaint(); return true;
     }
 

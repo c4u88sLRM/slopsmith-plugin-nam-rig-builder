@@ -1,6 +1,6 @@
 #pragma once
 #include <cmath>
-// the game "Studio Compressor" (Rack_StudioCompressor) -> dbx 160 model.
+// Rocksmith "Studio Compressor" (Rack_StudioCompressor) -> dbx 160 model.
 // The dbx 160 (this schematic) is a FEED-FORWARD compressor built around a
 // dbx 202 true-RMS level detector + a dbx 202 log-domain VCA. Its signature
 // is true-RMS detection (smooth, program-dependent) and exponential/log gain

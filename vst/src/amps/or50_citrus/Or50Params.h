@@ -14,7 +14,7 @@
  * power switch. A thick, midrange-forward British EL34 voice (the Orange "doom
  * chunk").
  *
- * the game (Amp_OrangeOR50, captured "V D T M B G"): RS Gain -> GAIN, Bass/Mid/
+ * Rocksmith (Amp_OrangeOR50, captured "V D T M B G"): RS Gain -> GAIN, Bass/Mid/
  * Treble -> tone stack. Volume + Depth pinned to musical defaults via _static;
  * all editable by hand (incl. the FULL/HALF switch).
  */

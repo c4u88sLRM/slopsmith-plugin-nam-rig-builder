@@ -9,11 +9,11 @@
  *               gain → asymmetric CMOS soft clip → Attack high-shelf (treble of
  *               the distortion) → level
  *   Blend mixes clean + dist.
- * the game knobs: Blend, Gain (=Drive), Filter (=Grunt), Tone (=Attack).
+ * Rocksmith knobs: Blend, Gain (=Drive), Filter (=Grunt), Tone (=Attack).
  */
 #include "DistrhoPlugin.hpp"
 #include "BassOverdriveParams.h"
-#include "../../_shared/automakeup.hpp"
+#include "../_shared/automakeup.hpp"
 #include <cmath>
 
 START_NAMESPACE_DISTRHO

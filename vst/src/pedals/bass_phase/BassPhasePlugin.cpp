@@ -2,8 +2,7 @@
  * BassPhase — analog bass phaser model for Bass_Pedal_BassPhase.
  *
  * Four cascaded first-order all-pass stages whose common break frequency is
- * swept by a sine LFO; the last stage feeds back into the input for
- the
+ * swept by a sine LFO; the last stage feeds back into the input for the
  * resonant "regeneration" character, and the phased signal is summed with the
  * dry signal to form the moving notches. The wet path is high-passed at ~85 Hz
  * so a bass keeps its low fundamentals (a guitar phaser would wash them out).
@@ -34,8 +33,7 @@ class Phaser {
     float hpZ = 0.f, cHP = 0.02f;
 public:
     void setSampleRate(float s) { fs = (s > 0.f) ? s : 48000.f; cHP = onePoleCoef(85.f, fs); }
-    void reset() { for (int i=0;i<kStages;++i){xPrev[i]=yPrev[i]=0.f;}
-    fbState=0.f; hpZ=0.f; }
+    void reset() { for (int i=0;i<kStages;++i){xPrev[i]=yPrev[i]=0.f;} fbState=0.f; hpZ=0.f; }
     void setParams(float rate, float depth, float mixP, float filter) {
         lfoInc   = 6.2831853f * (0.05f + rate * 7.95f) / fs;
         depthOct = 0.3f + depth * 2.5f;                 // octaves of sweep
@@ -47,8 +45,7 @@ public:
         lfoPhase += lfoInc; if (lfoPhase > 6.2831853f) lfoPhase -= 6.2831853f;
         const float lfo = std::sin(lfoPhase);
         float fc = baseFc * std::pow(2.0f, lfo * depthOct);
-        if (fc < 40.f) fc = 40.f;
-        const float nyq = fs * 0.45f; if (fc > nyq) fc = nyq;
+        if (fc < 40.f) fc = 40.f; const float nyq = fs * 0.45f; if (fc > nyq) fc = nyq;
         const float t = std::tan(3.14159265f * fc / fs);
         const float a = (t - 1.0f) / (t + 1.0f);
 

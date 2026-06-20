@@ -1,7 +1,7 @@
 #ifndef SWOLE_PARAMS_H
 #define SWOLE_PARAMS_H
 
-// the game Pedal_Swole exposes Smash and Rate. the game describes it as a
+// Rocksmith Pedal_Swole exposes Smash and Rate. Rocksmith describes it as a
 // very heavy saturated compression effect.
 enum SwoleParamId
 {

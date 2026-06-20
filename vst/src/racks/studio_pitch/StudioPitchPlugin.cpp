@@ -25,11 +25,9 @@ public:
     inline float proc(float x){
         buf[w]=x;
         const float rate=(1.0f-ratio);            // pointer drift per sample
-        ph+=rate; while(ph<0)ph+=win;
-        while(ph>=win)ph-=win;
+        ph+=rate; while(ph<0)ph+=win; while(ph>=win)ph-=win;
         float ph2=ph+win*0.5f; if(ph2>=win)ph2-=win;
-        auto rd=[&](float p)->float{ float rp=(float)w-p; while(rp<0)rp+=kPBuf;
-        int i0=(int)rp; float fr=rp-i0; int i1=(i0+1)%kPBuf; return buf[i0]+fr*(buf[i1]-buf[i0]); };
+        auto rd=[&](float p)->float{ float rp=(float)w-p; while(rp<0)rp+=kPBuf; int i0=(int)rp; float fr=rp-i0; int i1=(i0+1)%kPBuf; return buf[i0]+fr*(buf[i1]-buf[i0]); };
         float g1=1.0f-std::fabs(2.0f*ph/win-1.0f);     // triangular window
         float g2=1.0f-std::fabs(2.0f*ph2/win-1.0f);
         float y=rd(ph+2.f)*g1+rd(ph2+2.f)*g2;

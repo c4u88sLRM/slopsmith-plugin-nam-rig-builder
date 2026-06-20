@@ -1,5 +1,5 @@
 /*
- * MARSTEN PLEXI - Marshall 1959 Super Lead 100W (Plexi/JMP) for the game's
+ * MARSTEN PLEXI - Marshall 1959 Super Lead 100W (Plexi/JMP) for Rocksmith's
  * Amp_MarshallPlexi. Parody brand "Marsten" (same as the DSL100 / GM-2 / UV-1);
  * the in-app face must never read "Marshall".
  *
@@ -15,7 +15,7 @@
  * grind, early compressing breakup) -> output transformer. PRESENCE taps the
  * power-amp NFB.
  *
- * the game: no gain knob, so RS Gain -> Loudness I (clean->crunch->roar);
+ * Rocksmith: no gain knob, so RS Gain -> Loudness I (clean->crunch->roar);
  * Treble/Bass/Mid -> tone stack, Pres -> Presence. See rs_knob_to_vst_param.json
  * (Loudness II pinned to a musical jumpered blend via _static).
  */
@@ -29,8 +29,7 @@ START_NAMESPACE_DISTRHO
 // amp to the common multitone loudness; the soft knee is transparent below
 // +/-0.90 and saturates to a +/-0.99 ceiling so EQ boosts never hard-clip.
 static inline float rbAmpLvl(float x){ const float t=0.90f,c=0.99f,a=(x<0.f?-x:x);
-    if(a<=t) return x;
-    return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
+    if(a<=t) return x; return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
 
 namespace {
 

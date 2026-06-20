@@ -1,9 +1,9 @@
 /*
- * Shared stompbox-style UI for the bundled the game pedal VSTs (DPF NanoVG).
+ * Shared stompbox-style UI for the bundled Rocksmith pedal VSTs (DPF NanoVG).
  *
  * Draws a portrait pedal body (rounded rect + metallic gradient + accent
  * border), the pedal name, an LED + footswitch graphic, and the pedal's knobs
- * at per-pedal positions taken from the real the game pedal art. Knobs are
+ * at per-pedal positions taken from the real Rocksmith pedal art. Knobs are
  * rotary with vertical-drag editing, a value arc, a pointer, a top label and a
  * 0–10 readout.
  *
@@ -54,10 +54,10 @@ static const PedalKnob kPedalKnobs[kParamCount] = PEDAL_KNOBS;
 
 class PedalUI : public UI
 {
+    float  fValues[kParamCount];
     int    fDrag;
     double fLastY;
     float  fDragVal;
-    float  fValues[kParamCount];
 
     float scale() const { return getWidth() / (float)PEDAL_W; }
     float kx(int i) const { return getWidth()  * kPedalKnobs[i].cx; }
@@ -148,8 +148,7 @@ protected:
         if (fDrag >= 0) {
             const double dy = fLastY - ev.pos.getY(); fLastY = ev.pos.getY();
             fDragVal += (float)dy / (170.0f * scale());
-            if (fDragVal < 0.f) fDragVal = 0.f;
-            if (fDragVal > 1.f) fDragVal = 1.f;
+            if (fDragVal < 0.f) fDragVal = 0.f; if (fDragVal > 1.f) fDragVal = 1.f;
             fValues[fDrag] = fDragVal; setParameterValue(fDrag, fDragVal); repaint();
             return true;
         }

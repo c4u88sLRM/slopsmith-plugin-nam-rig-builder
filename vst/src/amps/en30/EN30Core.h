@@ -20,10 +20,10 @@
  * pots are: Normal Vol, TB Vol, Treble, Bass, Reverb Tone (VR5 A500K), Reverb
  * Level (VR6 B100K), Tremolo Speed/Depth, Tone Cut (VR9 B220K), Master. The Top
  * Boost stack has NO mid pot (its mid is a fixed resistor — the Vox scoop). Two
- * faithful EXTRAS give the game Mid/Bright knobs a home without inventing
+ * faithful EXTRAS give the Rocksmith Mid/Bright knobs a home without inventing
  * fake pots: Input = the channel-jumper select (cable jumper on the C2 / CHANNEL
  * LINK switch SW1 on the CC2), and Bright = the Top Boost brilliance bright-cap
- * amount (a fixed cap on the C2 / a 2-position switch on the CC2). the game
+ * amount (a fixed cap on the C2 / a 2-position switch on the CC2). Rocksmith
  * mapping: Gain->TB Vol, Bass->Bass, Treble->Treble, Pres->Tone Cut(inv),
  * Mid->Normal Vol (+Input=Both), Bright->the brilliance cap.
  *
@@ -610,8 +610,7 @@ public:
         const float s = (sr > 1000.0f ? sr : 48000.0f) / 48000.0f;
         n0 = (int)(225 * s); n1 = (int)(341 * s); n2 = (int)(441 * s);
         nc0 = (int)(1617 * s); nc1 = (int)(1991 * s);
-        if (nc0 > 3599) nc0 = 3599;
-        if (nc1 > 3599) nc1 = 3599;
+        if (nc0 > 3599) nc0 = 3599; if (nc1 > 3599) nc1 = 3599;
         inHp.setHighPass(sr, 220.0f, 0.7f);     // springs roll off the lows
         inLp.setLowPass(sr, 5000.0f, 0.7f);     // and the highs ("boing"); headroom
                                                 // for the bright Reverb Tone tap
@@ -878,14 +877,14 @@ public:
 
         float x = inputGridStopper.process(in);
 
-        // --- Brilliant (Top Boost) channel — the game path ---
+        // --- Brilliant (Top Boost) channel — the Rocksmith path ---
         // V1a -> TB Volume (C15 120pF bright bypass, scaled by Bright) -> V1b
         // cathode follower -> passive Top Boost stack -> op-amp recovery (clean) ->
         // V3 driver tube.
         float v1 = v1aFirstTriode.process(x, 0.55f + 0.45f * hotTb, 1.0f);
-        // RS Gain = DISTORTION amount, NOT volume. the game holds the output volume
+        // RS Gain = DISTORTION amount, NOT volume. Rocksmith holds the output volume
         // FIXED and only varies distortion, so TB Volume keeps a BASE level even at low
-        // gain — a real AC30 Volume would go near-silent, but that kills the game's
+        // gain — a real AC30 Volume would go near-silent, but that kills Rocksmith's
         // "gain 3" tones (RS gain ~0.03 of the knob -> dead quiet without this base).
         const float volume = 0.16f + 1.62f * gTb + 0.88f * hotTb;   // TB Volume (+ base)
         const float brightBleed = (1.0f - 0.42f * gTb) * (0.05f + 0.20f * b) * v1Bright120p.process(v1);
@@ -961,7 +960,7 @@ public:
         y = speakerAir.process(y);
         y = speakerLp.process(y);
 
-        // --- output makeup: holds the game loudness ~constant vs TB Vol and vs
+        // --- output makeup: holds Rocksmith loudness ~constant vs TB Vol and vs
         //     the jumpered Normal channel (RS Mid), so the level stays at the
         //     reference while the tone/mids shift. ---
         const float normalBlend = nGate * normalVol;   // how much Normal is summed in
@@ -983,7 +982,7 @@ public:
         // So the makeup only lifts the clean->breakup region (g up to ~0.5) and
         // then stays FLAT; it must not rise into the saturated zone or max gain
         // blasts. (The previous makeup rose all the way to the top.)
-        // RS Gain = distortion ONLY; the game holds the output VOLUME fixed. So
+        // RS Gain = distortion ONLY; Rocksmith holds the output VOLUME fixed. So
         // normalize to a constant level across the whole gain sweep: a strong makeup at
         // low gain (clean/quiet) that decays toward unity as the preamp gets driven and
         // self-compresses. Without this, low RS Gain (~0.03) plays ~14 dB too quiet.

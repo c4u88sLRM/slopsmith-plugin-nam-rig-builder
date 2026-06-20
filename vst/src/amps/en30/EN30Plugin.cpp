@@ -1,9 +1,8 @@
 /*
- * BOX DC30 - AC30 Top Boost-style amp for the game's Amp_EN30.
+ * BOX DC30 - AC30 Top Boost-style amp for Rocksmith's Amp_EN30.
  *
  * DPF wrapper (VST3 + AU). All the DSP lives in EN30Core.h (plain C++,
- * offline-testable); see that header for
- the circuit topology and schematic refs.
+ * offline-testable); see that header for the circuit topology and schematic refs.
  *
  * STEREO I/O, single mono core: the amp IS a mono device, so it runs ONE EN30Core
  * (half the CPU of a true dual-core stereo build), but it presents 2-in/2-out and
@@ -21,8 +20,7 @@ START_NAMESPACE_DISTRHO
 // transparent below +/-0.90 and saturates to a +/-0.99 ceiling so EQ boosts
 // never hard-clip. See AMP_LOUDNESS.md.
 static inline float rbAmpLvl(float x){ const float t=0.90f,c=0.99f,a=(x<0.f?-x:x);
-    if(a<=t) return x;
-    return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
+    if(a<=t) return x; return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
 
 class EN30Plugin : public Plugin
 {

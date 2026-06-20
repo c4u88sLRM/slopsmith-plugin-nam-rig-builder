@@ -17,7 +17,7 @@
  *   A Vintage/Burn switch picks the channel; a shared spring Reverb; 12AT7 PI ->
  *   2x 6V6GT push-pull (~22 W), solid-state rectifier (mild sag), Celestion V30.
  *
- * the game's single Gain knob DRIVES THE CHANNEL: the `channel` param crossfades
+ * Rocksmith's single Gain knob DRIVES THE CHANNEL: the `channel` param crossfades
  * Vintage(0) -> Burn(1). Because the two channels have very different inherent
  * gain (clean vs cascaded), the morph alone sweeps clean -> cranked. Treble/Bass/
  * Mid map to the Burn tone stack; Bright -> Norm/Fat; Pres -> the power presence.
@@ -69,8 +69,7 @@ public:
 class Biquad {
     float b0 = 1.0f, b1 = 0.0f, b2 = 0.0f, a1 = 0.0f, a2 = 0.0f, z1 = 0.0f, z2 = 0.0f;
     void set(float nb0, float nb1, float nb2, float na0, float na1, float na2) {
-        if (std::fabs(na0) < 1.0e-12f) na0 = 1.0f;
-        const float k = 1.0f / na0;
+        if (std::fabs(na0) < 1.0e-12f) na0 = 1.0f; const float k = 1.0f / na0;
         b0 = nb0 * k; b1 = nb1 * k; b2 = nb2 * k; a1 = na1 * k; a2 = na2 * k;
     }
 public:
@@ -109,16 +108,14 @@ class SpringReverb {
     Biquad inHp, inLp;
     static inline float apStep(float* buf, int& p, int n, float in, float g) {
         const float bo = buf[p]; const float v = in + bo * g; buf[p] = v;
-        if (++p >= n) p = 0;
-        return bo - v * g;
+        if (++p >= n) p = 0; return bo - v * g;
     }
 public:
     void setSampleRate(float sr) {
         const float s = (sr > 1000.0f ? sr : 48000.0f) / 48000.0f;
         n0 = (int)(225 * s); n1 = (int)(341 * s); n2 = (int)(441 * s);
         nc0 = (int)(1617 * s); nc1 = (int)(1991 * s);
-        if (nc0 > 3599) nc0 = 3599;
-        if (nc1 > 3599) nc1 = 3599;
+        if (nc0 > 3599) nc0 = 3599; if (nc1 > 3599) nc1 = 3599;
         inHp.setHighPass(sr, 240.0f, 0.7f); inLp.setLowPass(sr, 3800.0f, 0.7f);
         clear();
     }

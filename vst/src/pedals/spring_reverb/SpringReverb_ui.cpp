@@ -9,4 +9,4 @@
 #define PEDAL_W 320
 #define PEDAL_H 420
 #define PEDAL_KNOBS { {0.28f,0.17f,0.115f}, {0.50f,0.27f,0.085f}, {0.72f,0.17f,0.115f} }
-#include "../../_shared/pedal_ui.hpp"
+#include "../_shared/pedal_ui.hpp"

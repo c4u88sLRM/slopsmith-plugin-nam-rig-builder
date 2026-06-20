@@ -1,5 +1,5 @@
 /*
- * RONALD JC-120 - Roland JC-120 "Jazz Chorus" for the game's Amp_CS120. Parody
+ * RONALD JC-120 - Roland JC-120 "Jazz Chorus" for Rocksmith's Amp_CS120. Parody
  * brand "Ronald" (Roland -> Ronald); the in-app face must never read "Roland".
  *
  * Local reference (modelled from the service manual):
@@ -12,7 +12,7 @@
  * Vibrato — the dry feeds one speaker and the pitch-modulated wet the other, so
  * the chorus opens up wide. See JC120Params.h.
  *
- * the game: Gain -> Distortion (clean at 0). Treble/Mid/Bass -> tone stack.
+ * Rocksmith: Gain -> Distortion (clean at 0). Treble/Mid/Bass -> tone stack.
  * Reverb/Chorus OFF for songs (RS adds those separately).
  */
 #include "DistrhoPlugin.hpp"
@@ -26,8 +26,7 @@ START_NAMESPACE_DISTRHO
 // amp to the common multitone loudness; the soft knee is transparent below
 // +/-0.90 and saturates to a +/-0.99 ceiling so EQ boosts never hard-clip.
 static inline float rbAmpLvl(float x){ const float t=0.90f,c=0.99f,a=(x<0.f?-x:x);
-    if(a<=t) return x;
-    return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
+    if(a<=t) return x; return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
 
 namespace {
 
@@ -101,16 +100,14 @@ class SpringReverb
     float damp0 = 0.0f, damp1 = 0.0f;
     Biquad inHp, inLp;
     static inline float apStep(float* buf, int& p, int n, float in, float g)
-    { const float bo = buf[p]; const float v = in + bo * g; buf[p] = v; if (++p >= n) p = 0;
-    return bo - v * g; }
+    { const float bo = buf[p]; const float v = in + bo * g; buf[p] = v; if (++p >= n) p = 0; return bo - v * g; }
 public:
     void setSampleRate(float sr)
     {
         const float s = (sr > 1000.0f ? sr : 48000.0f) / 48000.0f;
         n0 = (int)(225 * s); n1 = (int)(341 * s); n2 = (int)(441 * s);
         nc0 = (int)(1617 * s); nc1 = (int)(1991 * s);
-        if (nc0 > 3599) nc0 = 3599;
-        if (nc1 > 3599) nc1 = 3599;
+        if (nc0 > 3599) nc0 = 3599; if (nc1 > 3599) nc1 = 3599;
         inHp.setHighPass(sr, 240.0f, 0.7f); inLp.setLowPass(sr, 3800.0f, 0.7f);
         clear();
     }

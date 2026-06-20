@@ -1,5 +1,5 @@
 /* MarshallSupervibe stompbox UI — shared pedal_ui template. Colour sampled from the
- * the game art (Pedal_MarshallSupervibe); knob count + labels from the plugin params. */
+ * Rocksmith art (Pedal_MarshallSupervibe); knob count + labels from the plugin params. */
 #include "MarshallSupervibeParams.h"
 #define PEDAL_TITLE  "MARSHALL SUPERVIBE"
 #define PEDAL_NAMES  kMarshallSupervibeNames
@@ -13,4 +13,4 @@
 #define PEDAL_W 360
 #define PEDAL_H 440
 #define PEDAL_KNOBS { {0.18f,0.19f,0.085f}, {0.39f,0.19f,0.085f}, {0.61f,0.19f,0.085f}, {0.82f,0.19f,0.085f} }
-#include "../../_shared/pedal_ui.hpp"
+#include "../_shared/pedal_ui.hpp"

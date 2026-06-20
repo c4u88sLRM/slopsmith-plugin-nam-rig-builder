@@ -1,5 +1,5 @@
 /*
- * AutoSweep — DPF NanoVG UI, LANDSCAPE stompbox like the game "Auto
+ * AutoSweep — DPF NanoVG UI, LANDSCAPE stompbox like the Rocksmith "Auto
  * Filter" art: taupe body, a single row of knobs (Sens / Attack / Release /
  * FilterType / Res / Mix), big pedal name, footswitch. Rotary knobs drag
  * vertically; meaningful readouts kept (LP/BP/HP, ms, %).
@@ -37,8 +37,7 @@ class QTronUI : public UI
         const float v = fValues[i];
         if (i == kMode) {
             const char* nm[3] = { "LOW PASS", "BAND PASS", "HIGH PASS" };
-            int m = (int)(v + 0.5f); if (m < 0) m = 0;
-            if (m > 2) m = 2;
+            int m = (int)(v + 0.5f); if (m < 0) m = 0; if (m > 2) m = 2;
             std::snprintf(buf, n, "%s", nm[m]);
         } else if (i == kRange) {
             std::snprintf(buf, n, "%s", v < 0.10f ? "LOW" : v < 0.80f ? "MID" : "HIGH");

@@ -1,6 +1,6 @@
 /*
  * UNPARALLEL CHIEFTAIN - Matchless Chieftain (Reverb), Mark Sampson, for
- * the game's Amp_BT15. Parody brand "RigBuilder"; the in-app face must never
+ * Rocksmith's Amp_BT15. Parody brand "RigBuilder"; the in-app face must never
  * read "Matchless" or "Chieftain".
  *
  * Reference (modelled component-by-component): a hand-traced 7-page schematic of
@@ -15,7 +15,7 @@
  * Voice: Fender-meets-Marshall, lots of clean before breakup. Stays cleaner and
  * has more headroom than the Mark/Boogie -- deliberately NOT over-saturated.
  *
- * the game: RS Gain -> VOLUME (drives the preamp into the EL34s); Bass/Mid/
+ * Rocksmith: RS Gain -> VOLUME (drives the preamp into the EL34s); Bass/Mid/
  * Treble -> tone stack. Brilliance/Master/Reverb set on the face.
  */
 #include "DistrhoPlugin.hpp"
@@ -25,8 +25,7 @@
 START_NAMESPACE_DISTRHO
 
 static inline float rbAmpLvl(float x){ const float t=0.90f,c=0.99f,a=(x<0.f?-x:x);
-    if(a<=t) return x;
-    return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
+    if(a<=t) return x; return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
 
 namespace {
 
@@ -49,8 +48,7 @@ class Biquad
 {
     float b0=1.0f,b1=0.0f,b2=0.0f,a1=0.0f,a2=0.0f,z1=0.0f,z2=0.0f;
     void set(float nb0,float nb1,float nb2,float na0,float na1,float na2)
-    { if(std::fabs(na0)<1.0e-12f) na0=1.0f;
-    const float i=1.0f/na0;
+    { if(std::fabs(na0)<1.0e-12f) na0=1.0f; const float i=1.0f/na0;
       b0=nb0*i; b1=nb1*i; b2=nb2*i; a1=na1*i; a2=na2*i; }
 public:
     void reset(){ z1=z2=0.0f; }
@@ -183,19 +181,15 @@ class SpringReverb
     float c1[N1], c2[N2], ap1[A1], ap2[A2];
     int i1=0,i2=0,j1=0,j2=0; float lp1=0.0f,lp2=0.0f;
 public:
-    void reset(){ for(int i=0;i<N1;++i)c1[i]=0.f;
-    for(int i=0;i<N2;++i)c2[i]=0.f;
-        for(int i=0;i<A1;++i)ap1[i]=0.f;
-        for(int i=0;i<A2;++i)ap2[i]=0.f;
+    void reset(){ for(int i=0;i<N1;++i)c1[i]=0.f; for(int i=0;i<N2;++i)c2[i]=0.f;
+        for(int i=0;i<A1;++i)ap1[i]=0.f; for(int i=0;i<A2;++i)ap2[i]=0.f;
         i1=i2=j1=j2=0; lp1=lp2=0.f; }
     float process(float x){
         float y1=c1[i1]; lp1 += 0.42f*(y1-lp1); c1[i1]= x + 0.80f*lp1; if(++i1>=N1)i1=0;
         float y2=c2[i2]; lp2 += 0.42f*(y2-lp2); c2[i2]= x + 0.76f*lp2; if(++i2>=N2)i2=0;
         float y=(y1+y2)*0.5f;
-        float t1=ap1[j1]; float o1=-0.6f*y+t1; ap1[j1]= y+0.6f*o1; if(++j1>=A1)j1=0;
-        y=o1;
-        float t2=ap2[j2]; float o2=-0.6f*y+t2; ap2[j2]= y+0.6f*o2; if(++j2>=A2)j2=0;
-        y=o2;
+        float t1=ap1[j1]; float o1=-0.6f*y+t1; ap1[j1]= y+0.6f*o1; if(++j1>=A1)j1=0; y=o1;
+        float t2=ap2[j2]; float o2=-0.6f*y+t2; ap2[j2]= y+0.6f*o2; if(++j2>=A2)j2=0; y=o2;
         return y;
     }
 };

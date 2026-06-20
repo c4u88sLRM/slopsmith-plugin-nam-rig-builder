@@ -1,15 +1,15 @@
 /*
- * AlloyDistortion - Boss HM-2 style metal distortion for the game's
+ * AlloyDistortion - Boss HM-2 style metal distortion for Rocksmith's
  * Pedal_MetalDistortion.
  *
  * Local reference: pedals/alloy distortion.pdf. The HM-2 has asymmetric soft
  * clipping, hard clipping, germanium crossover artifacts, and separate low/high
- * color controls. the game exposes Gain and Tone only, so Tone is a combined
+ * color controls. Rocksmith exposes Gain and Tone only, so Tone is a combined
  * color blend and output level is internally compensated.
  */
 #include "DistrhoPlugin.hpp"
 #include "AlloyDistortionParams.h"
-#include "../../_shared/automakeup.hpp"
+#include "../_shared/automakeup.hpp"
 #include <cmath>
 
 START_NAMESPACE_DISTRHO

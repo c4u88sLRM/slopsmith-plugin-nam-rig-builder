@@ -1,7 +1,7 @@
 #ifndef TREM_OLE_PARAMS_H
 #define TREM_OLE_PARAMS_H
 
-// the game Pedal_TremOle exposes Sens, Attack, Release, and Mix.
+// Rocksmith Pedal_TremOle exposes Sens, Attack, Release, and Mix.
 enum TremOleParamId
 {
     kSens = 0,

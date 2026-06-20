@@ -1,10 +1,10 @@
 /*
- * Tremolo - Colorsound Tremola-style transistor tremolo for the game's
+ * Tremolo - Colorsound Tremola-style transistor tremolo for Rocksmith's
  * Pedal_Tremolo.
  *
  * Local reference: pedals/tremolo.jpg, a Colorsound Tremolo/Tremola version 1
  * schematic with a discrete transistor audio stage and a simple transistor LFO.
- * the game exposes Speed and Mix; Mix is the tremolo depth/intensity.
+ * Rocksmith exposes Speed and Mix; Mix is the tremolo depth/intensity.
  */
 #include "DistrhoPlugin.hpp"
 #include "TremoloParams.h"
@@ -67,7 +67,7 @@ class TremoloCore
 
     float rateHz() const
     {
-        // Common the game values are Speed 30-80. Put 56 around a clear
+        // Common Rocksmith values are Speed 30-80. Put 56 around a clear
         // medium tremolo pulse and leave 80 fast without becoming chattery.
         return 0.62f * std::pow(30.0f, speed);
     }

@@ -76,12 +76,9 @@ class TMaxUI : public UI {
     void led(float cx,float cy,Color c){ const float f=scale();
         beginPath(); circle(W()*cx,H()*cy,3.2f*f); fillColor(c); fill();
         beginPath(); circle(W()*cx,H()*cy,3.2f*f); strokeColor(Color(40,40,44)); strokeWidth(0.8f*f); stroke(); }
-    int knobAt(double px,double py) const { for(int i=0;i<kNumKnobs;++i){ float dx=px-W()*kKnobs[i].cx,dy=py-H()*kKnobs[i].cy,R=W()*kKnobs[i].r+6; if(dx*dx+dy*dy<=R*R) return i; }
-    return -1; }
-    int faderAt(double px,double py) const { for(int i=0;i<kNumEq;++i){ if(std::fabs(px-eqX(i))<=12 && py>=eqY0()-12 && py<=eqY1()+12) return i; }
-    return -1; }
-    int switchAt(double px,double py) const { for(int i=0;i<kNumSw;++i){ float hs=W()*0.013f+5; if(std::fabs(px-W()*kSwitches[i].cx)<=hs && std::fabs(py-H()*kSwitches[i].cy)<=hs) return i; }
-    return -1; }
+    int knobAt(double px,double py) const { for(int i=0;i<kNumKnobs;++i){ float dx=px-W()*kKnobs[i].cx,dy=py-H()*kKnobs[i].cy,R=W()*kKnobs[i].r+6; if(dx*dx+dy*dy<=R*R) return i; } return -1; }
+    int faderAt(double px,double py) const { for(int i=0;i<kNumEq;++i){ if(std::fabs(px-eqX(i))<=12 && py>=eqY0()-12 && py<=eqY1()+12) return i; } return -1; }
+    int switchAt(double px,double py) const { for(int i=0;i<kNumSw;++i){ float hs=W()*0.013f+5; if(std::fabs(px-W()*kSwitches[i].cx)<=hs && std::fabs(py-H()*kSwitches[i].cy)<=hs) return i; } return -1; }
 public:
     TMaxUI() : UI(DISTRHO_UI_DEFAULT_WIDTH,DISTRHO_UI_DEFAULT_HEIGHT), fDrag(-1), fFader(-1), fLastY(0), fDragVal(0.5f) {
         loadSharedResources();

@@ -1,12 +1,12 @@
 /*
- * Super-Buzz - octave fuzz for the game's Pedal_BuzzOne.
+ * Super-Buzz - octave fuzz for Rocksmith's Pedal_BuzzOne.
  * The local schematic shows a 2SC828 preamp, phase-split full-wave octave fuzz,
- * OA90 diode clipping, and passive tone/balance network. the game exposes
+ * OA90 diode clipping, and passive tone/balance network. Rocksmith exposes
  * Gain and Tone, so this DSP keeps those two controls and fixes level.
  */
 #include "DistrhoPlugin.hpp"
 #include "SuperBuzzParams.h"
-#include "../../_shared/automakeup.hpp"
+#include "../_shared/automakeup.hpp"
 #include <cmath>
 
 START_NAMESPACE_DISTRHO

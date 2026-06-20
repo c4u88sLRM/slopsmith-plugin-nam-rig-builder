@@ -1,5 +1,5 @@
 /* AnalogChorus stompbox UI — shared pedal_ui template. Colour sampled from the
- * the game art (Pedal_VintageChorus); knob count + labels from the plugin params. */
+ * Rocksmith art (Pedal_VintageChorus); knob count + labels from the plugin params. */
 #include "AnalogChorusParams.h"
 #define PEDAL_TITLE  "ANALOG CHORUS"
 #define PEDAL_NAMES  kAnalogChorusNames
@@ -13,4 +13,4 @@
 #define PEDAL_W 360
 #define PEDAL_H 440
 #define PEDAL_KNOBS { {0.22f,0.20f,0.100f}, {0.50f,0.20f,0.100f}, {0.78f,0.20f,0.100f} }
-#include "../../_shared/pedal_ui.hpp"
+#include "../_shared/pedal_ui.hpp"

@@ -1,6 +1,6 @@
 #pragma once
 #include <cmath>
-// the game "Amp Eq" pedal -> Fender '59 Bassman 5F6-A passive FMV tone stack.
+// Rocksmith "Amp Eq" pedal -> Fender '59 Bassman 5F6-A passive FMV tone stack.
 // This is NOT three independent bands: it is the real passive Bass/Mid/Treble
 // network whose controls INTERACT (the famous Fender mid scoop, treble/bass
 // coupling through the slope resistor). Modeled as the analog transfer function

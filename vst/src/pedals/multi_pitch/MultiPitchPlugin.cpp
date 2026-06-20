@@ -1,11 +1,10 @@
 /*
- * MultiPitch - MF-102 style ring mod / pitch sideband pedal for the game's
+ * MultiPitch - MF-102 style ring mod / pitch sideband pedal for Rocksmith's
  * Pedal_MultiPitch.
  *
  * Local reference: pedals/multipitch.pdf. The schematic shows an MF-102 style
- * preamp, carrier oscillator, LFO and LM13600 balanced modulator. the game
- * exposes Pitch1, Tone and Mix; Pitch1 drives the carrier pitch while
- Tone
+ * preamp, carrier oscillator, LFO and LM13600 balanced modulator. Rocksmith
+ * exposes Pitch1, Tone and Mix; Pitch1 drives the carrier pitch while Tone
  * voices carrier shape and LFO amount.
  */
 #include "DistrhoPlugin.hpp"
@@ -149,7 +148,7 @@ class MultiPitchCore
 
     float pitchCarrierHz() const
     {
-        // Mapping stores the game semitone Pitch1 as normalized:
+        // Mapping stores Rocksmith semitone Pitch1 as normalized:
         // -24 -> 0.0, 0 -> 0.5, +24 -> 1.0. Use A2 as the center carrier.
         const float semis = (pitch1 - 0.5f) * 48.0f;
         return std::fmax(12.0f, std::fmin(3600.0f, 110.0f * std::pow(2.0f, semis / 12.0f)));
@@ -216,7 +215,7 @@ public:
         x = inputVoice.process(x);
         ampEnv += onePoleCoeffHz(20.0f, sampleRate) * (std::fabs(x) - ampEnv);
 
-        // MF-102 drive is not exposed by the game; keep it musical and let
+        // MF-102 drive is not exposed by Rocksmith; keep it musical and let
         // Tone push a little more carrier bite.
         const float drive = 1.08f + 0.44f * t + 0.18f * m;
         const float pre = softClip(x * drive) * (0.96f - 0.06f * m);
@@ -240,7 +239,7 @@ public:
         balanced += pre * carrier2 * (0.10f + 0.16f * t);
 
         // Imperfect null and carrier bleed keep the analog MF-102 feel, but
-        // stay low enough to avoid a volume jump at common the game Mix=50.
+        // stay low enough to avoid a volume jump at common Rocksmith Mix=50.
         const float signalLeak = pre * (0.030f + 0.025f * (1.0f - t));
         const float carrierLeak = carrier * (0.004f + 0.007f * t) * (0.45f + 0.55f * ampEnv);
         float wet = balanced + signalLeak + carrierLeak;

@@ -1,5 +1,5 @@
 /*
- * MARSTEN BLUESBREAKER - Marshall 1962 Bluesbreaker combo for the game's
+ * MARSTEN BLUESBREAKER - Marshall 1962 Bluesbreaker combo for Rocksmith's
  * Amp_Marshall1962Bluesbreaker. Parody brand "Marsten" (same as the Plexi /
  * DSL100 / JCM800); the in-app face must never read "Marshall".
  *
@@ -15,7 +15,7 @@
  * NFB. The TREMOLO (V6 phase-shift LFO + J174 FET) amplitude-modulates the
  * output: SPEED = rate (~2..8 Hz), INTENSITY = depth (0 = OFF).
  *
- * the game: no gain knob, so RS Gain -> LOUDNESS 1 (clean->crunch->roar);
+ * Rocksmith: no gain knob, so RS Gain -> LOUDNESS 1 (clean->crunch->roar);
  * Treble/Bass/Mid -> tone stack, Pres -> Presence. Tremolo off by default
  * (Intensity 0). See rs_knob_to_vst_param.json (Loudness 2 pinned to a musical
  * jumpered blend via _static; Speed/Intensity editable by hand).
@@ -30,8 +30,7 @@ START_NAMESPACE_DISTRHO
 // amp to the common multitone loudness; the soft knee is transparent below
 // +/-0.90 and saturates to a +/-0.99 ceiling so EQ boosts never hard-clip.
 static inline float rbAmpLvl(float x){ const float t=0.90f,c=0.99f,a=(x<0.f?-x:x);
-    if(a<=t) return x;
-    return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
+    if(a<=t) return x; return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
 
 namespace {
 

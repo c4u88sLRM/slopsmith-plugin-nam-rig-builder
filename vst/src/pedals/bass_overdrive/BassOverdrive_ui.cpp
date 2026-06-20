@@ -3,7 +3,7 @@
  * 4 knobs in a 2x2 grid with the label above each (the RS knob count), clean
  * modern sans, "CMOS BASS OVERDRIVE" wordmark at the bottom. No brand/model name. */
 #include "BassOverdriveParams.h"
-#include "../../_shared/pedalkit.hpp"
+#include "../_shared/pedalkit.hpp"
 
 START_NAMESPACE_DISTRHO
 

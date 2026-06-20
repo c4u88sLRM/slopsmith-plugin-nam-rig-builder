@@ -1,12 +1,12 @@
 /*
- * CustomDrive - overdrive/distortion pedal for the game's Pedal_CustomDrive.
+ * CustomDrive - overdrive/distortion pedal for Rocksmith's Pedal_CustomDrive.
  * Reference: local "custom drive" schematic with op-amp gain, MOSFET/diode
- * clipping, a voice switch, and a passive tone network. the game exposes only
+ * clipping, a voice switch, and a passive tone network. Rocksmith exposes only
  * Gain, Tone, and Voice, so output level is internally normalized.
  */
 #include "DistrhoPlugin.hpp"
 #include "CustomDriveParams.h"
-#include "../../_shared/automakeup.hpp"
+#include "../_shared/automakeup.hpp"
 #include <cmath>
 
 START_NAMESPACE_DISTRHO
@@ -221,7 +221,7 @@ public:
         y = toneShelf.process(y);
         y = toneLowPass.process(y);
 
-        // No the game volume knob: compensate the pre-gain so presets do not
+        // No Rocksmith volume knob: compensate the pre-gain so presets do not
         // turn into level jumps.
         const float level = 0.80f / (1.0f + 0.55f * gain) * (voiceOn ? 0.94f : 0.99f);
         return y * level;

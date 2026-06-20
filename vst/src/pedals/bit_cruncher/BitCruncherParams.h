@@ -1,7 +1,7 @@
 #ifndef BIT_CRUNCHER_PARAMS_H
 #define BIT_CRUNCHER_PARAMS_H
 
-// the game Pedal_BitCruncher exposes Attack, FilterType, Mix, Release, Sens.
+// Rocksmith Pedal_BitCruncher exposes Attack, FilterType, Mix, Release, Sens.
 enum BitCruncherParamId
 {
     kAttack = 0,

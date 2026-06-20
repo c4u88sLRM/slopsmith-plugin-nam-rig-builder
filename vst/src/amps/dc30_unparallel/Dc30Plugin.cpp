@@ -1,6 +1,5 @@
 /*
- * UNPARALLEL DC30 — Matchless DC30 for
- the game's Amp_BT30. Parody brand; the
+ * UNPARALLEL DC30 — Matchless DC30 for Rocksmith's Amp_BT30. Parody brand; the
  * in-app face must never read "Matchless".
  *
  * A hand-wired AC30-class boutique combo: TWO independent channels into a shared
@@ -13,7 +12,7 @@
  *     TONE rotary modelled as a continuous dark(fat)->bright sweep. Thick mids.
  *   Shared: CUT (post/PI treble cut, higher = darker) + MASTER.
  *
- * the game: RS Gain -> CH1 VOLUME (drives the EL84 breakup), Channel pinned to
+ * Rocksmith: RS Gain -> CH1 VOLUME (drives the EL84 breakup), Channel pinned to
  * Ch1 Brilliant via _static; Bass/Treble -> the Ch1 top-boost stack. The DSP
  * channel-select morphs between the Ch1 top-boost voice and the Ch2 EF86 voice.
  * Class-A EL84: gentle even-harmonic soft clip, compression that rises with
@@ -26,8 +25,7 @@
 START_NAMESPACE_DISTRHO
 
 static inline float rbAmpLvl(float x){ const float t=0.90f,c=0.99f,a=(x<0.f?-x:x);
-    if(a<=t) return x;
-    return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
+    if(a<=t) return x; return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
 
 namespace {
 
@@ -50,8 +48,7 @@ class Biquad
 {
     float b0=1.0f,b1=0.0f,b2=0.0f,a1=0.0f,a2=0.0f,z1=0.0f,z2=0.0f;
     void set(float nb0,float nb1,float nb2,float na0,float na1,float na2)
-    { if(std::fabs(na0)<1.0e-12f) na0=1.0f;
-    const float i=1.0f/na0;
+    { if(std::fabs(na0)<1.0e-12f) na0=1.0f; const float i=1.0f/na0;
       b0=nb0*i; b1=nb1*i; b2=nb2*i; a1=na1*i; a2=na2*i; }
 public:
     void reset(){ z1=z2=0.0f; }

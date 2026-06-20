@@ -1,5 +1,5 @@
 /*
- * MARSTEN DSL100 - Marshall JCM2000 DSL100(H) for the game's Amp_MarshallDSL100H.
+ * MARSTEN DSL100 - Marshall JCM2000 DSL100(H) for Rocksmith's Amp_MarshallDSL100H.
  * Parody brand "Marsten" (matches the GM-2 / UV-1 Marshall-copy pedals); the face
  * must never read "Marshall".
  *
@@ -15,7 +15,7 @@
  * amp with Presence/Resonance NFB, dual master, per-channel reverb and a
  * Low/High (50W/100W) output switch.
  *
- * the game: the Gain knob drives the channel morph (Classic clean -> Crunch ->
+ * Rocksmith: the Gain knob drives the channel morph (Classic clean -> Crunch ->
  * Ultra), matching the gain_variants split. See rs_knob_to_vst_param.json.
  */
 #include "DistrhoPlugin.hpp"
@@ -28,8 +28,7 @@ START_NAMESPACE_DISTRHO
 // amp to the common multitone loudness; the soft knee is transparent below
 // +/-0.90 and saturates to a +/-0.99 ceiling so EQ boosts never hard-clip.
 static inline float rbAmpLvl(float x){ const float t=0.90f,c=0.99f,a=(x<0.f?-x:x);
-    if(a<=t) return x;
-    return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
+    if(a<=t) return x; return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
 
 namespace {
 
@@ -221,8 +220,7 @@ public:
         const float s = (sr > 1000.0f ? sr : 48000.0f) / 48000.0f;
         n0 = (int)(281 * s); n1 = (int)(401 * s); n2 = (int)(487 * s);
         nc0 = (int)(1801 * s); nc1 = (int)(2143 * s);
-        if (nc0 > 3599) nc0 = 3599;
-        if (nc1 > 3599) nc1 = 3599;
+        if (nc0 > 3599) nc0 = 3599; if (nc1 > 3599) nc1 = 3599;
         inHp.setHighPass(sr, 180.0f, 0.7f);
         inLp.setLowPass(sr, 5200.0f, 0.7f);
         clear();
@@ -295,7 +293,7 @@ class DSL100Core
         chS = smoothstep(channel);
         // Channel/drive morph. Classic side sweeps clean->crunch via Classic
         // Gain (+ a touch from Crunch mode); Ultra side sweeps OD1->OD2 via
-        // Ultra Gain (+ OD2 mode). the game drives `channel`, so a low Gain
+        // Ultra Gain (+ OD2 mode). Rocksmith drives `channel`, so a low Gain
         // lands in the clean Classic region and a high Gain in the hot Ultra.
         const float classicM = 0.03f + 0.46f * classicGain + 0.06f * classicMode;   // ~0.03..0.55
         const float ultraM   = 0.55f + 0.40f * ultraGain   + 0.05f * ultraMode;     // ~0.55..1.00

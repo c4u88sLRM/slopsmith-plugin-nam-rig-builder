@@ -13,7 +13,7 @@
 #include "DistrhoPlugin.hpp"
 #include "BassWahParams.h"
 #include <cmath>
-#include "../../_shared/automakeup.hpp"
+#include "../_shared/automakeup.hpp"
 
 START_NAMESPACE_DISTRHO
 
@@ -55,8 +55,7 @@ public:
         } else {
             pos = pedal * 0.70f + 0.40f * sens * e;
         }
-        if (pos < 0.f) pos = 0.f;
-        if (pos > 1.f) pos = 1.f;
+        if (pos < 0.f) pos = 0.f; if (pos > 1.f) pos = 1.f;
 
         // map to centre frequency (log, 100 Hz .. 1.6 kHz)
         const float fc = 100.0f * std::pow(16.0f, pos);

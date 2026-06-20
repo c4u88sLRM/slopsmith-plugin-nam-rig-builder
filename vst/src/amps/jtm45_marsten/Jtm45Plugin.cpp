@@ -1,6 +1,6 @@
 /*
  * MARSTEN JTM45 - Marshall JTM45 (~30W, 2x KT66 + GZ34 tube rectifier) for
- * the game's Amp_MarshallJTM45. Parody brand "Marsten" (same as the Plexi /
+ * Rocksmith's Amp_MarshallJTM45. Parody brand "Marsten" (same as the Plexi /
  * DSL100); the in-app face must never read "Marshall".
  *
  * Local reference (modelled component-by-component):
@@ -23,7 +23,7 @@
  * cathode follower -> Marshall tone stack -> long-tail PI -> 2x KT66 (~30W) +
  * GZ34 sag -> output transformer. PRESENCE (5K) taps the power-amp NFB.
  *
- * the game: no gain knob, so RS Gain -> LOUDNESS 1 (clean->crunch->roar).
+ * Rocksmith: no gain knob, so RS Gain -> LOUDNESS 1 (clean->crunch->roar).
  * Treble/Bass/Mid -> tone stack, Pres -> Presence. kInput = Bright(0) /
  * Both-jumpered(0.5) / Normal(1).
  */
@@ -37,8 +37,7 @@ START_NAMESPACE_DISTRHO
 // amp to the common multitone loudness; the soft knee is transparent below
 // +/-0.90 and saturates to a +/-0.99 ceiling so EQ boosts never hard-clip.
 static inline float rbAmpLvl(float x){ const float t=0.90f,c=0.99f,a=(x<0.f?-x:x);
-    if(a<=t) return x;
-    return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
+    if(a<=t) return x; return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
 
 namespace {
 

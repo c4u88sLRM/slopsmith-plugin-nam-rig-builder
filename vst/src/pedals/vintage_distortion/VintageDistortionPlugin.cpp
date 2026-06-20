@@ -1,15 +1,15 @@
 /*
- * VintageDistortion - DOD 250 style distortion for the game's
+ * VintageDistortion - DOD 250 style distortion for Rocksmith's
  * Pedal_VintageDistortion.
  *
  * Local reference: pedals/vintage distortion.png. The schematic is a DOD 250
  * Overdrive/Preamp: LM741 op-amp gain stage, small feedback cap, passive
- * output filtering and asymmetric 1N4148 diode clipping. the game exposes
+ * output filtering and asymmetric 1N4148 diode clipping. Rocksmith exposes
  * Gain and Tone, so output level is internally normalized.
  */
 #include "DistrhoPlugin.hpp"
 #include "VintageDistortionParams.h"
-#include "../../_shared/automakeup.hpp"
+#include "../_shared/automakeup.hpp"
 #include <cmath>
 
 START_NAMESPACE_DISTRHO
@@ -222,7 +222,7 @@ public:
         y = toneShelf.process(y);
         y = toneLowPass.process(y);
 
-        // No the game output knob. Trim high gain and slightly lift low-gain
+        // No Rocksmith output knob. Trim high gain and slightly lift low-gain
         // presets so engaging the pedal feels like distortion, not a level jump.
         const float level = 0.72f / (1.0f + 0.50f * gain);
         return softClip(y * level) * 0.98f;

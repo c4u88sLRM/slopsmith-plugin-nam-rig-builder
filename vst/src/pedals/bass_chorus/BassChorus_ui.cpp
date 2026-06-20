@@ -2,7 +2,7 @@
  * compact pedal it models: Chief-style enclosure (coloured body, name strip,
  * big treadle footswitch), 4 knobs (the RS count) in a row. No brand/model name. */
 #include "BassChorusParams.h"
-#include "../../_shared/pedalkit.hpp"
+#include "../_shared/pedalkit.hpp"
 START_NAMESPACE_DISTRHO
 class BassChorusUI : public PedalKitUI {
 public:

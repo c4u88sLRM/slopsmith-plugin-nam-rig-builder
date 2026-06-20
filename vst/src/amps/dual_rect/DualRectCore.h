@@ -18,7 +18,7 @@
  *
  * Only ONE channel is live at a time (the Recto mutes when switching), so the
  * model configures a single signal chain from the ACTIVE channel's knobs + mode
- * in updateComponentValues(); process() just runs that chain. the game drives
+ * in updateComponentValues(); process() just runs that chain. Rocksmith drives
  * the Red channel (Modern, Bold) — its 5 knobs map 1:1 to Red Gain/Treble/Mid/
  * Bass/Presence.
  */
@@ -70,8 +70,7 @@ public:
 class Biquad {
     float b0 = 1.0f, b1 = 0.0f, b2 = 0.0f, a1 = 0.0f, a2 = 0.0f, z1 = 0.0f, z2 = 0.0f;
     void set(float nb0, float nb1, float nb2, float na0, float na1, float na2) {
-        if (std::fabs(na0) < 1.0e-12f) na0 = 1.0f;
-        const float k = 1.0f / na0;
+        if (std::fabs(na0) < 1.0e-12f) na0 = 1.0f; const float k = 1.0f / na0;
         b0 = nb0 * k; b1 = nb1 * k; b2 = nb2 * k; a1 = na1 * k; a2 = na2 * k;
     }
 public:

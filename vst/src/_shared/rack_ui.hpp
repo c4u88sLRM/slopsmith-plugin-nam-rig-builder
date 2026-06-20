@@ -1,7 +1,7 @@
 /*
- * Shared 1U-rack-style UI for the bundled the game rack VSTs (DPF NanoVG).
+ * Shared 1U-rack-style UI for the bundled Rocksmith rack VSTs (DPF NanoVG).
  *
- * Draws a horizontal rack face like the real the game rack art: dark metal
+ * Draws a horizontal rack face like the real Rocksmith rack art: dark metal
  * face with rack ears + screws at both ends, a POWER button, a coloured
  * sub-panel holding the knobs, a green LCD nameplate, and a decorative INPUT
  * knob on the right. Knobs are rotary with vertical-drag editing.
@@ -36,18 +36,17 @@ struct RackKnob { float cx, cy, r; };
 static const RackKnob kRackKnobs[RACK_COUNT] = RACK_KNOBS;
 
 #ifdef RACK_NO_DEFS
-struct RackDefFill { float v[RACK_COUNT]; RackDefFill(){ for (int i=0;i<RACK_COUNT;++i) v[i]=0.5f;
-} };
+struct RackDefFill { float v[RACK_COUNT]; RackDefFill(){ for (int i=0;i<RACK_COUNT;++i) v[i]=0.5f; } };
 static const RackDefFill kRackDefFill;
 #define RACK_DEFS kRackDefFill.v
 #endif
 
 class RackUI : public UI
 {
+    float  fValues[RACK_COUNT];
     int    fDrag;
     double fLastY;
     float  fDragVal;
-    float  fValues[RACK_COUNT];
 
     float scale() const { return getWidth() / (float)RACK_W; }
     float kx(int i) const { return getWidth()  * kRackKnobs[i].cx; }
@@ -144,8 +143,7 @@ protected:
         if (fDrag >= 0) {
             const double dy = fLastY - ev.pos.getY(); fLastY = ev.pos.getY();
             fDragVal += (float)dy / (170.0f * scale());
-            if (fDragVal < 0.f) fDragVal = 0.f;
-            if (fDragVal > 1.f) fDragVal = 1.f;
+            if (fDragVal < 0.f) fDragVal = 0.f; if (fDragVal > 1.f) fDragVal = 1.f;
             fValues[fDrag] = fDragVal; setParameterValue(fDrag, fDragVal); repaint();
             return true;
         }

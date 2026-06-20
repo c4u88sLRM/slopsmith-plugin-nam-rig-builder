@@ -1,6 +1,6 @@
 #ifndef ROTA_VIBE_PARAMS_H
 #define ROTA_VIBE_PARAMS_H
-// the game "Rota Vibe" rack -> rotary speaker (Leslie). Knobs:
+// Rocksmith "Rota Vibe" rack -> rotary speaker (Leslie). Knobs:
 //   Rate = rotation speed   Depth = Doppler/tremolo depth
 //   Mix = dry/wet   Balance = horn (treble) vs rotor (bass) balance
 enum RotaVibeParamId { kRate = 0, kDepth, kMix, kBalance, kParamCount };

@@ -1,5 +1,5 @@
 /*
- * CITRUS OR50 - Orange OR50 (vintage Graphic head) for the game's
+ * CITRUS OR50 - Orange OR50 (vintage Graphic head) for Rocksmith's
  * Amp_OrangeOR50. Parody brand "Citrus"; the in-app face must never read "Orange".
  *
  * Local references (modelled component-by-component / reconstructed):
@@ -16,7 +16,7 @@
  * -> ECC81 long-tail PI -> 2x EL34 (~50W, FULL or HALF power) -> output. A thick,
  * midrange-forward "Orange" voice (the doom/stoner chunk). VOLUME is the master.
  *
- * the game: RS Gain -> GAIN; Bass/Mid/Treble -> tone stack. See
+ * Rocksmith: RS Gain -> GAIN; Bass/Mid/Treble -> tone stack. See
  * rs_knob_to_vst_param.json (Volume + Depth pinned via _static).
  */
 #include "DistrhoPlugin.hpp"
@@ -26,8 +26,7 @@
 START_NAMESPACE_DISTRHO
 
 static inline float rbAmpLvl(float x){ const float t=0.90f,c=0.99f,a=(x<0.f?-x:x);
-    if(a<=t) return x;
-    return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
+    if(a<=t) return x; return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
 
 namespace {
 
@@ -50,8 +49,7 @@ class Biquad
 {
     float b0=1.0f,b1=0.0f,b2=0.0f,a1=0.0f,a2=0.0f,z1=0.0f,z2=0.0f;
     void set(float nb0,float nb1,float nb2,float na0,float na1,float na2)
-    { if(std::fabs(na0)<1.0e-12f) na0=1.0f;
-    const float i=1.0f/na0;
+    { if(std::fabs(na0)<1.0e-12f) na0=1.0f; const float i=1.0f/na0;
       b0=nb0*i; b1=nb1*i; b2=nb2*i; a1=na1*i; a2=na2*i; }
 public:
     void reset(){ z1=z2=0.0f; }

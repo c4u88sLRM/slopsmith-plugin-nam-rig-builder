@@ -1,5 +1,5 @@
 /*
- * MULTIVERSAL 610 - Universal Audio 610-A tube DI/preamp for the game's
+ * MULTIVERSAL 610 - Universal Audio 610-A tube DI/preamp for Rocksmith's
  * DI_Amp_TubePre. Parody brand "Multiversal"; the in-app face must never read
  * "Universal Audio" / "UA".
  *
@@ -16,7 +16,7 @@
  *   T2 UTC PA-5946 30K:600 output transformer (~7 mA standing current; the
  *   low-end limit lives here) -> Line Out. A DI: NO speaker / cab voicing.
  *
- * the game: RS Gain -> Gain; RS Bass -> Low EQ; RS Treble -> High EQ.
+ * Rocksmith: RS Gain -> Gain; RS Bass -> Low EQ; RS Treble -> High EQ.
  */
 #include "DistrhoPlugin.hpp"
 #include "M610Params.h"
@@ -28,8 +28,7 @@ START_NAMESPACE_DISTRHO
 // transparent below +/-0.90 and saturates to a +/-0.99 ceiling so EQ boosts
 // never hard-clip.
 static inline float rbAmpLvl(float x){ const float t=0.90f,c=0.99f,a=(x<0.f?-x:x);
-    if(a<=t) return x;
-    return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
+    if(a<=t) return x; return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
 
 namespace {
 
@@ -56,8 +55,7 @@ class Biquad
 {
     float b0=1.0f,b1=0.0f,b2=0.0f,a1=0.0f,a2=0.0f,z1=0.0f,z2=0.0f;
     void set(float nb0,float nb1,float nb2,float na0,float na1,float na2)
-    { if(std::fabs(na0)<1.0e-12f) na0=1.0f;
-    const float i=1.0f/na0;
+    { if(std::fabs(na0)<1.0e-12f) na0=1.0f; const float i=1.0f/na0;
       b0=nb0*i; b1=nb1*i; b2=nb2*i; a1=na1*i; a2=na2*i; }
 public:
     void reset(){ z1=z2=0.0f; }
@@ -168,7 +166,7 @@ public:
         x *= mic ? 1.8f : 1.0f;
 
         // --- V1/V2 12AX7+12AY7 — modelled as a CLEAN, transparent DI by default.
-        //     This unit is the game's acoustic-guitar DI (used by hundreds of
+        //     This unit is Rocksmith's acoustic-guitar DI (used by hundreds of
         //     acoustic tones), so at normal Gain it must stay clean; the tube
         //     colour/grit only emerges as Gain is cranked (or Hi Gain engaged).
         //     We blend a near-linear clean path with a gentle asymmetric tube

@@ -1,5 +1,5 @@
 /*
- * LOVOLT DR103 - Hiwatt DR103 "Custom Hiwatt 100" for the game's Amp_HG100.
+ * LOVOLT DR103 - Hiwatt DR103 "Custom Hiwatt 100" for Rocksmith's Amp_HG100.
  * Parody brand "Lovolt" (Hiwatt = high watt -> Lovolt = low volt; same brand as
  * the Lovolt 100). The in-app face must never read "Hiwatt".
  *
@@ -13,7 +13,7 @@
  * EL34 power amp. PRESENCE taps the NFB. Unlike a Plexi it stays clean far
  * longer; breakup comes mostly from cranking the MASTER.
  *
- * the game: RS Gain -> BRILLIANT VOL (breakup driver); Treble/Bass/Mid -> tone
+ * Rocksmith: RS Gain -> BRILLIANT VOL (breakup driver); Treble/Bass/Mid -> tone
  * stack, Pres -> Presence. See rs_knob_to_vst_param.json (input pinned BOTH).
  */
 #include "DistrhoPlugin.hpp"
@@ -26,8 +26,7 @@ START_NAMESPACE_DISTRHO
 // amp to the common multitone loudness; the soft knee is transparent below
 // +/-0.90 and saturates to a +/-0.99 ceiling so EQ boosts never hard-clip.
 static inline float rbAmpLvl(float x){ const float t=0.90f,c=0.99f,a=(x<0.f?-x:x);
-    if(a<=t) return x;
-    return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
+    if(a<=t) return x; return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
 
 namespace {
 
@@ -51,8 +50,7 @@ class Biquad
 {
     float b0=1.0f,b1=0.0f,b2=0.0f,a1=0.0f,a2=0.0f,z1=0.0f,z2=0.0f;
     void set(float nb0,float nb1,float nb2,float na0,float na1,float na2)
-    { if(std::fabs(na0)<1.0e-12f) na0=1.0f;
-    const float i=1.0f/na0;
+    { if(std::fabs(na0)<1.0e-12f) na0=1.0f; const float i=1.0f/na0;
       b0=nb0*i; b1=nb1*i; b2=nb2*i; a1=na1*i; a2=na2*i; }
 public:
     void reset(){ z1=z2=0.0f; }

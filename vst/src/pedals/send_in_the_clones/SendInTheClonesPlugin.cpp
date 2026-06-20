@@ -1,10 +1,10 @@
 /*
  * SendInTheClones - Clone Theory style multi-voice BBD chorus/doubler for
- * the game's Pedal_SendInTheClones.
+ * Rocksmith's Pedal_SendInTheClones.
  *
  * Local reference: pedals/send in the clones.png, an Electro-Harmonix Clone
  * Theory vero/schematic-derived layout using MN3007/CD4047 BBD modulation.
- * the game exposes only Clones, Depth, and Mix, so Rate and mode are fixed
+ * Rocksmith exposes only Clones, Depth, and Mix, so Rate and mode are fixed
  * internally and Clones controls the extra delay voices/spread.
  */
 #include "DistrhoPlugin.hpp"
@@ -155,7 +155,7 @@ class CloneTheoryCore
     {
         if (clones <= 0.0001f)
             return 0.0f;
-        // the game sends mode-like low values (1, 11, 35), not a plain
+        // Rocksmith sends mode-like low values (1, 11, 35), not a plain
         // wet amount. Start non-zero Clones in Chorus 1 territory.
         return smoothstep(clamp01(0.47f + 1.22f * clones));
     }

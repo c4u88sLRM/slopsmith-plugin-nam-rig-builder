@@ -2,7 +2,7 @@
  * brushed-silver box, two big knobs (Compress, Rate) + a small Filter knob,
  * dark lettering, heavy wordmark. 3 knobs = RS count. */
 #include "BassMultiCompParams.h"
-#include "../../_shared/pedalkit.hpp"
+#include "../_shared/pedalkit.hpp"
 START_NAMESPACE_DISTRHO
 class BassMultiCompUI : public PedalKitUI {
 public:

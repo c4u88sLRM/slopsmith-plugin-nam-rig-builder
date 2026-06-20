@@ -1,5 +1,5 @@
 /*
- * GANDDI SUPERDRIVE 45 - Budda Superdrive 45 Series II for the game's Amp_BT45.
+ * GANDDI SUPERDRIVE 45 - Budda Superdrive 45 Series II for Rocksmith's Amp_BT45.
  * Parody brand "Ganddi"; the in-app face must never read "Budda".
  *
  * Local reference (modelled component-by-component):
@@ -14,7 +14,7 @@
  *   Bass/Mid/Treble (Treble 500K/220pF, Bass 500K/22nF, Mid 50K/22nF, 56K slope)
  *   -> long-tail PI -> 2x KT66 -> output transformer with a fixed presence NFB.
  *
- * the game: RS Gain -> DRIVE; Bass/Mid/Treble -> tone stack. See
+ * Rocksmith: RS Gain -> DRIVE; Bass/Mid/Treble -> tone stack. See
  * rs_knob_to_vst_param.json (Channel pinned Hi-gain + Modern ON via _static).
  */
 #include "DistrhoPlugin.hpp"
@@ -27,8 +27,7 @@ START_NAMESPACE_DISTRHO
 // amp to the common multitone loudness; the soft knee is transparent below
 // +/-0.90 and saturates to a +/-0.99 ceiling so EQ boosts never hard-clip.
 static inline float rbAmpLvl(float x){ const float t=0.90f,c=0.99f,a=(x<0.f?-x:x);
-    if(a<=t) return x;
-    return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
+    if(a<=t) return x; return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
 
 namespace {
 
@@ -54,8 +53,7 @@ class Biquad
 {
     float b0=1.0f,b1=0.0f,b2=0.0f,a1=0.0f,a2=0.0f,z1=0.0f,z2=0.0f;
     void set(float nb0,float nb1,float nb2,float na0,float na1,float na2)
-    { if(std::fabs(na0)<1.0e-12f) na0=1.0f;
-    const float i=1.0f/na0;
+    { if(std::fabs(na0)<1.0e-12f) na0=1.0f; const float i=1.0f/na0;
       b0=nb0*i; b1=nb1*i; b2=nb2*i; a1=na1*i; a2=na2*i; }
 public:
     void reset(){ z1=z2=0.0f; }

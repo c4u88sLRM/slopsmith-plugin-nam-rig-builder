@@ -1,8 +1,8 @@
 #ifndef COSMIC_ECHO_PARAMS_H
 #define COSMIC_ECHO_PARAMS_H
 
-// the game "Cosmic Echo" -> Synthrotek ECHO / PT2399-style echo.
-// the game exposes only the three musical controls.
+// Rocksmith "Cosmic Echo" -> Synthrotek ECHO / PT2399-style echo.
+// Rocksmith exposes only the three musical controls.
 enum CosmicEchoParamId
 {
     kTime = 0,

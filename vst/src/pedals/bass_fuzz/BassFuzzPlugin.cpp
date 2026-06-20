@@ -1,5 +1,5 @@
 /*
- * BassFuzz — EHX Bass Big Muff Pi model for the game's Bass_Pedal_BassFuzz.
+ * BassFuzz — EHX Bass Big Muff Pi model for Rocksmith's Bass_Pedal_BassFuzz.
  *
  * Big Muff topology: input coupling → two cascaded high-gain stages with
  * symmetric (diode-pair) soft clipping and interstage low-pass roll-off (the
@@ -8,11 +8,11 @@
  * characteristic mid scoop at noon) → output. The Bass version adds a clean
  * low-end blend (the "Filter" knob) so the fuzz doesn't lose its lows.
  *
- * the game knobs: Gain (= Sustain / drive), Tone, Filter (clean-bass blend).
+ * Rocksmith knobs: Gain (= Sustain / drive), Tone, Filter (clean-bass blend).
  */
 #include "DistrhoPlugin.hpp"
 #include "BassFuzzParams.h"
-#include "../../_shared/automakeup.hpp"
+#include "../_shared/automakeup.hpp"
 #include <cmath>
 
 START_NAMESPACE_DISTRHO

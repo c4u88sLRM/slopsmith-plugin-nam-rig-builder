@@ -35,8 +35,7 @@ START_NAMESPACE_DISTRHO
 // knee is transparent below +/-0.80 and saturates to a +/-0.98 ceiling so EQ
 // boosts never hard-clip. See AMP_LOUDNESS.md.
 static inline float rbAmpLvl(float x){ const float t=0.90f,c=0.99f,a=(x<0.f?-x:x);
-    if(a<=t) return x;
-    return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
+    if(a<=t) return x; return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
 
 // ── RBJ biquad (transposed direct form II) ───────────────────────────────────
 class Biquad {
@@ -124,13 +123,10 @@ struct Mna {
     inline void stampG(int a, int bb, double g) {
         if (a>0)  { A[(a-1)*sz+(a-1)]  += g; if (bb>0) A[(a-1)*sz+(bb-1)] -= g; }
         if (bb>0) { A[(bb-1)*sz+(bb-1)]+= g; if (a>0)  A[(bb-1)*sz+(a-1)] -= g; } }
-    inline void R(int a, int bb, double r) { if (r < 1e-9) r = 1e-9;
-    stampG(a, bb, 1.0/r); }
-    inline void Isrc(int a, int bb, double I) { if (a>0) b[a-1] -= I;
-    if (bb>0) b[bb-1] += I; }
+    inline void R(int a, int bb, double r) { if (r < 1e-9) r = 1e-9; stampG(a, bb, 1.0/r); }
+    inline void Isrc(int a, int bb, double I) { if (a>0) b[a-1] -= I; if (bb>0) b[bb-1] += I; }
     inline void Vsrc(int a, double V, int k) { int r = nn+k;
-        if (a>0) { A[(a-1)*sz+r] += 1; A[r*sz+(a-1)] += 1; }
-        b[r] = V; }
+        if (a>0) { A[(a-1)*sz+r] += 1; A[r*sz+(a-1)] += 1; } b[r] = V; }
     inline void OpAmp(int np, int nnode, int no, int k) { int r = nn+k;
         if (no>0)    A[(no-1)*sz+r]    += 1;
         if (np>0)    A[r*sz+(np-1)]    += 1;
@@ -149,8 +145,7 @@ struct Mna {
                 double t = b[col]; b[col] = b[piv]; b[piv] = t; }
             const double d = A[col*n+col];
             for (int r = 0; r < n; ++r) { if (r == col) continue; const double f = A[r*n+col]/d; if (f == 0) continue;
-                for (int c = col; c < n; ++c) A[r*n+c] -= f*A[col*n+c];
-                b[r] -= f*b[col]; } }
+                for (int c = col; c < n; ++c) A[r*n+c] -= f*A[col*n+c]; b[r] -= f*b[col]; } }
         for (int i = 0; i < n; ++i) x[i] = b[i] / A[i*n+i];
         return true; } };
 
@@ -233,8 +228,7 @@ struct FkBoost {
             m.Vsrc(1, Vcc, 0); m.Vsrc(5, ain*injScale, 1);
             m.R(5,2,Rsig); m.R(3,1,Rc); m.R(4,0,Re); m.R(2,1,Rb1); m.R(2,0,Rb2);
             double vbe=lim(B-E, vB-vE), vbc=lim(B-C, vB-vC);
-            if (vbe>0.95) vbe=0.95;
-            if (vbc>0.95) vbc=0.95;
+            if (vbe>0.95) vbe=0.95; if (vbc>0.95) vbc=0.95;
             const double ef=std::exp(vbe/Vt), er=std::exp(vbc/Vt);
             const double gf=Is/Vt*ef, gr=Is/Vt*er;
             const double Ib=Is*((1.0/Bf)*(ef-1)+(1.0/Br)*(er-1));

@@ -1,9 +1,8 @@
 /*
- * TW26 - BENDER DELUXE / Fender '57 Deluxe (5E3 tweed) amp for the game's Amp_TW26.
+ * TW26 - BENDER DELUXE / Fender '57 Deluxe (5E3 tweed) amp for Rocksmith's Amp_TW26.
  *
  * DPF wrapper (VST3 + AU). All the DSP lives in TW26Core.h (plain C++,
- * offline-testable); see that header for
- the circuit topology + schematic ref.
+ * offline-testable); see that header for the circuit topology + schematic ref.
  *
  * STEREO I/O, single mono core: the amp IS a mono device, so it runs ONE TW26Core
  * (half the CPU of a dual-core stereo build), presents 2-in/2-out, and writes the
@@ -19,8 +18,7 @@ START_NAMESPACE_DISTRHO
 // RB loudness/headroom output stage (shared across all amps): the soft knee is
 // transparent below +/-0.90 and saturates to a +/-0.99 ceiling. See AMP_LOUDNESS.md.
 static inline float rbAmpLvl(float x){ const float t=0.90f,c=0.99f,a=(x<0.f?-x:x);
-    if(a<=t) return x;
-    return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
+    if(a<=t) return x; return (x<0.f?-1.f:1.f)*(t+(c-t)*std::tanh((a-t)/(c-t))); }
 
 class TW26Plugin : public Plugin
 {
