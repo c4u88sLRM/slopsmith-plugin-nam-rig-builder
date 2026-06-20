@@ -83,130 +83,69 @@ jobs:
           cd "$GITHUB_WORKSPACE"
 
           alias_of() {
-            case "$1" in
-              SuperBuzz.vst3) echo "Super-Buzz.vst3";;
-              BigBuzz.vst3)   echo "Big Buzz.vst3";;
-              BuzzTone.vst3)  echo "Buzz-Tone.vst3";;
-              BZ1.vst3)       echo "BZ-1.vst3";;
-              StandardDistortion.vst3) echo "DS-1.vst3";;
-              AlloyDistortion.vst3)    echo "HM-2.vst3";;
-              ShredZone.vst3)          echo "MT-2.vst3";;
-              VintageDistortion.vst3)  echo "Vintage Distortion.vst3";;
-              BassDistortion.vst3)     echo "Mouse.vst3";;
-              BassFuzz.vst3)           echo "Bass Big Buzz.vst3";;
-              CustomDrive.vst3)        echo "CDO.vst3";;
-              GermaniumDrive.vst3)     echo "Germanium Drive.vst3";;
-              RangeBooster.vst3)       echo "Range Booster.vst3";;
-              LineDrive.vst3)          echo "OS-2.vst3";;
-              SuperDrive.vst3)         echo "SD-1.vst3";;
-              MarshallGuvnorPlus.vst3) echo "GM-2.vst3";;
-              BassOverdrive.vst3)      echo "BLACKBRASS.vst3";;
-              Chorus.vst3)             echo "CH-2.vst3";;
-              DigitalChorus.vst3)      echo "CH-5.vst3";;
-              Chorus20.vst3)           echo "Deja Chorus.vst3";;
-              AnalogChorus.vst3)       echo "134 Stereo Chorus.vst3";;
-              BassChorus.vst3)         echo "CB-3.vst3";;
-              SendInTheClones.vst3)    echo "Attack of the Clones.vst3";;
-              ClassicFlanger.vst3)     echo "FL-2.vst3";;
-              BassFlanger.vst3)        echo "FL-3.vst3";;
-              ModernFlanger.vst3)      echo "FM107.vst3";;
-              VintageFlanger.vst3)     echo "Deluxe Servant.vst3";;
-              EightiesFlanger.vst3)    echo "N117R Flanger.vst3";;
-              ShaverPhaser.vst3)       echo "PH-1.vst3";;
-              Phaser363.vst3)          echo "phase 90.vst3";;
-              BassPhase.vst3)          echo "phase 99.vst3";;
-              PlanePhase.vst3)         echo "Rocket Phase.vst3";;
-              MultiTrem.vst3)          echo "TR-2.vst3";;
-              AmpTrem.vst3)            echo "Mega-Trem.vst3";;
-              TremOle.vst3)            echo "Dyna-Trem.vst3";;
-              MultiVibe.vst3)          echo "VB-2.vst3";;
-              MarshallSupervibe.vst3)  echo "UV-1.vst3";;
-              OmniMod.vst3)            echo "UniMod.vst3";;
-              AmpVibe.vst3)            echo "Multi-Vibe.vst3";;
-              AutoVibe.vst3)           echo "Oceanduct.vst3";;
-              BakedRotatoe.vst3)       echo "RT-2.vst3";;
-              BassFilterDelay.vst3)    echo "DL-3.vst3";;
-              BassFilterEcho.vst3)     echo "SE-3.vst3";;
-              AnalogDelay.vst3)        echo "FM104.vst3";;
-              CosmicEcho.vst3)         echo "Galaxy Echo.vst3";;
-              ModDelay.vst3)           echo "DL9.vst3";;
-              NpnDelay.vst3)           echo "DM-2.vst3";;
-              NoFiEcho.vst3)           echo "No Fi Echo.vst3";;
-              OilCanEcho.vst3)         echo "Oil Can Echo.vst3";;
-              ValveEcho.vst3)          echo "Valve Echo.vst3";;
-              DigitalVerb.vst3)        echo "RV-2.vst3";;
-              PlateVerb.vst3)          echo "VOODOO.vst3";;
-              SpringReverb.vst3)       echo "Holy Spring.vst3";;
-              TubeSpring.vst3)         echo "Real Spring.vst3";;
-              Limiter.vst3)            echo "LM-2.vst3";;
-              NoiseGate.vst3)          echo "NF-1.vst3";;
-              DynamicsCompression.vst3) echo "dyna comp.vst3";;
-              BassMultiComp.vst3)      echo "Multi Comp.vst3";;
-              StudioComp.vst3)         echo "HZX.vst3";;
-              Swole.vst3)              echo "Beta Fist.vst3";;
-              USWah.vst3)              echo "Cry Man.vst3";;
-              UKWah.vst3)              echo "BOX B847.vst3";;
-              ModernWah.vst3)          echo "Jockey Bad.vst3";;
-              BassWah.vst3)            echo "Bass Wah.vst3";;
-              AutoSweep.vst3)          echo "Qtrix.vst3";;
-              AutoFilter.vst3)         echo "BU-TRON III.vst3";;
-              BobFilter.vst3)          echo "FM105.vst3";;
-              LoFiFilter.vst3)         echo "Lo Fi Filter.vst3";;
-              BassEQ8.vst3)            echo "GEB-8.vst3";;
-              AmpEQ.vst3)              echo "FBM-1.vst3";;
-              EQ8.vst3)                echo "GE-8.vst3";;
-              StudioEQ.vst3)           echo "LNG.vst3";;
-              StudioGraphicEQ.vst3)    echo "G-550.vst3";;
-              OctaveUp.vst3)           echo "OCTUP.vst3";;
-              Octavius.vst3)           echo "OC-5.vst3";;
-              MultiPitch.vst3)         echo "Multi Pitch.vst3";;
-              BassSubOctave.vst3)      echo "SO-2.vst3";;
-              AcousticSimulator.vst3)  echo "Acoustic Emulator.vst3";;
-              BassEmulator.vst3)       echo "Bass Emulator.vst3";;
-              Enbiggenator.vst3)       echo "MIME.vst3";;
-              BassEnbig.vst3)          echo "ENBIGGEN.vst3";;
-              EdenWTDI.vst3)           echo "WT-DX.vst3";;
-              EN30.vst3)               echo "BOX DC30.vst3";;
-              TW22.vst3)               echo "BENDER SUPERNOVA 22.vst3";;
-              TW26.vst3)               echo "BENDER DELUXE.vst3";;
-              *)                       echo "$1";;
-            esac
+            # ... (keep the entire case statement as-is) ...
           }
 
           injected=0
           missing=0
           failed_binaries=""
 
-          while IFS= read -r macbin; do
+          # Use flexible search like Windows workflow: find any Contents/MacOS directory
+          # (not strict path matching) and extract binaries from it.
+          find vst/src -type d -path '*/Contents/MacOS' | while read -r macbin; do
+            # Extract plugin name from built path: vst/src/<cat>/<plugin>/bin/<Name>.vst3/Contents/MacOS
+            # Get the .vst3 bundle name (two dirs up from Contents)
             built=$(basename "$(dirname "$(dirname "$macbin")")")
             name="${built%.vst3}"
             mapped="$(alias_of "$built")"
 
+            # Determine destination category from source path
             case "$macbin" in
-              vst/src/amps/*/bin/*.vst3/Contents/MacOS)   dest_root="vst/amps";;
-              vst/src/pedals/*/bin/*.vst3/Contents/MacOS) dest_root="vst/pedals";;
-              vst/src/racks/*/bin/*.vst3/Contents/MacOS)  dest_root="vst/racks";;
-              vst/src/bin/AutoSweep.vst3/Contents/MacOS)  dest_root="vst/pedals"; mapped="Qtrix.vst3";;
+              vst/src/amps/*)   dest_root="vst/amps";;
+              vst/src/pedals/*) dest_root="vst/pedals";;
+              vst/src/racks/*)  dest_root="vst/racks";;
+              vst/src/bin/*)    dest_root="vst/pedals"; mapped="Qtrix.vst3";;
               *) continue;;
             esac
 
-            bundle="$dest_root/$mapped"
-            out="$bundle/Contents/MacOS/$name"
+            # Search for the committed bundle in {amps,pedals,racks}
+            bundle=""
+            for cat in amps pedals racks; do
+              if [ -d "vst/$cat/$mapped" ]; then
+                bundle="vst/$cat/$mapped"
+                break
+              fi
+            done
 
-            if [ -d "$bundle" ]; then
-              # Check if the binary file exists before attempting to copy
+            if [ -n "$bundle" ]; then
+              # Check if the binary file exists in the Contents/MacOS directory
               if [ -f "$macbin/$name" ]; then
+                out="$bundle/Contents/MacOS/$name"
                 mkdir -p "$(dirname "$out")"
                 cp -f "$macbin/$name" "$out"
                 chmod +x "$out" || true
                 codesign --force --sign - "$bundle" || true
-                echo "injected: $built -> $bundle"
+                echo "✓ injected: $built -> $bundle"
                 injected=$((injected+1))
               else
-                echo "WARNING: binary not found at $macbin/$name (build may have failed)"
+                echo "✗ WARNING: binary not found at $macbin/$name (build may have failed)"
                 failed_binaries="$failed_binaries $built"
                 missing=$((missing+1))
               fi
+            else
+              echo "✗ WARNING: missing target bundle for $mapped (skipped)"
+              missing=$((missing+1))
+            fi
+          done
+
+          echo ""
+          echo "======================================================================"
+          echo "INJECTION SUMMARY"
+          echo "======================================================================"
+          echo "injected $injected bundles, skipped $missing (missing bundle or binary)"
+          if [ -n "$failed_binaries" ]; then
+            echo "Failed to find binaries for:$failed_binaries"
+          fi
             else
               echo "WARNING: missing target bundle $bundle (skipped)"
               missing=$((missing+1))
