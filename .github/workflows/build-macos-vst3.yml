@@ -85,6 +85,15 @@ jobs:
           rm -f "$GITHUB_WORKSPACE/vst/DPF"
           echo "FAILED DIRS:$fail"
 
+      - name: Debug: list built macOS bundle names
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          echo "Built bundle names discovered under vst/src:"
+          while read -r mac; do
+            built=$(basename "$(dirname "$(dirname "$mac")")")
+            echo "  $built"
+          done < <(find vst/src -type d -path '*/Contents/MacOS' | sort)
+
       - name: Inject universal macOS binaries into the committed bundles
         run: |
           cd "$GITHUB_WORKSPACE"
@@ -191,6 +200,7 @@ jobs:
           while read -r mac; do
             built=$(basename "$(dirname "$(dirname "$mac")")")   # <Name>.vst3
             bundle=$(alias_of "$built")
+            echo "map: built=$built -> bundle=$bundle"
 
             dst=""
             for cat in amps pedals racks; do
