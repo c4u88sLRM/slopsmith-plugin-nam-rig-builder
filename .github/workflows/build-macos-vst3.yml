@@ -40,33 +40,40 @@ jobs:
           set +e
           DPF="$GITHUB_WORKSPACE/dpf"
           ARCHS="-arch x86_64 -arch arm64"
+
+          # Like Windows/Linux: expose DPF where hardcoded includes expect it.
           ln -sfn "$DPF" "$GITHUB_WORKSPACE/vst/DPF"
 
           cd "$GITHUB_WORKSPACE/vst/src"
-          for cat in amps pedals racks; do
-            if [ -d "$cat" ]; then
-              ln -sfn ../../DPF "$cat/DPF" || echo "Warning: could not link $cat/DPF"
-            fi
-          done
+
+          # Post-reorg shared headers path fix, same pattern as Windows.
           for cat in amps pedals racks; do
             if [ -d "$cat" ] && [ -d _shared ]; then
               rm -f "$cat/_shared"
               ln -sfn ../_shared "$cat/_shared" || echo "Warning: could not link $cat/_shared"
             fi
           done
+
           fail=""
 
+          # Same output pinning pattern as Windows/Linux, plus universal arch flags.
           build() {
             ( cd "$1" && rm -rf build bin \
-                && make -j3 DPF_PATH="$DPF" DPF_BUILD_DIR="$PWD/build" DPF_TARGET_DIR="$PWD/bin" \
-                        CFLAGS="$ARCHS" CXXFLAGS="$ARCHS" LDFLAGS="$ARCHS" vst3 ) \
+                && make -j2 \
+                  DPF_PATH="$DPF" \
+                  DPF_BUILD_DIR="$PWD/build" \
+                  DPF_TARGET_DIR="$PWD/bin" \
+                  CFLAGS="$ARCHS" \
+                  CXXFLAGS="$ARCHS" \
+                  LDFLAGS="$ARCHS" \
+                  vst3 ) \
               || fail="$fail $1"
           }
 
+          # root Makefile builds AutoSweep / Qtrix
           [ -f Makefile ] && build .
 
-          # Effects are now TWO levels deep: <cat>/<name>/Makefile (was */Makefile,
-          # which matched nothing post-reorg -> "FAILED DIRS: *").
+          # Effects are now TWO levels deep: <cat>/<name>/Makefile
           for mk in */*/Makefile; do
             d=$(dirname "$mk")
             case "$d" in DPF/*|*/DPF|*/_shared|*/mark_shared|RBFinalLeveler/*|*/build) continue;; esac
@@ -78,10 +85,11 @@ jobs:
           rm -f "$GITHUB_WORKSPACE/vst/DPF"
           echo "FAILED DIRS:$fail"
 
-      - name: Inject macOS binaries into existing bundles only (no new folders)
+      - name: Inject universal macOS binaries into the committed bundles
         run: |
           cd "$GITHUB_WORKSPACE"
 
+          # Built bundle name -> committed bundle dir mapping
           alias_of() {
             case "$1" in
               SuperBuzz.vst3) echo "Super-Buzz.vst3";;
@@ -173,20 +181,16 @@ jobs:
             esac
           }
 
-          injected=0
-          missing=0
-          failed_binaries=""
+          count=0
 
           echo "Searching for built macOS bundle directories..."
-          find vst/src -type d -path '*/bin/*.vst3/Contents/MacOS' -print
+          find vst/src -type d -path '*/Contents/MacOS' -print
 
-          while read -r macbin; do
-            built=$(basename "$(dirname "$(dirname "$macbin")")")
+          # Mirror the Windows strategy: find the built platform dir, map the name,
+          # then copy the whole Contents/MacOS payload into the committed bundle.
+          while read -r mac; do
+            built=$(basename "$(dirname "$(dirname "$mac")")")   # <Name>.vst3
             bundle=$(alias_of "$built")
-
-            case "$macbin" in
-              vst/src/bin/*) bundle="Qtrix.vst3" ;;
-            esac
 
             dst=""
             for cat in amps pedals racks; do
@@ -197,25 +201,17 @@ jobs:
               dest="$dst/Contents/MacOS"
               rm -rf "$dest"
               mkdir -p "$dest"
-              cp -R "$macbin/." "$dest/"
+              cp -R "$mac/." "$dest/"
               chmod +x "$dest"/* || true
               codesign --force --sign - "$dst" || true
               echo "injected: $dst"
-              injected=$((injected+1))
+              count=$((count+1))
             else
               echo "WARNING: built $bundle but no committed bundle vst/{amps,pedals,racks}/$bundle"
-              missing=$((missing+1))
             fi
-          done < <(find vst/src -type d -path '*/bin/*.vst3/Contents/MacOS')
+          done < <(find vst/src -type d -path '*/Contents/MacOS')
 
-          echo ""
-          echo "======================================================================"
-          echo "INJECTION SUMMARY"
-          echo "======================================================================"
-          echo "injected $injected bundles, skipped $missing (missing bundle or binary)"
-          if [ -n "$failed_binaries" ]; then
-            echo "Failed to find binaries for:$failed_binaries"
-          fi
+          echo "injected $count bundles"
 
       - name: Commit the macOS binaries
         run: |
