@@ -43,6 +43,11 @@ jobs:
           ln -sfn "$DPF" "$GITHUB_WORKSPACE/vst/DPF"
 
           cd "$GITHUB_WORKSPACE/vst/src"
+          for cat in amps pedals racks; do
+            if [ -d "$cat" ]; then
+              ln -sfn ../../DPF "$cat/DPF" || echo "Warning: could not link $cat/DPF"
+            fi
+          done
           fail=""
 
           build() {
