@@ -18,18 +18,18 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
-		<key>x86_64-linux/SO-2.so</key>
+		<key>x86_64-linux/BassSubOctave.so</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			bgUAgalSKozkmVqXvtnI236Ru6eZr+1xf0Je/jHfV7o=
+			3YTg8omCFIR3EAeF5N9yjLhpuJh84lQEdhfiGSEsN1A=
 			</data>
 		</dict>
-		<key>x86_64-win/SO-2.vst3</key>
+		<key>x86_64-win/BassSubOctave.vst3</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			zvvf0WAouOT+dXUtRe+HGVuSQCMedK1VwEB8ak7r3Pk=
+			CIUcWOiwzVEEZlIzYeEc5ajqw0z9n/mNL12si7gZhik=
 			</data>
 		</dict>
 	</dict>

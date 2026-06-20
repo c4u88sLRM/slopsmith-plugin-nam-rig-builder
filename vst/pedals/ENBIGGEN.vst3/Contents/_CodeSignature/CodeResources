@@ -18,18 +18,18 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
-		<key>x86_64-linux/ENBIGGEN.so</key>
+		<key>x86_64-linux/BassEnbig.so</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			yUfUHE6TKZPAmYYiuINh6DMsEE8yzyqn0hmkqo3I3kc=
+			UiMU6T0bsAAwhwisOjmb6wKSGu2KdUhppSs18aXFZYg=
 			</data>
 		</dict>
-		<key>x86_64-win/ENBIGGEN.vst3</key>
+		<key>x86_64-win/BassEnbig.vst3</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			iWFjgkScl8wrPPZuPvqX4CqT4X3lMS6j6LNQ72ISBJg=
+			lMkmQ/U+1BR2KDj2ybuCHlCsmD3HpDY7JlLzchoFJYY=
 			</data>
 		</dict>
 	</dict>

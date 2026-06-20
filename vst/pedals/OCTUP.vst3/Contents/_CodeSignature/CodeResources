@@ -18,18 +18,18 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
-		<key>x86_64-linux/OCTUP.so</key>
+		<key>x86_64-linux/OctaveUp.so</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			Ck0fQOn+WqU5cgE8n5FJNnQbsFU4VjBGk6q6cKBPxrQ=
+			cb0QnZtzYvpabaiu9zkgcT3uT+3LKEVaZtzAbhKJbmo=
 			</data>
 		</dict>
-		<key>x86_64-win/OCTUP.vst3</key>
+		<key>x86_64-win/OctaveUp.vst3</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			alxIClUomfIXpdQGwReJPUnCbzy2AyZxcgYH959r6cY=
+			rfuKcI7cYdCCxPwiSs76/gRWluZUc+JBaOwlEh6irMY=
 			</data>
 		</dict>
 	</dict>

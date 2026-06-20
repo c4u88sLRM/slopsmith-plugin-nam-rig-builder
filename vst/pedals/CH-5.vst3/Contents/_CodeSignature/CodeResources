@@ -18,18 +18,18 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
-		<key>x86_64-linux/CH-5.so</key>
+		<key>x86_64-linux/DigitalChorus.so</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			kfzB2IGYk9BljvTCwanXsO0S8tlNqqqFJX/ic9AwgUk=
+			Lb+gUWJJ+XSyveDuXM1ql5EdNoffyZdpR4zOu9nU0Yw=
 			</data>
 		</dict>
-		<key>x86_64-win/CH-5.vst3</key>
+		<key>x86_64-win/DigitalChorus.vst3</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			Dx7iEhFedDYyda6v4jvHSzkLs5lKjS1MnZguA54++qM=
+			rc5/FeI5LsWe+b7kGS6Cy5cccyrgApidPGiy2JesBhg=
 			</data>
 		</dict>
 	</dict>

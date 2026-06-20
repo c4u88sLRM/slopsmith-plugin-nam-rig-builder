@@ -18,18 +18,18 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
-		<key>x86_64-linux/PH-1.so</key>
+		<key>x86_64-linux/ShaverPhaser.so</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			9+/P+m2ItAxwqxmJJy+0apCy7H13Ix0jUh4QLdedGmk=
+			0bTcmUo93dEMFrboi08sh/X7ZRJaB2r7znRO765Efmo=
 			</data>
 		</dict>
-		<key>x86_64-win/PH-1.vst3</key>
+		<key>x86_64-win/ShaverPhaser.vst3</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			oPlVZiCDGeKva2fudm4u57X3Fwvzf7gK2CzrjiQGP0E=
+			yp2GuAaxM9k0t4vMgHegLrSnjmEjcMt7Yyoa2u1VXV8=
 			</data>
 		</dict>
 	</dict>

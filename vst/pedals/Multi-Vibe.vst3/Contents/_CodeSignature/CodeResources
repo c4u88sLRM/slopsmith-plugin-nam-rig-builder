@@ -18,18 +18,18 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
-		<key>x86_64-linux/Multi-Vibe.so</key>
+		<key>x86_64-linux/AmpVibe.so</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			e6f8KFiY2l3SgZ5TzqXpnftVw22MrAZb+YOBu2Q7X3E=
+			cqFrAbAwlu0fynQm5R89y5Wx40I8jRizUdSPx2V3BQ8=
 			</data>
 		</dict>
-		<key>x86_64-win/Multi-Vibe.vst3</key>
+		<key>x86_64-win/AmpVibe.vst3</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			TZO1GNwKD/DBRLL9271UloxA6H0iFTpF+UehVRBHUnY=
+			tzREwSL/r+XlroS3LvjtpgAC/v1wKNyE6KcFUBCEVkU=
 			</data>
 		</dict>
 	</dict>

@@ -18,18 +18,18 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
-		<key>x86_64-linux/SD-1.so</key>
+		<key>x86_64-linux/SuperDrive.so</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			lxi1c3W8L6fHqXvl2vnuENGpsNxB+QTl6IdZrPcFjfU=
+			CNwRTE2miBB+f3DKTKgjhlaVi4ZZsdJb1ZulwKEOlT0=
 			</data>
 		</dict>
-		<key>x86_64-win/SD-1.vst3</key>
+		<key>x86_64-win/SuperDrive.vst3</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			8oF0ubsWVuQ+LNDqnbpC/BQReZtru4VEsV2zvasqo4M=
+			QG7/oA1tPdq8M5vg5M4Ily022HZ1SgsE8Rc17BJilOo=
 			</data>
 		</dict>
 	</dict>

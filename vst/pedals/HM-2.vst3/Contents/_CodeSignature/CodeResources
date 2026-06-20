@@ -18,18 +18,18 @@
 			47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=
 			</data>
 		</dict>
-		<key>x86_64-linux/HM-2.so</key>
+		<key>x86_64-linux/AlloyDistortion.so</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			avhoatyP/oYKbpIsu5WaULKGxIc4whMArN9iOEKzQGE=
+			dC8ZsBgPEH4QiGpdUIMzNQ67FmHqIr97jmrmZUQp4wI=
 			</data>
 		</dict>
-		<key>x86_64-win/HM-2.vst3</key>
+		<key>x86_64-win/AlloyDistortion.vst3</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			3LB6FwMsGCb8hQvUGAxVNxmiIse2SVfPDw7ZHDMeEOg=
+			oZi6ZLQ3jyFC1+2ECWO9v3tksY1JNISOWMd/iLa3KbA=
 			</data>
 		</dict>
 	</dict>
