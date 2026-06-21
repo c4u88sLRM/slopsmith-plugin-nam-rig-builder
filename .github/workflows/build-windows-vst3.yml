@@ -211,7 +211,10 @@ jobs:
           cd "$GITHUB_WORKSPACE"
           git config user.name  "windows-vst-bot"
           git config user.email "windows-vst-bot@users.noreply.github.com"
-          git add vst/*/*/Contents/x86_64-win || true
+
+          # Force-add all x86_64-win binaries for amps, pedals, and racks
+          find vst/{amps,pedals,racks} -path "*/Contents/x86_64-win/*" -type f -print0 | xargs -0 git add --force || true
+
           if git diff --cached --quiet; then
             echo "No Windows binaries to commit (check the build log for failures)."
           else
