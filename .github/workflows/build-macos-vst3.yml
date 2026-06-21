@@ -43,12 +43,9 @@ jobs:
           DPF="$GITHUB_WORKSPACE/dpf"
           ARCHS="-arch x86_64 -arch arm64"
 
-          # Like Windows/Linux: expose DPF where hardcoded includes expect it.
           ln -sfn "$DPF" "$GITHUB_WORKSPACE/vst/DPF"
-
           cd "$GITHUB_WORKSPACE/vst/src"
 
-          # Post-reorg shared headers path fix, same pattern as Windows.
           for cat in amps pedals racks; do
             if [ -d "$cat" ] && [ -d _shared ]; then
               rm -f "$cat/_shared"
@@ -57,7 +54,6 @@ jobs:
           done
 
           fail=""
-
           build() {
             ( cd "$1" && rm -rf build bin \
                 && make -j2 \
@@ -71,10 +67,8 @@ jobs:
                || fail="$fail $1"
           }
 
-          # root Makefile builds AutoSweep / Qtrix
           [ -f Makefile ] && build .
 
-          # Effects are TWO levels deep: <cat>/<name>/Makefile
           for mk in */*/Makefile; do
             d=$(dirname "$mk")
             case "$d" in DPF/*|*/DPF|*/_shared|*/mark_shared|RBFinalLeveler/*|*/build) continue;; esac
@@ -91,7 +85,6 @@ jobs:
           set -euxo pipefail
           cd "$GITHUB_WORKSPACE"
 
-          # Built bundle name -> committed bundle dir mapping
           alias_of() {
             case "$1" in
               SuperBuzz.vst3) echo "Super-Buzz.vst3";;
@@ -183,31 +176,11 @@ jobs:
             esac
           }
 
-          count=0
+          injected=0
+          matched_list="$(mktemp)"
+          : > "$matched_list"
 
-          # 1) Inject from raw built binaries: */bin/<BinaryName>
-          while IFS= read -r built_bin; do
-            base="$(basename "$built_bin")"
-            built_bundle="${base}.vst3"
-            bundle="$(alias_of "$built_bundle")"
-
-            dst=""
-            for cat in amps pedals racks; do
-              [ -d "vst/$cat/$bundle" ] && dst="vst/$cat/$bundle" && break
-            done
-
-            if [ -n "$dst" ]; then
-              dest="$dst/Contents/MacOS"
-              mkdir -p "$dest"
-              cp -f "$built_bin" "$dest/$base"
-              chmod +x "$dest/$base" || true
-              codesign --force --sign - "$dst" < /dev/null || true
-              echo "injected from raw bin: $built_bin -> $dest/$base"
-              count=$((count+1))
-            fi
-          done < <(find vst/src -type f -path "*/bin/*" ! -name "*.a" ! -name "*.o" ! -name "*.dylib" | sort)
-
-          # 2) Inject from built VST3 bundles: */bin/<Name>.vst3/Contents/MacOS
+          # A) Inject directly from built bundle MacOS dirs
           while IFS= read -r mac; do
             built="$(basename "$(dirname "$(dirname "$mac")")")"   # <Name>.vst3
             bundle="$(alias_of "$built")"
@@ -225,13 +198,49 @@ jobs:
               chmod +x "$dest"/* || true
               codesign --force --sign - "$dst" < /dev/null || true
               echo "injected from bundle: $mac -> $dst"
-              count=$((count+1))
+              echo "$bundle" >> "$matched_list"
+              injected=$((injected+1))
             else
               echo "WARNING: built $bundle but no committed bundle vst/{amps,pedals,racks}/$bundle"
             fi
           done < <(find vst/src -type d -path '*/bin/*.vst3/Contents/MacOS' | sort)
 
-          echo "injected $count bundles/binaries"
+          # B) Inject from raw executables only (strict path avoids Info.plist/PkgInfo noise)
+          while IFS= read -r built_bin; do
+            base="$(basename "$built_bin")"         # executable name
+            built_bundle="${base}.vst3"
+            bundle="$(alias_of "$built_bundle")"
+
+            dst=""
+            for cat in amps pedals racks; do
+              [ -d "vst/$cat/$bundle" ] && dst="vst/$cat/$bundle" && break
+            done
+
+            if [ -n "$dst" ]; then
+              dest="$dst/Contents/MacOS"
+              mkdir -p "$dest"
+              cp -f "$built_bin" "$dest/$base"
+              chmod +x "$dest/$base" || true
+              codesign --force --sign - "$dst" < /dev/null || true
+              echo "injected from raw bin: $built_bin -> $dest/$base"
+              echo "$bundle" >> "$matched_list"
+              injected=$((injected+1))
+            fi
+          done < <(find vst/src -type f -path '*/bin/*.vst3/Contents/MacOS/*' | sort)
+
+          echo "injected operations: $injected"
+
+          # Coverage summary
+          committed_total=$(find vst/amps vst/pedals vst/racks -maxdepth 1 -type d -name '*.vst3' | wc -l | tr -d ' ')
+          matched_unique=$(sort -u "$matched_list" | wc -l | tr -d ' ')
+          echo "committed bundles: $committed_total"
+          echo "matched bundles:   $matched_unique"
+
+          echo "=== unmatched committed bundles ==="
+          find vst/amps vst/pedals vst/racks -maxdepth 1 -type d -name '*.vst3' -print \
+            | sed 's|.*/||' | sort -u > /tmp/committed_bundles.txt
+          sort -u "$matched_list" > /tmp/matched_bundles.txt
+          comm -23 /tmp/committed_bundles.txt /tmp/matched_bundles.txt || true
 
       - name: Commit the macOS binaries
         run: |
@@ -240,7 +249,6 @@ jobs:
           git config user.name  "macos-vst-bot"
           git config user.email "macos-vst-bot@users.noreply.github.com"
 
-          # Force-add all MacOS binaries for amps, pedals, and racks
           find vst/{amps,pedals,racks} -path "*/Contents/MacOS/*" -type f -print0 | xargs -0 git add --force || true
 
           if git diff --cached --quiet; then
