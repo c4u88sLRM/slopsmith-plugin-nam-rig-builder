@@ -45,11 +45,25 @@ jobs:
           cd "$GITHUB_WORKSPACE/vst/src"
           fail=""
 
+          # Fix post-reorg shared include paths expected by many plugins
+          for cat in amps pedals racks; do
+            if [ -d "$cat" ] && [ -d _shared ]; then
+              rm -f "$cat/_shared"
+              ln -sfn ../_shared "$cat/_shared" || echo "Warning: could not link $cat/_shared"
+            fi
+          done
+
           build() {
             ( cd "$1" && rm -rf build bin \
-                && make -j3 DPF_PATH="$DPF" DPF_BUILD_DIR="$PWD/build" DPF_TARGET_DIR="$PWD/bin" \
-                        CFLAGS="$ARCHS" CXXFLAGS="$ARCHS" LDFLAGS="$ARCHS" vst3 ) \
-              || fail="$fail $1"
+              && make -j3 \
+                DPF_PATH="$DPF" \
+                DPF_BUILD_DIR="$PWD/build" \
+                DPF_TARGET_DIR="$PWD/bin" \
+                CFLAGS="$ARCHS" \
+                CXXFLAGS="$ARCHS" \
+                LDFLAGS="$ARCHS" \
+                vst3 ) \
+            || fail="$fail $1"
           }
 
           [ -f Makefile ] && build .
@@ -57,10 +71,13 @@ jobs:
           while IFS= read -r mk; do
             d="${mk#./}"
             d=$(dirname "$d")
-            case "$d" in .|DPF|_shared) continue;; esac
+            case "$d" in .|DPF|_shared|*/build|RBFinalLeveler/*) continue;; esac
             echo "==== building $d ===="
             build "$d"
           done < <(find . -type f -name Makefile | sort)
+
+          # cleanup symlinks
+          for cat in amps pedals racks; do rm -f "$cat/_shared"; done
 
           rm -f "$GITHUB_WORKSPACE/vst/DPF"
           echo "FAILED DIRS:$fail"
