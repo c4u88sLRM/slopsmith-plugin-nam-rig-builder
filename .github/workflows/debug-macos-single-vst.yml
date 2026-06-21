@@ -15,7 +15,7 @@ jobs:
   build-single:
     runs-on: macos-latest
     env:
-      EFFECT_DIR: vst/src/amps/CitrusAD50
+      EFFECT_DIR: vst/src/amps/ad50_citrus
       TARGET_BUNDLE: vst/amps/CitrusAD50.vst3
       BIN_NAME: CitrusAD50
 
