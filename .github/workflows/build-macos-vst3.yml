@@ -1,22 +1,17 @@
 name: Build macOS VST3 binaries
 
 # Why: the bundled effects in vst/*.vst3 ship with Windows (Contents/x86_64-win)
-# and Linux (Contents/x86_64-linux) binaries built by the sibling workflows, and
-# a committed macOS binary at Contents/MacOS/<Name>. When a plugin's source
-# changes (e.g. a renamed DISTRHO_PLUGIN_NAME), the committed macOS binary goes
-# stale. This workflow rebuilds every DPF plugin for macOS as a UNIVERSAL binary
-# (arm64 + x86_64) and injects it back into Contents/MacOS/<Name>, mirroring
-# build-linux-vst3.yml / build-windows-vst3.yml.
-#
-# Run it manually from the Actions tab (workflow_dispatch). It ad-hoc signs each
-# bundle (so Gatekeeper/the host doesn't reject the re-written binary) and
-# commits the result back to the branch it ran on.
+# and Linux (Contents/x86_64-linux) binaries built by sibling workflows, plus a
+# committed macOS binary at Contents/MacOS/<Name>. This workflow rebuilds every
+# DPF plugin for macOS as a UNIVERSAL binary (arm64 + x86_64), injects into the
+# committed bundles, ad-hoc signs, and commits back to the branch.
 
 on:
   workflow_dispatch:
     inputs:
       dpf_ref:
         description: "DISTRHO/DPF git ref to build against"
+        required: false
         default: "main"
 
 permissions:
@@ -31,7 +26,8 @@ jobs:
 
       - name: Clone DPF (with submodules — pugl is needed for the DGL UI)
         run: |
-          git clone --depth 1 --branch "${{ github.event.inputs.dpf_ref }}" \
+          set -euxo pipefail
+          git clone --depth 1 --branch "${{ github.event.inputs.dpf_ref || 'main' }}" \
             https://github.com/DISTRHO/DPF.git "$GITHUB_WORKSPACE/dpf"
           git -C "$GITHUB_WORKSPACE/dpf" submodule update --init --recursive
 
@@ -84,6 +80,7 @@ jobs:
 
       - name: Inject macOS binaries into existing bundles only (no new folders)
         run: |
+          set -euxo pipefail
           cd "$GITHUB_WORKSPACE"
 
           alias_of() {
@@ -181,12 +178,11 @@ jobs:
           missing=0
           failed_binaries=""
 
-          while IFS= read -r macbin; do
-            built=$(basename "$(dirname "$(dirname "$macbin")")")
-            name="${built%.vst3}"
+          while IFS= read -r macdir; do
+            built="$(basename "$(dirname "$(dirname "$macdir")")")"   # <Name>.vst3
             mapped="$(alias_of "$built")"
 
-            case "$macbin" in
+            case "$macdir" in
               vst/src/amps/*/bin/*.vst3/Contents/MacOS)   dest_root="vst/amps";;
               vst/src/pedals/*/bin/*.vst3/Contents/MacOS) dest_root="vst/pedals";;
               vst/src/racks/*/bin/*.vst3/Contents/MacOS)  dest_root="vst/racks";;
@@ -195,27 +191,44 @@ jobs:
             esac
 
             bundle="$dest_root/$mapped"
-            out="$bundle/Contents/MacOS/$name"
 
             if [ -d "$bundle" ]; then
-              # Check if the binary file exists before attempting to copy
-              if [ -f "$macbin/$name" ]; then
-                mkdir -p "$(dirname "$out")"
-                cp -f "$macbin/$name" "$out"
-                chmod +x "$out" || true
-                codesign --force --sign - "$bundle" || true
-                echo "injected: $built -> $bundle"
-                injected=$((injected+1))
-              else
-                echo "WARNING: binary not found at $macbin/$name (build may have failed)"
+              dest="$bundle/Contents/MacOS"
+              mkdir -p "$dest"
+
+              copied=0
+              for f in "$macdir"/*; do
+                [ -f "$f" ] || continue
+                b="$(basename "$f")"
+
+                before="$(shasum -a 256 "$dest/$b" 2>/dev/null | awk '{print $1}' || true)"
+                cp -f "$f" "$dest/$b"
+                chmod +x "$dest/$b" || true
+                after="$(shasum -a 256 "$dest/$b" | awk '{print $1}')"
+
+                if [ "$before" = "$after" ]; then
+                  echo "UNCHANGED: $bundle/Contents/MacOS/$b"
+                else
+                  echo "CHANGED:   $bundle/Contents/MacOS/$b"
+                fi
+                copied=$((copied+1))
+              done
+
+              if [ "$copied" -eq 0 ]; then
+                echo "WARNING: no files found in $macdir"
                 failed_binaries="$failed_binaries $built"
                 missing=$((missing+1))
+                continue
               fi
+
+              codesign --force --sign - "$bundle" < /dev/null || true
+              echo "injected: $built -> $bundle ($copied file(s))"
+              injected=$((injected+1))
             else
               echo "WARNING: missing target bundle $bundle (skipped)"
               missing=$((missing+1))
             fi
-          done < <(find vst/src -type d -path '*/bin/*.vst3/Contents/MacOS')
+          done < <(find vst/src -type d -path '*/bin/*.vst3/Contents/MacOS' | sort)
 
           echo "injected $injected bundles, skipped $missing (missing bundle or binary)"
           if [ -n "$failed_binaries" ]; then
@@ -224,11 +237,12 @@ jobs:
 
       - name: Commit the macOS binaries
         run: |
+          set -euxo pipefail
           cd "$GITHUB_WORKSPACE"
           git config user.name  "macos-vst-bot"
           git config user.email "macos-vst-bot@users.noreply.github.com"
 
-          find vst -type f \( -path '*/Contents/MacOS/*' -o -path '*/Contents/_CodeSignature/*' \) -print0 | xargs -0 -r git add
+          find vst -type f \( -path '*/Contents/MacOS/*' -o -path '*/Contents/_CodeSignature/*' \) -print0 | xargs -0 -r git add --force
 
           if git diff --cached --quiet; then
             echo "No macOS binaries to commit (nothing injected or no changes)."
