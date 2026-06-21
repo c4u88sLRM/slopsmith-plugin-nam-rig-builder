@@ -17,6 +17,7 @@ on:
     inputs:
       dpf_ref:
         description: "DISTRHO/DPF git ref to build against"
+        required: false
         default: "main"
 
 permissions:
@@ -31,7 +32,8 @@ jobs:
 
       - name: Clone DPF (with submodules — pugl is needed for the DGL UI)
         run: |
-          git clone --depth 1 --branch "${{ github.event.inputs.dpf_ref }}" \
+          set -euxo pipefail
+          git clone --depth 1 --branch "${{ github.event.inputs.dpf_ref || 'main' }}" \
             https://github.com/DISTRHO/DPF.git "$GITHUB_WORKSPACE/dpf"
           git -C "$GITHUB_WORKSPACE/dpf" submodule update --init --recursive
 
@@ -56,7 +58,6 @@ jobs:
 
           fail=""
 
-          # Same output pinning pattern as Windows/Linux, plus universal arch flags.
           build() {
             ( cd "$1" && rm -rf build bin \
                 && make -j2 \
@@ -68,12 +69,12 @@ jobs:
                   LDFLAGS="$ARCHS" \
                   vst3 ) \
                || fail="$fail $1"
-           }
+          }
 
           # root Makefile builds AutoSweep / Qtrix
           [ -f Makefile ] && build .
 
-          # Effects are now TWO levels deep: <cat>/<name>/Makefile
+          # Effects are TWO levels deep: <cat>/<name>/Makefile
           for mk in */*/Makefile; do
             d=$(dirname "$mk")
             case "$d" in DPF/*|*/DPF|*/_shared|*/mark_shared|RBFinalLeveler/*|*/build) continue;; esac
@@ -87,6 +88,7 @@ jobs:
 
       - name: Inject universal macOS binaries into the committed bundles
         run: |
+          set -euxo pipefail
           cd "$GITHUB_WORKSPACE"
 
           # Built bundle name -> committed bundle dir mapping
@@ -183,16 +185,32 @@ jobs:
 
           count=0
 
-          echo "Searching for built macOS bundle directories..."
-          find vst/src -type d -path '*/Contents/MacOS' -print | sort > /tmp/macos_bundles.txt
-          cat /tmp/macos_bundles.txt
+          # 1) Inject from raw built binaries: */bin/<BinaryName>
+          while IFS= read -r built_bin; do
+            base="$(basename "$built_bin")"
+            built_bundle="${base}.vst3"
+            bundle="$(alias_of "$built_bundle")"
 
-          # Read from a temp file instead of process substitution so tools like
-          # codesign can't accidentally consume the loop stdin and skip entries.
+            dst=""
+            for cat in amps pedals racks; do
+              [ -d "vst/$cat/$bundle" ] && dst="vst/$cat/$bundle" && break
+            done
+
+            if [ -n "$dst" ]; then
+              dest="$dst/Contents/MacOS"
+              mkdir -p "$dest"
+              cp -f "$built_bin" "$dest/$base"
+              chmod +x "$dest/$base" || true
+              codesign --force --sign - "$dst" < /dev/null || true
+              echo "injected from raw bin: $built_bin -> $dest/$base"
+              count=$((count+1))
+            fi
+          done < <(find vst/src -type f -path "*/bin/*" ! -name "*.a" ! -name "*.o" ! -name "*.dylib" | sort)
+
+          # 2) Inject from built VST3 bundles: */bin/<Name>.vst3/Contents/MacOS
           while IFS= read -r mac; do
-            built=$(basename "$(dirname "$(dirname "$mac")")")   # <Name>.vst3
-            bundle=$(alias_of "$built")
-            echo "built=$built bundle=$bundle"
+            built="$(basename "$(dirname "$(dirname "$mac")")")"   # <Name>.vst3
+            bundle="$(alias_of "$built")"
 
             dst=""
             for cat in amps pedals racks; do
@@ -206,17 +224,18 @@ jobs:
               cp -R "$mac/." "$dest/"
               chmod +x "$dest"/* || true
               codesign --force --sign - "$dst" < /dev/null || true
-              echo "injected: $dst"
+              echo "injected from bundle: $mac -> $dst"
               count=$((count+1))
             else
               echo "WARNING: built $bundle but no committed bundle vst/{amps,pedals,racks}/$bundle"
             fi
-          done < /tmp/macos_bundles.txt
+          done < <(find vst/src -type d -path '*/bin/*.vst3/Contents/MacOS' | sort)
 
-          echo "injected $count bundles"
+          echo "injected $count bundles/binaries"
 
       - name: Commit the macOS binaries
         run: |
+          set -euxo pipefail
           cd "$GITHUB_WORKSPACE"
           git config user.name  "macos-vst-bot"
           git config user.email "macos-vst-bot@users.noreply.github.com"
