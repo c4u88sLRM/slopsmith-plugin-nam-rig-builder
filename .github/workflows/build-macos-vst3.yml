@@ -184,11 +184,12 @@ jobs:
           count=0
 
           echo "Searching for built macOS bundle directories..."
-          find vst/src -type d -path '*/Contents/MacOS' -print
+          find vst/src -type d -path '*/Contents/MacOS' -print | sort > /tmp/macos_bundles.txt
+          cat /tmp/macos_bundles.txt
 
-          # Mirror the Windows strategy: find the built platform dir, map the name,
-          # then copy the whole Contents/MacOS payload into the committed bundle.
-          while read -r mac; do
+          # Read from a temp file instead of process substitution so tools like
+          # codesign can't accidentally consume the loop stdin and skip entries.
+          while IFS= read -r mac; do
             built=$(basename "$(dirname "$(dirname "$mac")")")   # <Name>.vst3
             bundle=$(alias_of "$built")
             echo "built=$built bundle=$bundle"
@@ -204,13 +205,13 @@ jobs:
               mkdir -p "$dest"
               cp -R "$mac/." "$dest/"
               chmod +x "$dest"/* || true
-              codesign --force --sign - "$dst" || true
+              codesign --force --sign - "$dst" < /dev/null || true
               echo "injected: $dst"
               count=$((count+1))
             else
               echo "WARNING: built $bundle but no committed bundle vst/{amps,pedals,racks}/$bundle"
             fi
-          done < <(find vst/src -type d -path '*/Contents/MacOS')
+          done < /tmp/macos_bundles.txt
 
           echo "injected $count bundles"
 
