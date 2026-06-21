@@ -221,7 +221,16 @@ jobs:
           git config user.name  "macos-vst-bot"
           git config user.email "macos-vst-bot@users.noreply.github.com"
 
+          echo "CHANGED BEFORE ADD:"
+          git status --short -- vst | sort || true
+
+          echo "CANDIDATE FILES:"
+          find vst -type f \( -path '*/Contents/MacOS/*' -o -path '*/Contents/_CodeSignature/*' \) | sort
+
           find vst -type f \( -path '*/Contents/MacOS/*' -o -path '*/Contents/_CodeSignature/*' \) -print0 | xargs -0 -r git add
+
+          echo "STAGED FILES:"
+          git diff --cached --name-only | sort || true
 
           if git diff --cached --quiet; then
             echo "No macOS binaries to commit (nothing injected or no changes)."
