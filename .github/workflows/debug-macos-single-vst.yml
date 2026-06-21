@@ -1,0 +1,10 @@
+name: Debug macOS single VST3 (CitrusAD50)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: macos-latest
+    steps:
+      - run: echo "Workflow visible and runnable"
