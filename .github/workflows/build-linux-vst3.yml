@@ -215,7 +215,10 @@ jobs:
           cd "$GITHUB_WORKSPACE"
           git config user.name  "linux-vst-bot"
           git config user.email "linux-vst-bot@users.noreply.github.com"
-          git add vst/*/*/Contents/x86_64-linux || true
+
+          # Force-add all x86_64-linux binaries for amps, pedals, and racks
+          find vst/{amps,pedals,racks} -path "*/Contents/x86_64-linux/*" -type f -print0 | xargs -0 git add --force || true
+
           if git diff --cached --quiet; then
             echo "No Linux binaries to commit (check the build log for failures)."
           else
