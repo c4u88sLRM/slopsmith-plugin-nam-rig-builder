@@ -191,6 +191,7 @@ jobs:
           while read -r mac; do
             built=$(basename "$(dirname "$(dirname "$mac")")")   # <Name>.vst3
             bundle=$(alias_of "$built")
+            echo "built=$built bundle=$bundle"
 
             dst=""
             for cat in amps pedals racks; do
