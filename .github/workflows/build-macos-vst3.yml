@@ -62,20 +62,24 @@ jobs:
             || fail="$fail $1"
           }
 
+          # Root Makefile (AutoSweep path)
           [ -f Makefile ] && build .
 
-          while IFS= read -r mk; do
-            d="${mk#./}"
-            d=$(dirname "$d")
-            case "$d" in .|DPF|_shared|*/build|RBFinalLeveler/*) continue;; esac
+          # EXPLICIT category scan (fixes missed amps)
+          for d in amps/* pedals/* racks/*; do
+            [ -d "$d" ] || continue
+            [ -f "$d/Makefile" ] || continue
+            case "$d" in
+              */_shared|*/mark_shared|*/build|RBFinalLeveler/*) continue;;
+            esac
             echo "==== building $d ===="
             build "$d"
-          done < <(find . -type f -name Makefile | sort)
+          done
 
           # cleanup symlinks
           for cat in amps pedals racks; do rm -f "$cat/_shared"; done
-
           rm -f "$GITHUB_WORKSPACE/vst/DPF"
+
           echo "FAILED DIRS:$fail"
 
       - name: Inject macOS binaries into existing bundles only (no new folders)
