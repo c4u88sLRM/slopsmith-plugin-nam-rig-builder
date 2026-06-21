@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       dpf_ref:
-        description: "DPF ref (branch/tag/sha)"
+        description: "DPF ref (branch/tag/sha). Leave blank to use default branch."
         required: false
-        default: "master"
+        default: "main"
 
 permissions:
   contents: write
@@ -34,7 +34,7 @@ jobs:
         run: |
           set -euxo pipefail
           rm -rf "${GITHUB_WORKSPACE}/vst/DPF"
-          git clone --depth 1 --branch "${{ github.event.inputs.dpf_ref || 'master' }}" https://github.com/DISTRHO/DPF.git "${GITHUB_WORKSPACE}/vst/DPF"
+          git clone --depth 1 --branch "${{ github.event.inputs.dpf_ref || 'main' }}" https://github.com/DISTRHO/DPF.git "${GITHUB_WORKSPACE}/vst/DPF"
 
       - name: Build CitrusAD50 VST3
         run: |
