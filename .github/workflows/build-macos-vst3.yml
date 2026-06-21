@@ -67,8 +67,8 @@ jobs:
                   CXXFLAGS="$ARCHS" \
                   LDFLAGS="$ARCHS" \
                   vst3 ) \
-              || fail="$fail $1"
-          }
+               || fail="$fail $1"
+           }
 
           # root Makefile builds AutoSweep / Qtrix
           [ -f Makefile ] && build .
@@ -221,19 +221,11 @@ jobs:
           git config user.name  "macos-vst-bot"
           git config user.email "macos-vst-bot@users.noreply.github.com"
 
-          echo "CHANGED BEFORE ADD:"
-          git status --short -- vst | sort || true
-
-          echo "CANDIDATE FILES:"
-          find vst -type f \( -path '*/Contents/MacOS/*' -o -path '*/Contents/_CodeSignature/*' \) | sort
-
-          find vst -type f \( -path '*/Contents/MacOS/*' -o -path '*/Contents/_CodeSignature/*' \) -print0 | xargs -0 -r git add
-
-          echo "STAGED FILES:"
-          git diff --cached --name-only | sort || true
+          # Force-add all MacOS binaries for amps, pedals, and racks
+          find vst/{amps,pedals,racks} -path "*/Contents/MacOS/*" -type f -print0 | xargs -0 git add --force || true
 
           if git diff --cached --quiet; then
-            echo "No macOS binaries to commit (nothing injected or no changes)."
+            echo "No macOS binaries to commit."
           else
             git commit -m "Rebuild macOS (universal) VST3 binaries for bundled effects"
             git push
