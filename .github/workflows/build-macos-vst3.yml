@@ -17,7 +17,6 @@ on:
     inputs:
       dpf_ref:
         description: "DISTRHO/DPF git ref to build against"
-        required: false
         default: "main"
 
 permissions:
@@ -32,8 +31,7 @@ jobs:
 
       - name: Clone DPF (with submodules — pugl is needed for the DGL UI)
         run: |
-          set -euxo pipefail
-          git clone --depth 1 --branch "${{ github.event.inputs.dpf_ref || 'main' }}" \
+          git clone --depth 1 --branch "${{ github.event.inputs.dpf_ref }}" \
             https://github.com/DISTRHO/DPF.git "$GITHUB_WORKSPACE/dpf"
           git -C "$GITHUB_WORKSPACE/dpf" submodule update --init --recursive
 
@@ -42,47 +40,33 @@ jobs:
           set +e
           DPF="$GITHUB_WORKSPACE/dpf"
           ARCHS="-arch x86_64 -arch arm64"
-
           ln -sfn "$DPF" "$GITHUB_WORKSPACE/vst/DPF"
+
           cd "$GITHUB_WORKSPACE/vst/src"
-
-          for cat in amps pedals racks; do
-            if [ -d "$cat" ] && [ -d _shared ]; then
-              rm -f "$cat/_shared"
-              ln -sfn ../_shared "$cat/_shared" || echo "Warning: could not link $cat/_shared"
-            fi
-          done
-
           fail=""
+
           build() {
             ( cd "$1" && rm -rf build bin \
-                && make -j2 \
-                  DPF_PATH="$DPF" \
-                  DPF_BUILD_DIR="$PWD/build" \
-                  DPF_TARGET_DIR="$PWD/bin" \
-                  CFLAGS="$ARCHS" \
-                  CXXFLAGS="$ARCHS" \
-                  LDFLAGS="$ARCHS" \
-                  vst3 ) \
-               || fail="$fail $1"
+                && make -j3 DPF_PATH="$DPF" DPF_BUILD_DIR="$PWD/build" DPF_TARGET_DIR="$PWD/bin" \
+                        CFLAGS="$ARCHS" CXXFLAGS="$ARCHS" LDFLAGS="$ARCHS" vst3 ) \
+              || fail="$fail $1"
           }
 
           [ -f Makefile ] && build .
 
-          for mk in */*/Makefile; do
-            d=$(dirname "$mk")
-            case "$d" in DPF/*|*/DPF|*/_shared|*/mark_shared|RBFinalLeveler/*|*/build) continue;; esac
+          while IFS= read -r mk; do
+            d="${mk#./}"
+            d=$(dirname "$d")
+            case "$d" in .|DPF|_shared) continue;; esac
             echo "==== building $d ===="
             build "$d"
-          done
+          done < <(find . -type f -name Makefile | sort)
 
-          for cat in amps pedals racks; do rm -f "$cat/_shared"; done
           rm -f "$GITHUB_WORKSPACE/vst/DPF"
           echo "FAILED DIRS:$fail"
 
-      - name: Inject universal macOS binaries into the committed bundles
+      - name: Inject macOS binaries into existing bundles only (no new folders)
         run: |
-          set -euxo pipefail
           cd "$GITHUB_WORKSPACE"
 
           alias_of() {
@@ -177,82 +161,60 @@ jobs:
           }
 
           injected=0
-          matched_list="$(mktemp)"
-          : > "$matched_list"
+          missing=0
+          failed_binaries=""
 
-          # A) Inject directly from built bundle MacOS dirs
-          while IFS= read -r mac; do
-            built="$(basename "$(dirname "$(dirname "$mac")")")"   # <Name>.vst3
-            bundle="$(alias_of "$built")"
+          while IFS= read -r macbin; do
+            built=$(basename "$(dirname "$(dirname "$macbin")")")
+            name="${built%.vst3}"
+            mapped="$(alias_of "$built")"
 
-            dst=""
-            for cat in amps pedals racks; do
-              [ -d "vst/$cat/$bundle" ] && dst="vst/$cat/$bundle" && break
-            done
+            case "$macbin" in
+              vst/src/amps/*/bin/*.vst3/Contents/MacOS)   dest_root="vst/amps";;
+              vst/src/pedals/*/bin/*.vst3/Contents/MacOS) dest_root="vst/pedals";;
+              vst/src/racks/*/bin/*.vst3/Contents/MacOS)  dest_root="vst/racks";;
+              vst/src/bin/AutoSweep.vst3/Contents/MacOS)  dest_root="vst/pedals"; mapped="Qtrix.vst3";;
+              *) continue;;
+            esac
 
-            if [ -n "$dst" ]; then
-              dest="$dst/Contents/MacOS"
-              rm -rf "$dest"
-              mkdir -p "$dest"
-              cp -R "$mac/." "$dest/"
-              chmod +x "$dest"/* || true
-              codesign --force --sign - "$dst" < /dev/null || true
-              echo "injected from bundle: $mac -> $dst"
-              echo "$bundle" >> "$matched_list"
-              injected=$((injected+1))
+            bundle="$dest_root/$mapped"
+            out="$bundle/Contents/MacOS/$name"
+
+            if [ -d "$bundle" ]; then
+              # Check if the binary file exists before attempting to copy
+              if [ -f "$macbin/$name" ]; then
+                mkdir -p "$(dirname "$out")"
+                cp -f "$macbin/$name" "$out"
+                chmod +x "$out" || true
+                codesign --force --sign - "$bundle" || true
+                echo "injected: $built -> $bundle"
+                injected=$((injected+1))
+              else
+                echo "WARNING: binary not found at $macbin/$name (build may have failed)"
+                failed_binaries="$failed_binaries $built"
+                missing=$((missing+1))
+              fi
             else
-              echo "WARNING: built $bundle but no committed bundle vst/{amps,pedals,racks}/$bundle"
+              echo "WARNING: missing target bundle $bundle (skipped)"
+              missing=$((missing+1))
             fi
-          done < <(find vst/src -type d -path '*/bin/*.vst3/Contents/MacOS' | sort)
+          done < <(find vst/src -type d -path '*/bin/*.vst3/Contents/MacOS')
 
-          # B) Inject from raw executables only (strict path avoids Info.plist/PkgInfo noise)
-          while IFS= read -r built_bin; do
-            base="$(basename "$built_bin")"         # executable name
-            built_bundle="${base}.vst3"
-            bundle="$(alias_of "$built_bundle")"
-
-            dst=""
-            for cat in amps pedals racks; do
-              [ -d "vst/$cat/$bundle" ] && dst="vst/$cat/$bundle" && break
-            done
-
-            if [ -n "$dst" ]; then
-              dest="$dst/Contents/MacOS"
-              mkdir -p "$dest"
-              cp -f "$built_bin" "$dest/$base"
-              chmod +x "$dest/$base" || true
-              codesign --force --sign - "$dst" < /dev/null || true
-              echo "injected from raw bin: $built_bin -> $dest/$base"
-              echo "$bundle" >> "$matched_list"
-              injected=$((injected+1))
-            fi
-          done < <(find vst/src -type f -path '*/bin/*.vst3/Contents/MacOS/*' | sort)
-
-          echo "injected operations: $injected"
-
-          # Coverage summary
-          committed_total=$(find vst/amps vst/pedals vst/racks -maxdepth 1 -type d -name '*.vst3' | wc -l | tr -d ' ')
-          matched_unique=$(sort -u "$matched_list" | wc -l | tr -d ' ')
-          echo "committed bundles: $committed_total"
-          echo "matched bundles:   $matched_unique"
-
-          echo "=== unmatched committed bundles ==="
-          find vst/amps vst/pedals vst/racks -maxdepth 1 -type d -name '*.vst3' -print \
-            | sed 's|.*/||' | sort -u > /tmp/committed_bundles.txt
-          sort -u "$matched_list" > /tmp/matched_bundles.txt
-          comm -23 /tmp/committed_bundles.txt /tmp/matched_bundles.txt || true
+          echo "injected $injected bundles, skipped $missing (missing bundle or binary)"
+          if [ -n "$failed_binaries" ]; then
+            echo "Failed to find binaries for:$failed_binaries"
+          fi
 
       - name: Commit the macOS binaries
         run: |
-          set -euxo pipefail
           cd "$GITHUB_WORKSPACE"
           git config user.name  "macos-vst-bot"
           git config user.email "macos-vst-bot@users.noreply.github.com"
 
-          find vst/{amps,pedals,racks} -path "*/Contents/MacOS/*" -type f -print0 | xargs -0 git add --force || true
+          find vst -type f \( -path '*/Contents/MacOS/*' -o -path '*/Contents/_CodeSignature/*' \) -print0 | xargs -0 -r git add
 
           if git diff --cached --quiet; then
-            echo "No macOS binaries to commit."
+            echo "No macOS binaries to commit (nothing injected or no changes)."
           else
             git commit -m "Rebuild macOS (universal) VST3 binaries for bundled effects"
             git push
