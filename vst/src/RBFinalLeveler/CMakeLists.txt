@@ -5,8 +5,11 @@ project(RBFinalLeveler VERSION 1.0.0)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Apple Silicon. Si quieres universal, cambia a "arm64;x86_64"
-set(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "" FORCE)
+# Default to Apple Silicon for local macOS builds, but allow CI / callers
+# to override this (for example with -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64").
+if(APPLE AND NOT DEFINED CMAKE_OSX_ARCHITECTURES)
+    set(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "macOS architectures")
+endif()
 
 include(FetchContent)
 
