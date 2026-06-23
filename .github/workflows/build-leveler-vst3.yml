@@ -1,190 +1,55 @@
-name: Build RB Final Leveler (Windows + Linux + macOS)
+cmake_minimum_required(VERSION 3.22)
 
-# Why: the RB Final Leveler is a JUCE/CMake plugin (NOT a DPF Makefile plugin),
-# so the build-windows-vst3.yml / build-linux-vst3.yml workflows skip it
-# (`RBFinalLeveler/*) continue`). Its committed bundle therefore ships a macOS
-# binary only — on Windows/Linux the host has no binary to load. This workflow
-# builds it via JUCE 8.0.7 (FetchContent) for all platforms and injects the
-# x86_64-win / x86_64-linux / universal-macos binaries into the committed bundle
-# so it becomes cross-platform like the DPF effects.
-#
-# Run manually (workflow_dispatch). The three jobs run SEQUENTIALLY (linux needs
-# windows, macos needs windows) so they never push concurrently — the DPF workflows'
-# concurrent-push race (git pull --rebase aborting on a moved remote) can't happen
-# here. Each job also pulls with --autostash before pushing, as a belt-and-suspenders.
+project(RBFinalLeveler VERSION 1.0.0)
 
-on:
-  workflow_dispatch:
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-permissions:
-  contents: write
+# Default to Apple Silicon for local macOS builds, but allow CI / callers
+# to override this (for example with -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64").
+if(APPLE AND NOT DEFINED CMAKE_OSX_ARCHITECTURES)
+    set(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "macOS architectures")
+endif()
 
-env:
-  LEVELER_SRC: vst/src/RBFinalLeveler
-  LEVELER_BUNDLE: vst/racks/RB Final Leveler.vst3
+include(FetchContent)
 
-jobs:
-  windows:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
+FetchContent_Declare(
+    JUCE
+    GIT_REPOSITORY https://github.com/juce-framework/JUCE.git
+    GIT_TAG 8.0.7
+)
 
-      - name: Configure + build (MSVC, Release, x64)
-        shell: bash
-        run: |
-          # Build in a FRESH dir, never the committed vst/src/RBFinalLeveler/build
-          # (it ships a macOS-generated CMakeCache.txt whose absolute paths make
-          # cmake abort: "source ... does not match the source used to generate cache").
-          rm -rf "$LEVELER_SRC/cibuild"
-          cmake -S "$LEVELER_SRC" -B "$LEVELER_SRC/cibuild" -A x64
-          cmake --build "$LEVELER_SRC/cibuild" --config Release -j 2
+FetchContent_MakeAvailable(JUCE)
 
-      - name: Inject x86_64-win binary into the committed bundle
-        shell: bash
-        run: |
-          # JUCE writes the built VST3 under
-          # <build>/RBFinalLeveler_artefacts/<cfg>/VST3/RB Final Leveler.vst3/Contents/x86_64-win
-          src=$(find "$LEVELER_SRC/cibuild" -type d -path '*/RB Final Leveler.vst3/Contents/x86_64-win' | head -1)
-          if [ -z "$src" ]; then echo "ERROR: built x86_64-win not found"; find "$LEVELER_SRC/cibuild" -name '*.vst3' -maxdepth 6 | head; exit 1; fi
-          dest="$LEVELER_BUNDLE/Contents/x86_64-win"
-          rm -rf "$dest"; mkdir -p "$dest"
-          cp -R "$src/." "$dest/"
-          echo "injected from: $src"
-          ls -la "$dest"
+juce_add_plugin(RBFinalLeveler
+    COMPANY_NAME "Rig Builder"
+    BUNDLE_ID "com.rigbuilder.finalleveler"
+    PLUGIN_MANUFACTURER_CODE Rbld
+    PLUGIN_CODE Rbfl
+    FORMATS VST3
+    PRODUCT_NAME "RB Final Leveler"
+    IS_SYNTH FALSE
+    NEEDS_MIDI_INPUT FALSE
+    NEEDS_MIDI_OUTPUT FALSE
+    IS_MIDI_EFFECT FALSE
+    COPY_PLUGIN_AFTER_BUILD FALSE
+)
 
-      - name: Commit + push
-        shell: bash
-        run: |
-          git config user.name  "leveler-vst-bot"
-          git config user.email "leveler-vst-bot@users.noreply.github.com"
-          git add "$LEVELER_BUNDLE/Contents/x86_64-win" || true
-          if git diff --cached --quiet; then
-            echo "No Windows leveler binary to commit (build may have failed)."
-          else
-            git commit -m "Add Windows (x86_64-win) RB Final Leveler binary"
-            for i in 1 2 3 4 5; do
-              git pull --rebase --autostash origin "${{ github.ref_name }}" || true
-              git push && break
-              echo "push attempt $i failed — retrying"; sleep 5
-            done
-          fi
+juce_generate_juce_header(RBFinalLeveler)
 
-      - name: Upload artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: leveler-windows
-          path: ${{ env.LEVELER_SRC }}/cibuild/**/RB Final Leveler.vst3/Contents/x86_64-win/**
-          if-no-files-found: warn
+target_sources(RBFinalLeveler
+    PRIVATE
+        Source/PluginProcessor.cpp
+)
 
-  linux:
-    runs-on: ubuntu-latest
-    needs: windows          # sequential — never push concurrently with the windows job
-    steps:
-      - uses: actions/checkout@v4
+target_compile_definitions(RBFinalLeveler
+    PUBLIC
+        JUCE_WEB_BROWSER=0
+        JUCE_USE_CURL=0
+        JUCE_IGNORE_VST3_MISMATCHED_PARAMETER_ID_WARNING=1
+)
 
-      - name: Install JUCE Linux build deps
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libasound2-dev libjack-jackd2-dev \
-            libx11-dev libxcomposite-dev libxcursor-dev libxext-dev \
-            libxinerama-dev libxrandr-dev libxrender-dev \
-            libfreetype6-dev libfontconfig1-dev libgl1-mesa-dev
-
-      - name: Configure + build (gcc, Release)
-        run: |
-          rm -rf "$LEVELER_SRC/cibuild"
-          cmake -S "$LEVELER_SRC" -B "$LEVELER_SRC/cibuild" -DCMAKE_BUILD_TYPE=Release
-          cmake --build "$LEVELER_SRC/cibuild" -j 2
-
-      - name: Inject x86_64-linux binary into the committed bundle
-        run: |
-          src=$(find "$LEVELER_SRC/cibuild" -type d -path '*/RB Final Leveler.vst3/Contents/x86_64-linux' | head -1)
-          if [ -z "$src" ]; then echo "ERROR: built x86_64-linux not found"; find "$LEVELER_SRC/cibuild" -name '*.so' -path '*RB Final Leveler*' | head; exit 1; fi
-          dest="$LEVELER_BUNDLE/Contents/x86_64-linux"
-          rm -rf "$dest"; mkdir -p "$dest"
-          cp -R "$src/." "$dest/"
-          echo "injected from: $src"
-          ls -la "$dest"
-
-      - name: Commit + push
-        run: |
-          git config user.name  "leveler-vst-bot"
-          git config user.email "leveler-vst-bot@users.noreply.github.com"
-          git add "$LEVELER_BUNDLE/Contents/x86_64-linux" || true
-          if git diff --cached --quiet; then
-            echo "No Linux leveler binary to commit (build may have failed)."
-          else
-            git commit -m "Add Linux (x86_64-linux) RB Final Leveler binary"
-            for i in 1 2 3 4 5; do
-              git pull --rebase --autostash origin "${{ github.ref_name }}" || true
-              git push && break
-              echo "push attempt $i failed — retrying"; sleep 5
-            done
-          fi
-
-      - name: Upload artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: leveler-linux
-          path: ${{ env.LEVELER_SRC }}/cibuild/**/RB Final Leveler.vst3/Contents/x86_64-linux/**
-          if-no-files-found: warn
-
-  macos:
-    runs-on: macos-14
-    needs: windows          # sequential — macos runs after windows completes
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Configure + build (clang, Release, universal arm64 + x86_64)
-        run: |
-          rm -rf "$LEVELER_SRC/cibuild"
-          cmake -S "$LEVELER_SRC" -B "$LEVELER_SRC/cibuild" -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
-          cmake --build "$LEVELER_SRC/cibuild" -j 2
-
-      - name: Verify universal binary
-        run: |
-          binary=$(find "$LEVELER_SRC/cibuild" -type f -path '*/MacOS/RB Final Leveler' | head -1)
-          if [ -z "$binary" ]; then echo "ERROR: macOS binary not found"; find "$LEVELER_SRC/cibuild" -name 'RB Final Leveler' -o -name '*.vst3' | head; exit 1; fi
-          echo "Found binary: $binary"
-          lipo -info "$binary"
-          echo "Expected architectures: arm64 x86_64"
-
-      - name: Inject universal macOS binary into the committed bundle
-        run: |
-          # JUCE writes the built VST3 under <build>/RBFinalLeveler_artefacts/Release/VST3/RB Final Leveler.vst3/Contents/MacOS
-          src=$(find "$LEVELER_SRC/cibuild" -type d -path '*/RB Final Leveler.vst3/Contents/MacOS' | head -1)
-          if [ -z "$src" ]; then echo "ERROR: built macOS bundle not found"; find "$LEVELER_SRC/cibuild" -name '*.vst3' -maxdepth 6 | head; exit 1; fi
-          dest="$LEVELER_BUNDLE/Contents/MacOS"
-          rm -rf "$dest"; mkdir -p "$dest"
-          cp -R "$src/." "$dest/"
-          echo "injected from: $src"
-          ls -la "$dest"
-          # Ad-hoc sign the bundle so it's loadable on macOS
-          codesign --force --sign - "$LEVELER_BUNDLE" || true
-
-      - name: Commit + push
-        run: |
-          git config user.name  "leveler-vst-bot"
-          git config user.email "leveler-vst-bot@users.noreply.github.com"
-          git add "$LEVELER_BUNDLE/Contents/MacOS" "$LEVELER_BUNDLE/Contents/_CodeSignature" || true
-          if git diff --cached --quiet; then
-            echo "No macOS leveler binary to commit (build may have failed)."
-          else
-            git commit -m "Add macOS (universal arm64 + x86_64) RB Final Leveler binary"
-            for i in 1 2 3 4 5; do
-              git pull --rebase --autostash origin "${{ github.ref_name }}" || true
-              git push && break
-              echo "push attempt $i failed — retrying"; sleep 5
-            done
-          fi
-
-      - name: Upload artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: leveler-macos
-          path: ${{ env.LEVELER_SRC }}/cibuild/**/RB Final Leveler.vst3/Contents/MacOS/**
-          if-no-files-found: warn
+target_link_libraries(RBFinalLeveler
+    PRIVATE
+        juce::juce_audio_processors
+)
